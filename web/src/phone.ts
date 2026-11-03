@@ -22,7 +22,6 @@ function render(){
   el('talk-label').textContent=session?.ending?'正在结束':session?.ready?'正在输入':session?'准备中':'按住说话';
   el('talk-hint').textContent=session?.ending?'正在传完尾音':!connected?'先连接麦克风':releaseEnter?'松开后按 Enter':'松开结束本次输入';
   talk.setAttribute('aria-label',releaseEnter?'按住说话，松开后按 Enter':'按住说话，松开结束');
-  el('end-note').textContent=releaseEnter?'完成听写后会按一次 Enter，发送或换行取决于电脑当前应用。':'结束只释放语音快捷键，不发送文字。';
   el('disconnect').hidden=!connected&&!connecting;
   el('pair-section').hidden=!pairTicket||!!token;
 }
