@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>DoubaoPTT</string>
+<key>CFBundleDisplayName</key><string>豆包语音遥控</string>
+<key>CFBundleIdentifier</key><string>local.doubao-ptt.app</string>
+<key>CFBundleExecutable</key><string>doubao-ptt</string>
+<key>CFBundleVersion</key><string>0.1.3</string>
+<key>CFBundleShortVersionString</key><string>0.1.3</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>LSUIElement</key><true/>
+<key>LSMinimumSystemVersion</key><string>14.2</string>
+<key>NSLocalNetworkUsageDescription</key><string>接收你配对的 iPhone 发送的语音和按住说话状态。</string>
+</dict></plist>

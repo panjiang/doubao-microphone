@@ -1,0 +1,10 @@
+/target/
+/web/node_modules/
+/web/dist/
+/dist/
+/artifacts/
+*.pfx
+*.key
+*.mobileconfig
+.DS_Store
+
