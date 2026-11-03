@@ -251,23 +251,28 @@ impl Actor {
                         }
                         Command::Frame(connection,f,reply)=>{
                             if self.connection!=Some(connection){let _=reply.send(Err(anyhow::anyhow!("stale connection")));continue;}
-                            let r=self.session.frame(f.session_id,f.sequence,self.epoch.elapsed()).and_then(|accept|if accept {
-                                if let Some(d)=&self.diagnostic {d.phone(&f.samples);}
-                                self.audio.push(f.samples)
-                            }else{Ok(())});
-                            if r.is_err(){self.abort("audio_invalid").await;}let _=reply.send(r);
+                            let r=async {
+                                if self.session.frame(f.session_id,f.sequence,self.epoch.elapsed())? {
+                                    if let Some(d)=&self.diagnostic {d.phone(&f.samples);}
+                                    self.audio.push(f.samples).await?;
+                                }
+                                Ok(())
+                            }.await;
+                            if let Err(e)=&r {self.error=Some(format!("{e:#}"));tracing::warn!(error=%e,"audio frame rejected");self.abort("audio_invalid").await;}let _=reply.send(r);
                         }
                         Command::End(connection,id,last,action,reply)=>{
+                            let ending=self.epoch.elapsed();
                             if self.connection!=Some(connection){let _=reply.send(Err(anyhow::anyhow!("stale connection")));continue;}
                             if self.session.id==Some(id) && matches!(self.session.phase,Phase::Priming|Phase::Streaming) {
                                 self.end_action=action;
                             }
                             if self.session.id==Some(id) && let Some(d)=&self.diagnostic {d.event(format!("end_received queued_ms={}",self.audio.queued_ms()));}
                             if self.session.id==Some(id)&&self.session.phase==Phase::Streaming
-                                && let Err(e)=self.audio.flush(){
+                                && let Err(e)=self.audio.flush().await{
+                                    self.error=Some(format!("{e:#}"));
                                     self.abort("audio_tail_failed").await;let _=reply.send(Err(e));continue;
                             }
-                            let r=self.session.end(id,last,self.epoch.elapsed());
+                            let r=self.session.end(id,last,ending);
                             match r {Ok(Some(t))=>{self.apply(t).await;let _=reply.send(Ok(()));},Ok(None)=>{let _=reply.send(Ok(()));},Err(e)=>{self.abort("missing_tail").await;let _=reply.send(Err(e));}}
                         }
                         Command::Cancel(connection,id)=>{
@@ -296,7 +301,7 @@ impl Actor {
                             if r.is_ok() && self.device.is_some(){self.drop_connection("configuration_changed").await;}
                             let _=reply.send(r);
                         }
-                        Command::Shutdown(reply)=>{self.cancel_enter("shutdown");self.abort("shutdown").await;self.audio.close();self.agent.shutdown().await;let _=reply.send(());return;}
+                        Command::Shutdown(reply)=>{self.cancel_enter("shutdown");self.abort("shutdown").await;self.audio.close().await;self.agent.shutdown().await;let _=reply.send(());return;}
                     }
                 }
                 _=ticks.tick()=>{
@@ -361,7 +366,7 @@ impl Actor {
         }
         self.cancel_enter("shutdown");
         self.abort("shutdown").await;
-        self.audio.close();
+        self.audio.close().await;
         self.agent.shutdown().await;
     }
     async fn drop_connection(&mut self, reason: &'static str) {
@@ -371,7 +376,7 @@ impl Actor {
         self.connection = None;
         self.events = None;
         self.session.phase = Phase::Disconnected;
-        self.audio.close();
+        self.audio.close().await;
     }
     async fn abort(&mut self, reason: &'static str) {
         if let Some(t) = self.session.abort(reason) {
@@ -398,9 +403,14 @@ impl Actor {
                         self.audio.queued_ms()
                     ));
                 }
-                self.audio.clear();
-                let released = self.agent.release().await;
-                let complete = complete && released.is_ok();
+                // Stop output and release the shortcut concurrently; no new session
+                // is acknowledged until old audio has actually been cleared.
+                let (cleared, released) = tokio::join!(self.audio.clear(), self.agent.release());
+                let complete = complete && cleared.is_ok() && released.is_ok();
+                if let Err(e) = cleared {
+                    self.error = Some(format!("{e:#}"));
+                    self.paused = true;
+                }
                 if let Err(e) = released {
                     self.error = Some(e.to_string());
                     self.paused = true;

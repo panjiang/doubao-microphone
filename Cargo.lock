@@ -628,7 +628,7 @@ dependencies = [
 
 [[package]]
 name = "doubao-ptt"
-version = "0.1.5-umdf.2"
+version = "0.1.5-umdf.4"
 dependencies = [
  "anyhow",
  "axum",

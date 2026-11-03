@@ -196,15 +196,15 @@ mod native {
                 audio.open("CABLE Input".into(), spec.sample_rate).await?;
                 audio.activate();
                 for frame in samples.chunks((spec.sample_rate / 50) as usize) {
-                    audio.push(frame.to_vec())?;
+                    audio.push(frame.to_vec()).await?;
                     tokio::time::sleep(Duration::from_millis(20)).await;
                 }
-                audio.flush()?;
+                audio.flush().await?;
                 while audio.queued_ms() > 0 {
                     tokio::time::sleep(Duration::from_millis(20)).await;
                 }
                 tokio::time::sleep(Duration::from_millis(150)).await;
-                audio.close();
+                audio.close().await;
                 Ok(())
             })
         })

@@ -1,14 +1,17 @@
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::Serialize;
 use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
-        mpsc,
     },
     time::Duration,
 };
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
+
+const MAX_QUEUED_MS: u64 = 750;
+const COMMAND_CAPACITY: usize = 40;
+const SEND_WAIT: Duration = Duration::from_millis(100);
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Device {
@@ -51,26 +54,28 @@ enum Command {
         reply: oneshot::Sender<Result<()>>,
     },
     Samples(Vec<f32>),
-    Flush,
-    Clear,
-    Close,
+    Flush(oneshot::Sender<Result<()>>),
+    Clear(oneshot::Sender<()>),
+    Close(oneshot::Sender<()>),
 }
 
 #[derive(Default)]
 pub struct Metrics {
     pub queued_samples: AtomicU64,
+    pub pending_input_samples: AtomicU64,
+    pub input_rate: AtomicU64,
     pub output_rate: AtomicU64,
     pub gate: AtomicBool,
     pub failed: AtomicBool,
 }
 #[derive(Clone)]
 pub struct Audio {
-    tx: mpsc::SyncSender<Command>,
+    tx: mpsc::Sender<Command>,
     pub metrics: Arc<Metrics>,
 }
 impl Audio {
     pub fn new(mock: bool) -> Self {
-        let (tx, rx) = mpsc::sync_channel(8);
+        let (tx, rx) = mpsc::channel(COMMAND_CAPACITY);
         let metrics = Arc::new(Metrics::default());
         let m = metrics.clone();
         std::thread::Builder::new()
@@ -79,65 +84,139 @@ impl Audio {
             .expect("audio worker");
         Self { tx, metrics }
     }
-    pub async fn open(&self, device: String, rate: u32) -> Result<()> {
-        let (reply, rx) = oneshot::channel();
-        self.tx.try_send(Command::Open {
-            device,
-            rate,
-            reply,
-        })?;
-        tokio::time::timeout(Duration::from_secs(3), rx).await???;
+    async fn send(&self, command: Command, operation: &str) -> Result<()> {
+        tokio::time::timeout(SEND_WAIT, self.tx.send(command))
+            .await
+            .with_context(|| format!("音频队列处理超时（{operation}），本次已停止"))?
+            .with_context(|| format!("音频工作线程已退出（{operation}）"))?;
         Ok(())
     }
-    pub fn push(&self, samples: Vec<f32>) -> Result<()> {
+    pub async fn open(&self, device: String, rate: u32) -> Result<()> {
+        let (reply, rx) = oneshot::channel();
+        self.send(
+            Command::Open {
+                device,
+                rate,
+                reply,
+            },
+            "打开设备",
+        )
+        .await?;
+        tokio::time::timeout(Duration::from_secs(3), rx)
+            .await
+            .context("打开音频设备超时")?
+            .context("音频工作线程未返回打开结果")??;
+        Ok(())
+    }
+    pub async fn push(&self, samples: Vec<f32>) -> Result<()> {
+        ensure!(!self.failed(), "音频设备已失效");
+        let rate = self.metrics.input_rate.load(Ordering::Acquire);
+        ensure!(rate > 0, "音频设备尚未连接");
+        let count = samples.len() as u64;
+        let incoming_ms = (count * 1000).div_ceil(rate);
         ensure!(
-            !self.metrics.failed.load(Ordering::Acquire),
-            "音频设备已失效"
+            self.queued_ms().saturating_add(incoming_ms) <= MAX_QUEUED_MS,
+            "音频积压超过 750ms，本次已停止；请检查网络或音频设备"
         );
-        self.tx.try_send(Command::Samples(samples))?;
+        self.metrics
+            .pending_input_samples
+            .fetch_add(count, Ordering::AcqRel);
+        if let Err(error) = self.send(Command::Samples(samples), "传送音频").await {
+            self.metrics
+                .pending_input_samples
+                .fetch_sub(count, Ordering::AcqRel);
+            return Err(error);
+        }
         Ok(())
     }
     pub fn activate(&self) {
         self.metrics.gate.store(true, Ordering::Release);
     }
-    pub fn flush(&self) -> Result<()> {
-        self.tx.try_send(Command::Flush)?;
+    pub async fn flush(&self) -> Result<()> {
+        let (reply, rx) = oneshot::channel();
+        self.send(Command::Flush(reply), "刷新尾音").await?;
+        tokio::time::timeout(Duration::from_millis(300), rx)
+            .await
+            .context("刷新音频尾部超时")?
+            .context("音频工作线程未确认尾部刷新")??;
         Ok(())
     }
-    pub fn clear(&self) {
+    pub async fn clear(&self) -> Result<()> {
         self.metrics.gate.store(false, Ordering::Release);
-        if self.tx.try_send(Command::Clear).is_err() {
+        let (reply, rx) = oneshot::channel();
+        let result = async {
+            self.send(Command::Clear(reply), "清空音频").await?;
+            tokio::time::timeout(Duration::from_millis(300), rx)
+                .await
+                .context("清空音频超时")?
+                .context("音频工作线程未确认清空")?;
+            ensure!(!self.failed(), "音频设备未能完成清空");
+            Ok(())
+        }
+        .await;
+        if result.is_err() {
             self.metrics.failed.store(true, Ordering::Release);
         }
+        result
     }
-    pub fn close(&self) {
+    pub async fn close(&self) {
         self.metrics.gate.store(false, Ordering::Release);
-        let _ = self.tx.try_send(Command::Close);
+        let (reply, rx) = oneshot::channel();
+        let result: Result<()> = async {
+            self.send(Command::Close(reply), "关闭设备").await?;
+            tokio::time::timeout(Duration::from_secs(1), rx)
+                .await
+                .context("关闭音频设备超时")?
+                .context("音频工作线程未确认关闭")?;
+            Ok(())
+        }
+        .await;
+        if let Err(error) = result {
+            self.metrics.failed.store(true, Ordering::Release);
+            tracing::error!(error=%error,"audio close failed");
+        }
     }
     pub fn queued_ms(&self) -> u64 {
         let rate = self.metrics.output_rate.load(Ordering::Acquire);
-        if rate == 0 {
+        let input_rate = self.metrics.input_rate.load(Ordering::Acquire);
+        let output = if rate == 0 {
             0
         } else {
             self.metrics.queued_samples.load(Ordering::Acquire) * 1000 / rate
-        }
+        };
+        let input = if input_rate == 0 {
+            0
+        } else {
+            self.metrics.pending_input_samples.load(Ordering::Acquire) * 1000 / input_rate
+        };
+        output.saturating_add(input)
     }
     pub fn failed(&self) -> bool {
         self.metrics.failed.load(Ordering::Acquire)
     }
 }
 
-fn worker(rx: mpsc::Receiver<Command>, m: Arc<Metrics>, mock: bool) {
+fn worker(mut rx: mpsc::Receiver<Command>, m: Arc<Metrics>, mock: bool) {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     let mut native: Option<Native> = None;
     let mut mock_rate = 48000u32;
-    while let Ok(command) = rx
-        .recv_timeout(Duration::from_millis(10))
-        .or_else(|e| match e {
-            mpsc::RecvTimeoutError::Timeout => Ok(Command::Samples(Vec::new())),
-            mpsc::RecvTimeoutError::Disconnected => Err(e),
-        })
-    {
+    let mut mock_tick = std::time::Instant::now();
+    loop {
+        let command = if mock {
+            match rx.try_recv() {
+                Ok(command) => Some(command),
+                Err(mpsc::error::TryRecvError::Empty) => {
+                    std::thread::sleep(Duration::from_millis(10));
+                    Some(Command::Samples(Vec::new()))
+                }
+                Err(mpsc::error::TryRecvError::Disconnected) => None,
+            }
+        } else {
+            rx.blocking_recv()
+        };
+        let Some(command) = command else {
+            break;
+        };
         match command {
             Command::Open {
                 device,
@@ -151,6 +230,7 @@ fn worker(rx: mpsc::Receiver<Command>, m: Arc<Metrics>, mock: bool) {
                 m.gate.store(false, Ordering::Release);
                 m.failed.store(false, Ordering::Release);
                 m.queued_samples.store(0, Ordering::Release);
+                m.input_rate.store(rate as u64, Ordering::Release);
                 let result = if mock {
                     mock_rate = rate;
                     m.output_rate.store(rate as u64, Ordering::Release);
@@ -172,6 +252,7 @@ fn worker(rx: mpsc::Receiver<Command>, m: Arc<Metrics>, mock: bool) {
                 let _ = reply.send(result);
             }
             Command::Samples(samples) => {
+                let input_count = samples.len() as u64;
                 if mock {
                     m.queued_samples
                         .fetch_add(samples.len() as u64, Ordering::AcqRel);
@@ -179,7 +260,8 @@ fn worker(rx: mpsc::Receiver<Command>, m: Arc<Metrics>, mock: bool) {
                     #[cfg(any(target_os = "windows", target_os = "macos"))]
                     if !samples.is_empty() {
                         if let Some(n) = native.as_mut() {
-                            if n.push(samples).is_err() {
+                            if let Err(error) = n.push(samples) {
+                                tracing::warn!(error=%error,"audio output rejected samples");
                                 m.failed.store(true, Ordering::Release);
                             }
                         } else {
@@ -187,8 +269,10 @@ fn worker(rx: mpsc::Receiver<Command>, m: Arc<Metrics>, mock: bool) {
                         }
                     }
                 }
+                m.pending_input_samples
+                    .fetch_sub(input_count, Ordering::AcqRel);
             }
-            Command::Clear => {
+            Command::Clear(reply) => {
                 #[cfg(any(target_os = "windows", target_os = "macos"))]
                 if let Some(n) = native.as_mut() {
                     n.clear();
@@ -196,31 +280,54 @@ fn worker(rx: mpsc::Receiver<Command>, m: Arc<Metrics>, mock: bool) {
                 if mock {
                     m.queued_samples.store(0, Ordering::Release);
                 }
+                let _ = reply.send(());
             }
-            Command::Flush => {
-                #[cfg(any(target_os = "windows", target_os = "macos"))]
-                if !mock
-                    && let Some(n) = native.as_mut()
-                    && n.flush().is_err()
-                {
+            Command::Flush(reply) => {
+                let result: Result<()> = {
+                    #[cfg(any(target_os = "windows", target_os = "macos"))]
+                    {
+                        if !mock {
+                            native
+                                .as_mut()
+                                .context("音频设备未打开")
+                                .and_then(|n| n.flush())
+                        } else {
+                            Ok(())
+                        }
+                    }
+                    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+                    {
+                        Ok(())
+                    }
+                };
+                if let Err(error) = &result {
+                    tracing::warn!(error=%error,"audio tail flush failed");
                     m.failed.store(true, Ordering::Release);
                 }
+                let _ = reply.send(result);
             }
-            Command::Close => {
+            Command::Close(reply) => {
                 #[cfg(any(target_os = "windows", target_os = "macos"))]
                 {
                     native = None;
                 }
                 m.queued_samples.store(0, Ordering::Release);
+                m.input_rate.store(0, Ordering::Release);
+                let _ = reply.send(());
             }
         }
-        if mock && m.gate.load(Ordering::Acquire) {
-            // Mock clock only; no physical audio is produced.
-            let _ = m
-                .queued_samples
-                .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
-                    Some(n.saturating_sub((mock_rate / 100) as u64))
-                });
+        if mock {
+            let now = std::time::Instant::now();
+            if m.gate.load(Ordering::Acquire) {
+                let consumed = (now.duration_since(mock_tick).as_nanos() * mock_rate as u128
+                    / 1_000_000_000) as u64;
+                let _ = m
+                    .queued_samples
+                    .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
+                        Some(n.saturating_sub(consumed))
+                    });
+            }
+            mock_tick = now;
         }
     }
 }

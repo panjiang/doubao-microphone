@@ -219,7 +219,7 @@ async fn probe_run(probe: Probe, mock: bool) -> Result<()> {
             }
             out.activate();
             for chunk in mono.chunks((spec.sample_rate / 50) as usize) {
-                out.push(chunk.to_vec())?;
+                out.push(chunk.to_vec()).await?;
                 a.renew().await?;
                 tokio::time::sleep(Duration::from_millis(20)).await;
             }
@@ -229,7 +229,7 @@ async fn probe_run(probe: Probe, mock: bool) -> Result<()> {
             }
             tokio::time::sleep(Duration::from_millis(150)).await;
             a.release().await?;
-            out.close();
+            out.close().await;
             a.shutdown().await;
             eprintln!("播放完成。是否产生正确文字需人工确认。");
         }
