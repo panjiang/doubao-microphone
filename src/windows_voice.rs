@@ -158,11 +158,15 @@ fn recording(pid: u32) -> Result<bool> {
     Ok(capture_state(pid)?.0)
 }
 pub(crate) fn start(owner: &str) -> Result<()> {
+    start_configured(owner, false).map(|_| ())
+}
+pub(crate) fn start_configured(owner: &str, codex_empty_compatibility: bool) -> Result<bool> {
     let _dpi = DpiScope::new();
     let property = property(owner)?;
     let snapshot = windows()?;
     let bar = bar_for(&snapshot, None)?;
     ensure!(!recording(bar.pid)?, "豆包已经在录音，请先结束当前语音输入");
+    let primed = codex_empty_compatibility && crate::codex_input::prime_if_empty()?;
     let panels: Vec<_> = snapshot
         .iter()
         .filter(|w| w.pid == bar.pid && w.class == WAVE)
@@ -193,7 +197,7 @@ pub(crate) fn start(owner: &str) -> Result<()> {
     let deadline = Instant::now() + Duration::from_millis(300);
     while Instant::now() < deadline {
         if recording(bar.pid)? {
-            return Ok(());
+            return Ok(primed);
         }
         std::thread::sleep(Duration::from_millis(10));
     }

@@ -1,0 +1,47 @@
+[
+  {
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/microsoft/Windows-driver-samples/main/LICENSE",
+    "bytes": 2665,
+    "sha256": "07639618c7b94ab9953cc61715f6325877e1854dca611ed9b1bd54497cf5e93a"
+  },
+  {
+    "path": "hid/vhidmini2/driver/vhidmini.c",
+    "url": "https://raw.githubusercontent.com/microsoft/Windows-driver-samples/main/hid/vhidmini2/driver/vhidmini.c",
+    "bytes": 42674,
+    "sha256": "93edd383a7d828a56e56e39d9fbb7f95ace47881e4158fefbf80483aa4b06f94"
+  },
+  {
+    "path": "hid/vhidmini2/driver/vhidmini.h",
+    "url": "https://raw.githubusercontent.com/microsoft/Windows-driver-samples/main/hid/vhidmini2/driver/vhidmini.h",
+    "bytes": 3810,
+    "sha256": "f31bc115dc63aaa1f7157aeeecb08dc11144e221f02a1361884016abdcebb334"
+  },
+  {
+    "path": "hid/vhidmini2/driver/common.h",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "path": "hid/vhidmini2/inc/common.h",
+    "url": "https://raw.githubusercontent.com/microsoft/Windows-driver-samples/main/hid/vhidmini2/inc/common.h",
+    "bytes": 3274,
+    "sha256": "fb2b23d5b64984b36433a34dd8910cf801a3ea39721c81e97c43543d297e586e"
+  },
+  {
+    "path": "hid/vhidmini2/driver/umdf2/VhidminiUm.inx",
+    "url": "https://raw.githubusercontent.com/microsoft/Windows-driver-samples/main/hid/vhidmini2/driver/umdf2/VhidminiUm.inx",
+    "bytes": 2200,
+    "sha256": "f8184899ad1a92d85375bbbd66e491b215b71b1c79fbdcd76a07394253a3ef2b"
+  },
+  {
+    "path": "hid/vhidmini2/driver/umdf2/VhidminiUm.vcxproj",
+    "url": "https://raw.githubusercontent.com/microsoft/Windows-driver-samples/main/hid/vhidmini2/driver/umdf2/VhidminiUm.vcxproj",
+    "bytes": 11072,
+    "sha256": "51ce8f87d4dd06922c5745a8376ef64da66bf8938589fde81199b57b936fb143"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/microsoft/Windows-driver-samples/main/hid/vhidmini2/driver/umdf2/util.c",
+    "bytes": 4461,
+    "sha256": "383567c798b3fc0218793869bb7ff20aa04d79b738a8efdd894e0f28a0e51895"
+  }
+]

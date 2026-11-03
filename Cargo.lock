@@ -628,12 +628,13 @@ dependencies = [
 
 [[package]]
 name = "doubao-ptt"
-version = "0.1.3"
+version = "0.1.5-umdf.1"
 dependencies = [
  "anyhow",
  "axum",
  "axum-server",
  "base64",
+ "cc",
  "clap",
  "cpal",
  "directories",

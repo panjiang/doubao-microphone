@@ -1,0 +1,97 @@
+;/*++
+;
+;Copyright (c) Microsoft Corporation All rights Reserved
+;
+;Module Name:
+;
+;    DoubaoPTTUm.inf
+;
+;Abstract:
+;    INF file for installing HID minidriver (UMDF 2 version)
+;
+; Installation Notes:
+;    Using Devcon: Type "devcon install DoubaoPTTUm.inf root\DOUBAOPTT_UMDF_RESEARCH" to install
+;
+; Important:
+;    This INF depends on MsHidUmdf.inf, which was introduced in build 22000
+;
+;--*/
+[Version]
+Signature="$WINDOWS NT$"
+Class=HIDClass
+ClassGuid={745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Provider=%ProviderString%
+DriverVer=11/03/2026,0.0.1.0
+CatalogFile=DoubaoPTTUm.cat
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1=%Disk_Description%,,,
+
+[SourceDisksFiles]
+DoubaoPTTUm.dll=1
+
+; ================= Device section =====================
+
+[Manufacturer]
+%ManufacturerString%=Microsoft, NTamd64.10.0...22000
+
+[Microsoft.NTamd64.10.0...22000]
+%DeviceDesc%=DoubaoPTTUm, root\DOUBAOPTT_UMDF_RESEARCH
+
+[DoubaoPTTUm.NT]
+CopyFiles=UMDriverCopy
+Include=MsHidUmdf.inf
+Needs=MsHidUmdf.NT
+Include=WUDFRD.inf
+Needs=WUDFRD_LowerFilter.NT
+
+[DoubaoPTTUm.NT.hw]
+Include=MsHidUmdf.inf
+Needs=MsHidUmdf.NT.hw
+AddReg=DeviceSecurity
+Include=WUDFRD.inf
+Needs=WUDFRD_LowerFilter.NT.hw
+
+[DoubaoPTTUm.NT.Services]
+Include=MsHidUmdf.inf
+Needs=MsHidUmdf.NT.Services
+Include=WUDFRD.inf
+Needs=WUDFRD_LowerFilter.NT.Services
+
+[DoubaoPTTUm.NT.Filters]
+Include=WUDFRD.inf
+Needs=WUDFRD_LowerFilter.NT.Filters
+
+[DoubaoPTTUm.NT.Wdf]
+UmdfService="DoubaoPTTUm", DoubaoPTTUm_Install
+UmdfServiceOrder=DoubaoPTTUm
+UmdfKernelModeClientPolicy=AllowKernelModeClients
+UmdfFileObjectPolicy=AllowNullAndUnknownFileObjects
+UmdfMethodNeitherAction=Copy
+UmdfFsContextUsePolicy=CanUseFsContext2
+
+[DoubaoPTTUm_Install]
+UmdfLibraryVersion=2.33
+ServiceBinary="%13%\DoubaoPTTUm.dll"
+
+; ================= copy files =====================
+
+[UMDriverCopy]
+DoubaoPTTUm.dll
+
+;---------------------------------------------------------------;
+
+[Strings]
+ProviderString     ="DoubaoPTT Research"
+ManufacturerString ="DoubaoPTT Research"
+ClassName          ="Sample Device"
+Disk_Description   ="HID minidriver (UMDF v2) Installation Disk"
+DeviceDesc         ="HID minidriver (UMDF v2) Device"
+WudfRdDisplayName  ="Windows Driver Foundation - User-mode Driver Framework Reflector"
+
+[DeviceSecurity]
+HKR,,Security,0x00000000,"D:P(A;;GA;;;SY)(A;;GA;;;BA)"

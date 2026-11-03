@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Shortcut {
     DoubaoVoice,
+    HidRightAlt,
+    HidRightControl,
     LeftAlt,
     RightAlt,
     LeftControl,
@@ -21,7 +23,11 @@ pub fn supported(key: Shortcut) -> bool {
             Shortcut::Fn | Shortcut::LeftCommand | Shortcut::RightCommand
         )
     } else {
-        cfg!(target_os = "macos") && key != Shortcut::DoubaoVoice
+        cfg!(target_os = "macos")
+            && !matches!(
+                key,
+                Shortcut::DoubaoVoice | Shortcut::HidRightAlt | Shortcut::HidRightControl
+            )
     }
 }
 
@@ -39,6 +45,8 @@ pub fn setup_status() -> SetupStatus {
         accessibility: accessibility(),
         shortcuts: [
             Shortcut::DoubaoVoice,
+            Shortcut::HidRightAlt,
+            Shortcut::HidRightControl,
             Shortcut::LeftAlt,
             Shortcut::RightAlt,
             Shortcut::LeftControl,
@@ -79,14 +87,36 @@ impl Keyboard {
         Self { mock, held: None }
     }
     pub fn press(&mut self, key: Shortcut) -> Result<()> {
+        self.press_configured(key, false).map(|_| ())
+    }
+    pub fn press_configured(
+        &mut self,
+        key: Shortcut,
+        codex_empty_compatibility: bool,
+    ) -> Result<bool> {
         ensure!(self.held.is_none(), "shortcut already held");
+        #[allow(unused_mut)]
+        let mut primed = false;
         if !self.mock {
             ensure!(supported(key), "shortcut unsupported on this platform");
             ensure!(accessibility(), "请为应用及输入代理授予辅助功能权限");
-            native_key(key, true)?;
+            #[cfg(target_os = "windows")]
+            if key == Shortcut::DoubaoVoice {
+                primed = crate::windows_voice::start_configured(
+                    &std::env::var("DOUBAO_PTT_VOICE_OWNER")?,
+                    codex_empty_compatibility,
+                )?;
+            } else {
+                native_key(key, true)?;
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                let _ = codex_empty_compatibility;
+                native_key(key, true)?;
+            }
         }
         self.held = Some(key);
-        Ok(())
+        Ok(primed)
     }
     pub fn release(&mut self) -> Result<()> {
         if let Some(key) = self.held {
@@ -98,6 +128,16 @@ impl Keyboard {
         Ok(())
     }
     pub fn voice_state(&self) -> Result<Option<VoiceState>> {
+        #[cfg(target_os = "windows")]
+        if !self.mock
+            && matches!(
+                self.held,
+                Some(Shortcut::HidRightAlt | Shortcut::HidRightControl)
+            )
+        {
+            crate::windows_umdf::renew()?;
+            return Ok(None);
+        }
         #[cfg(target_os = "windows")]
         if !self.mock && self.held == Some(Shortcut::DoubaoVoice) {
             return crate::windows_voice::state(&std::env::var("DOUBAO_PTT_VOICE_OWNER")?)
@@ -131,6 +171,13 @@ impl Drop for Keyboard {
 
 #[cfg(target_os = "windows")]
 fn native_key(key: Shortcut, down: bool) -> Result<()> {
+    if matches!(key, Shortcut::HidRightAlt | Shortcut::HidRightControl) {
+        return if down {
+            crate::windows_umdf::press(if key == Shortcut::HidRightAlt { 1 } else { 2 })
+        } else {
+            crate::windows_umdf::release()
+        };
+    }
     if key == Shortcut::DoubaoVoice {
         let owner = std::env::var("DOUBAO_PTT_VOICE_OWNER")?;
         return if down {
@@ -217,7 +264,9 @@ unsafe extern "C" {
 #[cfg(target_os = "macos")]
 fn native_key(key: Shortcut, down: bool) -> Result<()> {
     let (code, mask) = match key {
-        Shortcut::DoubaoVoice => bail!("豆包兼容模式仅支持 Windows"),
+        Shortcut::DoubaoVoice | Shortcut::HidRightAlt | Shortcut::HidRightControl => {
+            bail!("此输入方式仅支持 Windows")
+        }
         Shortcut::Fn => (63, 1 << 23),
         Shortcut::LeftAlt => (58, 1 << 19),
         Shortcut::RightAlt => (61, 1 << 19),

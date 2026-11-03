@@ -1,4 +1,4 @@
-#define AppVersion "0.1.3"
+#define AppVersion "0.1.5"
 [Setup]
 AppId={{BCF882D6-2071-4E38-A957-54E5805439F7}
 AppName=DoubaoPTT

@@ -14,7 +14,11 @@ use tokio::{
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 enum Request {
-    Press { key: Shortcut },
+    Press {
+        key: Shortcut,
+        #[serde(default)]
+        codex_empty_compatibility: bool,
+    },
     Renew,
     Release,
     Exit,
@@ -25,6 +29,8 @@ struct Reply {
     error: Option<String>,
     #[serde(default)]
     voice: Option<crate::platform::VoiceState>,
+    #[serde(default)]
+    codex_primed: bool,
 }
 #[derive(Debug)]
 struct Rejected(String);
@@ -70,9 +76,15 @@ pub fn run(mock: bool) -> Result<()> {
             }
         };
         let mut voice = None;
+        let mut codex_primed = false;
         let result = match req {
-            Request::Press { key } => {
-                let r = keyboard.press(key);
+            Request::Press {
+                key,
+                codex_empty_compatibility,
+            } => {
+                let r = keyboard
+                    .press_configured(key, codex_empty_compatibility)
+                    .map(|primed| codex_primed = primed);
                 if r.is_ok() {
                     deadline = Some(Instant::now() + Duration::from_secs(1));
                 }
@@ -99,8 +111,9 @@ pub fn run(mock: bool) -> Result<()> {
         };
         let reply = Reply {
             ok: result.is_ok(),
-            error: result.err().map(|e| e.to_string()),
+            error: result.err().map(|e| format!("{e:#}")),
             voice,
+            codex_primed,
         };
         let mut out = std::io::stdout().lock();
         serde_json::to_writer(&mut out, &reply)?;
@@ -116,6 +129,7 @@ pub struct Agent {
     pub held: Option<Shortcut>,
     mock: bool,
     voice_owner: String,
+    pub codex_primed: bool,
 }
 impl Agent {
     pub async fn spawn(mock: bool) -> Result<Self> {
@@ -152,6 +166,7 @@ impl Agent {
             held: None,
             mock,
             voice_owner,
+            codex_primed: false,
         })
     }
     async fn send(&mut self, r: Request) -> Result<()> {
@@ -162,10 +177,18 @@ impl Agent {
         Ok(())
     }
     async fn request(&mut self, r: Request) -> Result<Reply> {
+        let timeout = if matches!(r, Request::Press { .. }) {
+            750
+        } else {
+            500
+        };
         self.send(r).await?;
         let mut line = String::new();
-        let n = tokio::time::timeout(Duration::from_millis(500), self.output.read_line(&mut line))
-            .await??;
+        let n = tokio::time::timeout(
+            Duration::from_millis(timeout),
+            self.output.read_line(&mut line),
+        )
+        .await??;
         ensure!(n > 0, "输入代理已退出");
         let reply: Reply = serde_json::from_str(&line)?;
         if !reply.ok {
@@ -174,12 +197,34 @@ impl Agent {
         Ok(reply)
     }
     pub async fn press(&mut self, key: Shortcut) -> Result<()> {
+        self.press_configured(key, false).await
+    }
+    pub async fn press_configured(
+        &mut self,
+        key: Shortcut,
+        codex_empty_compatibility: bool,
+    ) -> Result<()> {
         // Remember before IPC: a lost acknowledgement must still trigger emergency release.
         self.held = Some(key);
-        if let Err(e) = self.request(Request::Press { key }).await {
+        self.codex_primed = false;
+        let result = self
+            .request(Request::Press {
+                key,
+                codex_empty_compatibility,
+            })
+            .await;
+        if let Ok(reply) = &result {
+            self.codex_primed = reply.codex_primed;
+        }
+        if let Err(e) = result {
             // A positively rejected press did not inject anything: do not send
             // key-up for a modifier the person may be physically holding.
-            if e.is::<Rejected>() && key != Shortcut::DoubaoVoice {
+            if e.is::<Rejected>()
+                && !matches!(
+                    key,
+                    Shortcut::DoubaoVoice | Shortcut::HidRightAlt | Shortcut::HidRightControl
+                )
+            {
                 self.held = None;
             } else {
                 self.release_emergency();

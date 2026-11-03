@@ -213,9 +213,13 @@ impl Actor {
                                     }
                                 }
                                 let key=settings.shortcut;
-                                if let Err(e)=self.agent.press(key).await{self.error=Some(e.to_string());self.abort("shortcut_failed").await;return Err(e);}
+                                if let Err(e)=self.agent.press_configured(key,settings.codex_empty_compatibility).await{
+                                    self.error=Some(format!("{e:#}"));
+                                    if let Some(d)=&self.diagnostic {d.event(format!("trigger_failed error={e:#}"));}
+                                    self.abort("shortcut_failed").await;return Err(e);
+                                }
                                 self.session.shortcut_pressed(self.epoch.elapsed());
-                                if let Some(d)=&self.diagnostic {d.event("trigger_started");}
+                                if let Some(d)=&self.diagnostic {d.event(format!("trigger_started codex_primed={}",self.agent.codex_primed));}
                                 Ok(())
                             }.await;let _=reply.send(r);
                         }

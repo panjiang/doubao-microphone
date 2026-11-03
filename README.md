@@ -31,7 +31,7 @@ cargo clippy --locked --all-targets -- -D warnings
 ## 首次使用
 
 1. 从官方安装虚拟音频设备：[Windows VB-CABLE](https://vb-audio.com/Cable/)／[macOS BlackHole 2ch](https://existential.audio/blackhole/)。本软件不捆绑、不替换其驱动。
-2. Windows 0.1.3 默认使用「豆包兼容模式」，适配默认位置安装的豆包输入法 1.0.0.23，通过现有悬浮工具栏启动和结束语音；请开启豆包的展示工具栏，并固定麦克风为 CABLE Output。该模式不模拟 Alt／Ctrl，不修改豆包程序或安装键盘驱动。豆包更新版本或布局后会拒绝触发，须重新适配。
+2. Windows 0.1.5 默认使用「豆包兼容模式」，适配默认位置安装的豆包输入法 1.0.0.23，通过现有悬浮工具栏启动和结束语音；请开启豆包的展示工具栏，并固定麦克风为 CABLE Output。该模式不模拟 Alt／Ctrl，不修改豆包程序或安装键盘驱动。豆包更新版本或布局后会拒绝触发，须重新适配。
 3. 启动 `doubao-ptt serve --open`，或启动安装后的快捷方式。默认不启用登录自启动。
 4. 在本机配置页选择本机局域网 IPv4、音频输出和豆包实际配置的快捷键，保存。网络地址或端口更改后需要重启程序。
 5. Windows：本程序输出选择 **CABLE Input**，豆包麦克风选择 **CABLE Output**。macOS：两边均选择 **BlackHole 2ch**。若豆包没有单独选择功能，手动设置系统默认输入；这也会影响其他使用默认麦克风的应用。
@@ -98,3 +98,9 @@ python3 scripts/verify-dependencies.py
 先退出程序，再卸载应用。Windows 安装包移除本软件配置和启动项；便携版和 macOS 使用 [卸载说明](docs/troubleshooting.md)。虚拟音频设备不自动卸载，因为可能被其他应用使用。iPhone 的本机证书描述文件需在设置中手动移除。
 
 协议细节见 [protocol.md](docs/protocol.md)，实现边界见 [验证记录](docs/verification.md)。
+
+### Codex 空框首次输入兼容
+
+0.1.4 新增默认关闭的「Codex 空框兼容（先补一个空格）」。本机实测：通过豆包工具栏启动录音，在 Codex 新会话空输入框首字写入后可能触发丢弃输入并停止；同一会话追加文字、手动按住快捷键或先输入空格则正常。开关启用后，只在受支持的 Windows Codex 商店包前台、具有焦点的 ProseMirror 空编辑器内写入一个普通空格，等待 80ms 再启动豆包；已有内容不插入空格，其他程序不处理。检查只读取一个字符及文本范围端点以判断空白，不保存输入文字。开关可在配置页关闭。故障录音事件中的 codex_primed 表示本次是否实际执行了预热；该方案是应用间兼容处理，未修改豆包或 Codex 的程序文件。
+
+0.1.5 修正空框兼容的 UIA 组件选择：使用 CUIAutomation8 支持所需的 IUIAutomation2 超时接口，避免 0.1.4 的 E_NOINTERFACE 立即失败。原生回归测试覆盖实际生产工厂初始化。

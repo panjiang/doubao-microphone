@@ -20,6 +20,8 @@ pub struct Settings {
     pub autostart: bool,
     #[serde(default)]
     pub diagnostic_recording: bool,
+    #[serde(default)]
+    pub codex_empty_compatibility: bool,
 }
 
 impl Default for Settings {
@@ -50,6 +52,7 @@ impl Default for Settings {
             warmup_ms: 350,
             autostart: false,
             diagnostic_recording: false,
+            codex_empty_compatibility: false,
         }
     }
 }
@@ -139,4 +142,20 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     t.as_file().sync_all()?;
     t.persist(path)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn old_settings_load_without_enabling_recording_or_codex_compatibility() {
+        let mut old = serde_json::to_value(super::Settings::default()).unwrap();
+        old.as_object_mut().unwrap().remove("diagnostic_recording");
+        old.as_object_mut()
+            .unwrap()
+            .remove("codex_empty_compatibility");
+        let settings: super::Settings = serde_json::from_value(old).unwrap();
+        assert!(!settings.diagnostic_recording);
+        assert!(!settings.codex_empty_compatibility);
+        assert_eq!(settings.warmup_ms, 350);
+    }
 }
