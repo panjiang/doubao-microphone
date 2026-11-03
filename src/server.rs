@@ -411,6 +411,11 @@ async fn socket(a: Shared, mut socket: WebSocket) {
     let hello = ServerMessage::Hello {
         version: 1,
         mock: a.mock,
+        capabilities: if crate::enter::supported() {
+            vec!["release_enter".into()]
+        } else {
+            vec![]
+        },
     };
     if sink
         .send(Message::Text(serde_json::to_string(&hello).unwrap().into()))
@@ -432,7 +437,7 @@ async fn socket(a: Shared, mut socket: WebSocket) {
                     Message::Text(text)=>match serde_json::from_str::<ClientMessage>(&text){
                         Ok(ClientMessage::Heartbeat)=>{a.controller.heartbeat(connection).await;Ok(())}
                         Ok(ClientMessage::Start{session_id})=>a.controller.start(connection,session_id).await,
-                        Ok(ClientMessage::End{session_id,last_seq})=>a.controller.end(connection,session_id,last_seq).await,
+                        Ok(ClientMessage::End{session_id,last_seq,action})=>a.controller.end(connection,session_id,last_seq,action).await,
                         Ok(ClientMessage::Cancel{session_id})=>{a.controller.cancel(connection,session_id).await;Ok(())}
                         _=>Err(anyhow::anyhow!("invalid control message"))
                     },

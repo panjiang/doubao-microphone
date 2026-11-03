@@ -5,6 +5,7 @@ mod codex_input;
 pub mod config;
 pub mod controller;
 pub mod diagnostics;
+mod enter;
 pub mod identity;
 pub mod platform;
 pub mod protocol;

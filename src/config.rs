@@ -17,11 +17,17 @@ pub struct Settings {
     pub output_device: String,
     pub shortcut: crate::platform::Shortcut,
     pub warmup_ms: u64,
+    #[serde(default = "default_enter_delay")]
+    pub enter_delay_ms: u64,
     pub autostart: bool,
     #[serde(default)]
     pub diagnostic_recording: bool,
     #[serde(default)]
     pub codex_empty_compatibility: bool,
+}
+
+fn default_enter_delay() -> u64 {
+    1000
 }
 
 impl Default for Settings {
@@ -50,6 +56,7 @@ impl Default for Settings {
                 crate::platform::Shortcut::DoubaoVoice
             },
             warmup_ms: 350,
+            enter_delay_ms: default_enter_delay(),
             autostart: false,
             diagnostic_recording: false,
             codex_empty_compatibility: false,
@@ -71,6 +78,7 @@ impl Settings {
             !self.output_device.trim().is_empty() && self.output_device.len() <= 256,
             "请选择输出设备"
         );
+        ensure!(self.enter_delay_ms <= 5000, "回车等待必须为 0–5000ms");
         let ports = [self.admin_port, self.mobile_port, self.bootstrap_port];
         ensure!(
             ports.iter().all(|p| *p >= 1024)

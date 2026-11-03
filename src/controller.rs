@@ -2,7 +2,7 @@ use crate::{
     agent::Agent,
     audio::Audio,
     config::Settings,
-    protocol::{AudioFrame, ServerMessage},
+    protocol::{ActionStatus, AudioFrame, EndAction, ServerMessage},
     session::{Phase, Session, Transition},
 };
 use anyhow::{Result, ensure};
@@ -36,7 +36,13 @@ enum Command {
     },
     Start(Uuid, Uuid, oneshot::Sender<Result<()>>),
     Frame(Uuid, AudioFrame, oneshot::Sender<Result<()>>),
-    End(Uuid, Uuid, Option<u32>, oneshot::Sender<Result<()>>),
+    End(
+        Uuid,
+        Uuid,
+        Option<u32>,
+        EndAction,
+        oneshot::Sender<Result<()>>,
+    ),
     Cancel(Uuid, Uuid),
     Heartbeat(Uuid),
     Disconnect(Uuid),
@@ -92,6 +98,8 @@ impl Controller {
             data_dir,
             phone_rate: 48000,
             last_voice: None,
+            end_action: EndAction::Finish,
+            pending_enter: None,
         };
         tokio::spawn(a.run());
         Ok(Self {
@@ -127,8 +135,15 @@ impl Controller {
     pub async fn frame(&self, connection: Uuid, f: AudioFrame) -> Result<()> {
         self.call(|r| Command::Frame(connection, f, r)).await
     }
-    pub async fn end(&self, connection: Uuid, id: Uuid, last: Option<u32>) -> Result<()> {
-        self.call(|r| Command::End(connection, id, last, r)).await
+    pub async fn end(
+        &self,
+        connection: Uuid,
+        id: Uuid,
+        last: Option<u32>,
+        action: EndAction,
+    ) -> Result<()> {
+        self.call(|r| Command::End(connection, id, last, action, r))
+            .await
     }
     pub async fn cancel(&self, connection: Uuid, id: Uuid) {
         let _ = self.tx.send(Command::Cancel(connection, id)).await;
@@ -159,6 +174,12 @@ impl Controller {
     }
 }
 
+struct PendingEnter {
+    id: Uuid,
+    connection: Uuid,
+    deadline: Instant,
+}
+
 struct Actor {
     session: Session,
     settings: Arc<Mutex<Settings>>,
@@ -178,6 +199,8 @@ struct Actor {
     data_dir: std::path::PathBuf,
     phone_rate: u32,
     last_voice: Option<crate::platform::VoiceState>,
+    end_action: EndAction,
+    pending_enter: Option<PendingEnter>,
 }
 impl Actor {
     async fn run(mut self) {
@@ -187,6 +210,7 @@ impl Actor {
         let mut last_tick = Instant::now();
         loop {
             tokio::select! {
+                biased;
                 command=self.rx.recv()=>{
                     let Some(command)=command else{break};
                     match command {
@@ -202,8 +226,10 @@ impl Actor {
                             let r=async {
                                 ensure!(!self.paused && self.connection==Some(connection),"接收已暂停或未连接");
                                 if self.session.id==Some(id){return Ok(());}
+                                self.cancel_enter("new_session");
                                 ensure!(!self.audio.failed(),"音频设备异常，请重新连接");
                                 self.session.begin(id,self.epoch.elapsed())?;
+                                self.end_action=EndAction::Finish;
                                 self.error=None;self.last_voice=None;
                                 let settings=self.settings.lock().await.clone();
                                 if settings.diagnostic_recording && !self.mock {
@@ -231,8 +257,11 @@ impl Actor {
                             }else{Ok(())});
                             if r.is_err(){self.abort("audio_invalid").await;}let _=reply.send(r);
                         }
-                        Command::End(connection,id,last,reply)=>{
+                        Command::End(connection,id,last,action,reply)=>{
                             if self.connection!=Some(connection){let _=reply.send(Err(anyhow::anyhow!("stale connection")));continue;}
+                            if self.session.id==Some(id) && matches!(self.session.phase,Phase::Priming|Phase::Streaming) {
+                                self.end_action=action;
+                            }
                             if self.session.id==Some(id) && let Some(d)=&self.diagnostic {d.event(format!("end_received queued_ms={}",self.audio.queued_ms()));}
                             if self.session.id==Some(id)&&self.session.phase==Phase::Streaming
                                 && let Err(e)=self.audio.flush(){
@@ -241,16 +270,22 @@ impl Actor {
                             let r=self.session.end(id,last,self.epoch.elapsed());
                             match r {Ok(Some(t))=>{self.apply(t).await;let _=reply.send(Ok(()));},Ok(None)=>{let _=reply.send(Ok(()));},Err(e)=>{self.abort("missing_tail").await;let _=reply.send(Err(e));}}
                         }
-                        Command::Cancel(connection,id)=>{if self.connection==Some(connection)&&self.session.id==Some(id){self.abort("cancelled").await;}}
+                        Command::Cancel(connection,id)=>{
+                            if self.connection==Some(connection) {
+                                if self.pending_enter.as_ref().is_some_and(|p|p.id==id){self.cancel_enter("cancelled");}
+                                if self.session.id==Some(id){self.abort("cancelled").await;}
+                            }
+                        }
                         Command::Heartbeat(connection)=>{if self.connection==Some(connection){self.session.heartbeat=self.epoch.elapsed();}}
                         Command::Disconnect(id)=>{if self.connection==Some(id){self.drop_connection("disconnected").await;}}
                         Command::Revoke(id)=>{if self.device==Some(id){self.drop_connection("revoked").await;}}
-                        Command::Pause(p)=>{self.paused=p;if p{self.abort("paused").await;self.key_test=None;let _=self.agent.release().await;}}
+                        Command::Pause(p)=>{self.paused=p;if p{self.cancel_enter("paused");self.abort("paused").await;self.key_test=None;let _=self.agent.release().await;}}
                         Command::TestShortcut(reply)=>{
                             let r=if self.device.is_some()||self.session.active()||self.key_test.is_some()||self.paused {Err(anyhow::anyhow!("请先断开手机并恢复接收，再测试快捷键"))}else{self.key_test=Some((Instant::now()+Duration::from_secs(3),false));self.error=None;Ok(())};
                             let _=reply.send(r);
                         }
                         Command::Configure(s,dir,reply)=>{
+                            self.cancel_enter("configuration_changed");
                             let r=async {
                                 ensure!(!self.session.active() && self.key_test.is_none(),"听写或测试中不能修改配置");s.validate()?;
                                 let old=self.settings.lock().await.clone();
@@ -261,7 +296,7 @@ impl Actor {
                             if r.is_ok() && self.device.is_some(){self.drop_connection("configuration_changed").await;}
                             let _=reply.send(r);
                         }
-                        Command::Shutdown(reply)=>{self.abort("shutdown").await;self.audio.close();self.agent.shutdown().await;let _=reply.send(());return;}
+                        Command::Shutdown(reply)=>{self.cancel_enter("shutdown");self.abort("shutdown").await;self.audio.close();self.agent.shutdown().await;let _=reply.send(());return;}
                     }
                 }
                 _=ticks.tick()=>{
@@ -282,6 +317,9 @@ impl Actor {
                     if let Some(t)=self.session.tick(self.epoch.elapsed(),self.audio.queued_ms()){self.apply(t).await;}
                     if self.device.is_some() && self.epoch.elapsed().saturating_sub(self.session.heartbeat)>=Duration::from_secs(1){
                         self.drop_connection("heartbeat_timeout").await;
+                    }
+                    if self.pending_enter.as_ref().is_some_and(|p|Instant::now()>=p.deadline) {
+                        self.finish_enter().await;
                     }
                     if renewal.elapsed()>=Duration::from_millis(250){
                         match self.agent.renew().await {
@@ -321,11 +359,13 @@ impl Actor {
                 }
             });
         }
+        self.cancel_enter("shutdown");
         self.abort("shutdown").await;
         self.audio.close();
         self.agent.shutdown().await;
     }
     async fn drop_connection(&mut self, reason: &'static str) {
+        self.cancel_enter(reason);
         self.abort(reason).await;
         self.device = None;
         self.connection = None;
@@ -365,6 +405,22 @@ impl Actor {
                     self.error = Some(e.to_string());
                     self.paused = true;
                 }
+                let release_time = Instant::now();
+                let wants_enter = std::mem::take(&mut self.end_action) == EndAction::Enter;
+                let enter_pending = wants_enter
+                    && complete
+                    && reason == "completed"
+                    && crate::enter::supported()
+                    && !self.paused
+                    && self.connection.is_some();
+                if enter_pending {
+                    let delay = self.settings.lock().await.enter_delay_ms;
+                    self.pending_enter = Some(PendingEnter {
+                        id,
+                        connection: self.connection.unwrap(),
+                        deadline: release_time + Duration::from_millis(delay),
+                    });
+                }
                 tracing::info!(session=%id,complete,reason,"dictation ended");
                 if let Some(d) = self.diagnostic.take() {
                     d.finish(complete, reason);
@@ -373,9 +429,54 @@ impl Actor {
                     session_id: id,
                     complete,
                     reason: reason.into(),
+                    enter_pending,
                 });
+                if wants_enter && !enter_pending {
+                    self.emit(ServerMessage::ActionResult {
+                        session_id: id,
+                        status: ActionStatus::Skipped,
+                        reason: if complete { "unsupported" } else { reason }.into(),
+                    });
+                }
             }
         }
+    }
+    fn cancel_enter(&mut self, reason: &str) {
+        if let Some(pending) = self.pending_enter.take() {
+            self.emit(ServerMessage::ActionResult {
+                session_id: pending.id,
+                status: ActionStatus::Skipped,
+                reason: reason.into(),
+            });
+        }
+    }
+    async fn finish_enter(&mut self) {
+        let Some(pending) = self.pending_enter.take() else {
+            return;
+        };
+        let blocked = self.paused
+            || self.connection != Some(pending.connection)
+            || self.session.active()
+            || self.audio.failed()
+            || self.epoch.elapsed().saturating_sub(self.session.heartbeat) >= crate::session::LEASE;
+        let (status, reason) = if blocked {
+            (ActionStatus::Skipped, "session_changed".into())
+        } else {
+            match self.agent.tap_enter().await {
+                Ok(result) => result,
+                Err(e) => {
+                    self.error = Some(format!("回车未完成：{e:#}"));
+                    self.paused = true;
+                    (ActionStatus::Failed, "input_failed".into())
+                }
+            }
+        };
+        tracing::info!(session=%pending.id,?status,reason,"Enter action completed");
+        self.emit(ServerMessage::ActionResult {
+            session_id: pending.id,
+            status,
+            reason,
+        });
     }
     fn emit(&mut self, e: ServerMessage) {
         if let Some(tx) = &self.events

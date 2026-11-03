@@ -2,6 +2,22 @@ use anyhow::{Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EndAction {
+    #[default]
+    Finish,
+    Enter,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActionStatus {
+    Executed,
+    Skipped,
+    Failed,
+}
+
 pub const VERSION: u32 = 1;
 pub const FRAME_HEADER: usize = 24;
 pub const MAX_MESSAGE: usize = FRAME_HEADER + 3840;
@@ -21,6 +37,8 @@ pub enum ClientMessage {
     End {
         session_id: Uuid,
         last_seq: Option<u32>,
+        #[serde(default)]
+        action: EndAction,
     },
     Cancel {
         session_id: Uuid,
@@ -34,6 +52,8 @@ pub enum ServerMessage {
     Hello {
         version: u32,
         mock: bool,
+        #[serde(default)]
+        capabilities: Vec<String>,
     },
     Ready {
         session_id: Uuid,
@@ -41,6 +61,13 @@ pub enum ServerMessage {
     Ended {
         session_id: Uuid,
         complete: bool,
+        reason: String,
+        #[serde(default)]
+        enter_pending: bool,
+    },
+    ActionResult {
+        session_id: Uuid,
+        status: ActionStatus,
         reason: String,
     },
     Heartbeat,

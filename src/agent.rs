@@ -21,6 +21,7 @@ enum Request {
     },
     Renew,
     Release,
+    TapEnter,
     Exit,
 }
 #[derive(Serialize, Deserialize)]
@@ -31,6 +32,10 @@ struct Reply {
     voice: Option<crate::platform::VoiceState>,
     #[serde(default)]
     codex_primed: bool,
+    #[serde(default)]
+    action_status: Option<crate::protocol::ActionStatus>,
+    #[serde(default)]
+    action_reason: Option<String>,
 }
 #[derive(Debug)]
 struct Rejected(String);
@@ -59,6 +64,7 @@ pub fn run(mock: bool) -> Result<()> {
     });
     let mut keyboard = Keyboard::new(mock);
     let mut deadline = None;
+    let mut enter_target = None;
     loop {
         let wait = deadline
             .map(|d: Instant| d.saturating_duration_since(Instant::now()))
@@ -67,6 +73,9 @@ pub fn run(mock: bool) -> Result<()> {
             Ok(r) => r,
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                 keyboard.release()?;
+                if deadline.is_some() {
+                    enter_target = None;
+                }
                 deadline = None;
                 continue;
             }
@@ -77,15 +86,20 @@ pub fn run(mock: bool) -> Result<()> {
         };
         let mut voice = None;
         let mut codex_primed = false;
+        let mut action_status = None;
+        let mut action_reason = None;
         let result = match req {
             Request::Press {
                 key,
                 codex_empty_compatibility,
             } => {
+                let target = crate::enter::capture();
+                enter_target = None;
                 let r = keyboard
                     .press_configured(key, codex_empty_compatibility)
                     .map(|primed| codex_primed = primed);
                 if r.is_ok() {
+                    enter_target = target;
                     deadline = Some(Instant::now() + Duration::from_secs(1));
                 }
                 r
@@ -104,6 +118,31 @@ pub fn run(mock: bool) -> Result<()> {
                 deadline = None;
                 keyboard.release()
             }
+            Request::TapEnter => {
+                if deadline.is_some() {
+                    enter_target = None;
+                    Err(anyhow::anyhow!("语音快捷键尚未释放，拒绝 Enter"))
+                } else {
+                    let target = enter_target.take();
+                    let result = if mock {
+                        Ok(Some("mock"))
+                    } else {
+                        crate::enter::tap(target)
+                    };
+                    match result {
+                        Ok(reason) => {
+                            action_status = Some(if reason.is_some() {
+                                crate::protocol::ActionStatus::Skipped
+                            } else {
+                                crate::protocol::ActionStatus::Executed
+                            });
+                            action_reason = Some(reason.unwrap_or("enter_sent").into());
+                            Ok(())
+                        }
+                        Err(e) => Err(e),
+                    }
+                }
+            }
             Request::Exit => {
                 keyboard.release()?;
                 return Ok(());
@@ -114,6 +153,8 @@ pub fn run(mock: bool) -> Result<()> {
             error: result.err().map(|e| format!("{e:#}")),
             voice,
             codex_primed,
+            action_status,
+            action_reason,
         };
         let mut out = std::io::stdout().lock();
         serde_json::to_writer(&mut out, &reply)?;
@@ -242,6 +283,14 @@ impl Agent {
             return Ok(self.request(Request::Renew).await?.voice);
         }
         Ok(None)
+    }
+    pub async fn tap_enter(&mut self) -> Result<(crate::protocol::ActionStatus, String)> {
+        ensure!(self.held.is_none(), "语音快捷键尚未释放");
+        let reply = self.request(Request::TapEnter).await?;
+        Ok((
+            reply.action_status.context("输入代理未返回 Enter 结果")?,
+            reply.action_reason.unwrap_or_default(),
+        ))
     }
     pub async fn release(&mut self) -> Result<()> {
         if self.held.is_none() {
