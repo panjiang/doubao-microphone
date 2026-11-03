@@ -10,6 +10,8 @@
 
 **已完成本机 P0 和手机完整链路：用户确认右 Alt 能唤起豆包；切换到 UMDF 测试版后，手机按住能唤起、输入文字并正常结束。** Secure Boot 开启、TESTSIGNING 关闭，未重启。仍不能承诺所有受管电脑都允许安装。详细证据、设备标识及剩余限制见 [验证记录](VALIDATION.md)。
 
+“豆包跳过带注入标记的语音快捷键事件，而非全局屏蔽所有虚拟键盘”的原理、证据边界及排查经验已整理在 [Windows 输入兼容性总结](../../docs/windows-input-findings.md)。
+
 ## 为什么继续研究这一候选
 
 HIDMaestro 的源码、文档说明其使用 UMDF2 提供虚拟键盘／鼠标，并通过本机信任的代码签名证书安装，不启用 TESTSIGNING，也不要求自建内核驱动的 EV 签名流程。主项目采用 MIT 许可，可作为实现研究和最小实验候选；不是微软官方背书或成熟度保证。[项目源码](https://github.com/hifihedgehog/HIDMaestro)、[许可证](https://github.com/hifihedgehog/HIDMaestro/blob/main/LICENSE)、[安装与签名说明](https://hidmaestro.org/docs/reference/driver-install-and-signing/)

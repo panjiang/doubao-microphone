@@ -6,6 +6,8 @@ iPhone 同时作为无线麦克风和远程语音快捷键。电脑端豆包负�
 
 ## 当前状态
 
+本研究分支已完成 Windows UMDF 虚拟键盘的本机验证：用户确认手机按住可唤起豆包、输入文字并结束。原理及排查经验见 [Windows 输入兼容性总结](docs/windows-input-findings.md)，证据和正式发布缺口见 [UMDF 实测记录](research/windows-umdf/VALIDATION.md)。这是独立研究版本，尚未合并 main，也不代表 macOS 或全部故障验收通过。下文首次使用中的 0.1.5 默认兼容模式指原版本。
+
 这是可构建、可测试的开发实现。**模拟测试不代表已通过豆包、iPhone 或 macOS 实机验收。**逐项证据和缺口见 [验证记录](docs/verification.md)。先按 [P0 实机验证](docs/p0-validation.md) 确认模拟快捷键被当前豆包版本接受，再进行日常试用。
 
 支持目标：Windows 11 x64、macOS 14.2+（Apple Silicon／Intel）、iOS 18+ Safari。当前没有 Linux 原生音频／按键／托盘实现，Linux 仅用于 `--mock --headless` 开发验证。

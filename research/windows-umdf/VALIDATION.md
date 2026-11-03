@@ -2,6 +2,8 @@
 
 2026-11-03，Windows 11 Pro `10.0.26200`，微星 PRO B850-P WIFI。用户授权允许 Windows 系统配置变更，禁止修改 BIOS；只接受纯软件。
 
+过滤条件、输入路径区别和排查经验见 [Windows 输入兼容性总结](../../docs/windows-input-findings.md)。本文保留实际操作、结果和未完成项，不将本机成功推广为所有版本或电脑均支持。
+
 ## 已执行与实测
 
 | 项目 | 结果 |
@@ -10,7 +12,7 @@
 | 参考来源 | 微软 vhidmini2 源码，逐文件 SHA-256 见 `reference-sources.json`；源码及改编驱动保留 MS-PL 许可，未集成 HIDMaestro SDK |
 | 构建 | 复用已核对官方 SHA-512 的 WDK 26100.6584；MSVC 编译通过，InfVerif `/w` VALID，Inf2Cat 无错误／警告；驱动自签名 |
 | 加载前提 | 安装前 Secure Boot=true、TESTSIGNING=false；安装后仍相同，未重启，未改 UEFI／BCD／VBS |
-| 证书 | 仅导入本研究的代码签名证书到 LocalMachine Root、TrustedPublisher；专用签名私钥在签名完成后删除，不导入系统私钥库 |
+| 证书 | 仅导入本研究的代码签名公钥证书到 LocalMachine Root、TrustedPublisher；签名后删除临时私钥及 PFX 文件，未主动导入系统 My 私钥库；未据此声称审计清除了所有可能的加密密钥容器 |
 | 设备 | 已启动，ConfigManagerErrorCode=0，驱动栈为 mshidumdf／WUDFRd／PnpManager |
 | 控制接口 | `umdf-probe status` 返回 version=1、online=1、held=0 |
 | 右 Ctrl 首次试验 | 事件 scan=0x1d、extended=1、injected=0；不是豆包当前配置键，不作为豆包兼容性证据 |
