@@ -37,6 +37,9 @@ enum Command {
     },
     #[command(hide = true)]
     InputAgent,
+    #[cfg(target_os = "windows")]
+    #[command(hide = true)]
+    InstallDefaults,
 }
 #[derive(Subcommand)]
 enum Probe {
@@ -62,6 +65,23 @@ fn main() -> Result<()> {
     if matches!(args.command, Some(Command::InputAgent)) {
         return agent::run(args.mock);
     }
+    #[cfg(target_os = "windows")]
+    if matches!(args.command, Some(Command::InstallDefaults)) {
+        ensure!(!args.mock, "安装配置不支持模拟模式");
+        let dir = config::data_dir(args.data_dir)?;
+        let mut settings = config::Settings::load(&dir)?;
+        if !settings.shortcut_manual {
+            settings.shortcut = platform::automatic_shortcut();
+        }
+        let previous = settings.autostart;
+        platform::set_autostart(true)?;
+        settings.autostart = true;
+        if let Err(error) = settings.save(&dir) {
+            let _ = platform::set_autostart(previous);
+            return Err(error);
+        }
+        return Ok(());
+    }
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(
@@ -85,7 +105,10 @@ fn main() -> Result<()> {
             );
             let dir = config::data_dir(args.data_dir)?;
             // Per-user single instance: keep this TCP listener for the process lifetime.
-            let settings = config::Settings::load(&dir)?;
+            let mut settings = config::Settings::load(&dir)?;
+            if cfg!(target_os = "windows") && !args.mock && !settings.shortcut_manual {
+                settings.shortcut = platform::automatic_shortcut();
+            }
             settings.validate()?;
             let admin_lock =
                 std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, settings.admin_port))

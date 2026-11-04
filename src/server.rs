@@ -135,6 +135,15 @@ fn mobile_origin(app: &App, h: &HeaderMap, uri: &Uri) -> Result<()> {
     Ok(())
 }
 
+fn native_origin(app: &App, h: &HeaderMap, uri: &Uri) -> Result<()> {
+    let host = format!("{}:{}", app.initial.lan_ip, app.initial.mobile_port);
+    ensure!(request_authority(h, uri) == Some(host.as_str()), "invalid app host");
+    if let Some(origin) = h.get(header::ORIGIN) {
+        ensure!(origin.to_str()? == format!("https://{host}"), "invalid app origin");
+    }
+    Ok(())
+}
+
 pub fn admin_router(app: Shared) -> Router {
     Router::new()
         .route("/", get(admin_page))
@@ -142,8 +151,8 @@ pub fn admin_router(app: Shared) -> Router {
         .route("/api/status", get(status))
         .route("/api/config", get(read_config).put(write_config))
         .route("/api/setup", get(setup))
+        .route("/api/environment", get(environment))
         .route("/api/pair-ticket", post(ticket))
-        .route("/api/pair-approve/{id}", post(approve))
         .route("/api/devices", get(list_devices))
         .route("/api/devices/{id}", delete(revoke))
         .route("/api/pause", put(pause))
@@ -160,6 +169,9 @@ pub fn mobile_router(app: Shared) -> Router {
         .route("/pair", post(pair))
         .route("/pair-result/{id}", get(pair_result))
         .route("/ws", get(upgrade))
+        .route("/native/pair", post(native_pair))
+        .route("/native/pair-result/{id}", get(native_pair_result))
+        .route("/native/ws", get(native_upgrade))
         .layer(axum::extract::DefaultBodyLimit::max(4096))
         .with_state(app)
 }
@@ -173,7 +185,7 @@ pub fn bootstrap_router(app: Shared) -> Router {
 async fn status(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
     Ok(Json(
-        json!({"status":a.controller.status.borrow().clone(),"pending":a.identities.lock().await.pending()}),
+        json!({"status":a.controller.status.borrow().clone(),"paired_ticket":a.identities.lock().await.completed_ticket_id()}),
     ))
 }
 async fn test_key(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
@@ -188,9 +200,12 @@ async fn read_config(State(a): State<Shared>, h: HeaderMap) -> Api<Json<Settings
 async fn write_config(
     State(a): State<Shared>,
     h: HeaderMap,
-    Json(s): Json<Settings>,
+    Json(mut s): Json<Settings>,
 ) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
+    if cfg!(target_os = "windows") && !a.mock && !s.shortcut_manual {
+        s.shortcut = tokio::task::spawn_blocking(crate::platform::automatic_shortcut).await?;
+    }
     s.validate()?;
     check(
         a.controller.status.borrow().session_id.is_none(),
@@ -208,20 +223,35 @@ async fn write_config(
         || s.bootstrap_port != a.initial.bootstrap_port;
     a.controller.configure(s.clone(), a.dir.clone()).await?;
     Ok(Json(
-        json!({"saved":true,"restart_required":restart,"reconnect_required":true}),
+        json!({"saved":true,"restart_required":restart,"reconnect_required":true,"shortcut":s.shortcut}),
     ))
 }
 async fn setup(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
     let mock = a.mock;
-    let outputs = tokio::task::spawn_blocking(move || crate::audio::devices(mock)).await??;
+    let (outputs, platform, interfaces) = tokio::task::spawn_blocking(move || {
+        let mut platform = crate::platform::setup_status();
+        if mock { platform.automatic_shortcut = None; }
+        Ok::<_, anyhow::Error>((crate::audio::devices(mock)?, platform, crate::config::interfaces()))
+    }).await??;
     Ok(Json(
-        json!({"platform":crate::platform::setup_status(),"interfaces":crate::config::interfaces(),"outputs":outputs,"ca_sha256":crate::tls::fingerprint(&a.dir)?}),
+        json!({"platform":platform,"interfaces":interfaces,"outputs":outputs,"ca_sha256":crate::tls::fingerprint(&a.dir)?}),
     ))
+}
+async fn environment(State(a): State<Shared>, h: HeaderMap) -> Api<Json<crate::environment::Report>> {
+    authorize(&a, &h)?;
+    let settings = a.controller.settings.lock().await.clone();
+    let mock = a.mock;
+    let report = tokio::task::spawn_blocking(move || crate::environment::inspect(&settings, mock)).await?;
+    Ok(Json(report))
 }
 async fn ticket(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
-    let token = a.identities.lock().await.issue();
+    let (token, ticket_id) = {
+        let mut identities = a.identities.lock().await;
+        let token = identities.issue();
+        (token, identities.ticket_id())
+    };
     let url = format!(
         "http://{}:{}/setup?token={token}",
         a.initial.lan_ip, a.initial.bootstrap_port
@@ -235,18 +265,19 @@ async fn ticket(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::V
         a.initial.lan_ip, a.initial.mobile_port
     );
     Ok(Json(
-        json!({"url":url,"phone_url":phone,"qr_svg":svg,"expires_in":300}),
+        json!({"url":url,"phone_url":phone,"qr_svg":svg,"native_qr_svg":native_svg(&a, &token)?,"ticket_id":ticket_id,"expires_in":300}),
     ))
 }
-async fn approve(
-    State(a): State<Shared>,
-    h: HeaderMap,
-    Path(id): Path<Uuid>,
-) -> Api<Json<serde_json::Value>> {
-    authorize(&a, &h)?;
-    a.identities.lock().await.approve(id)?;
-    Ok(Json(json!({"approved":true})))
+fn native_svg(a: &App, ticket: &str) -> Result<String> {
+    let payload = json!({
+        "type":"doubao_ptt_pair", "version":1,
+        "host":a.initial.lan_ip.to_string(), "port":a.initial.mobile_port,
+        "ticket":ticket, "ca_der":crate::tls::public_ca_base64(&a.dir)?,
+    });
+    Ok(qrcode::QrCode::new(serde_json::to_vec(&payload)?)?
+        .render::<qrcode::render::svg::Color>().min_dimensions(320, 320).build())
 }
+
 async fn list_devices(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
     Ok(Json(json!(a.identities.lock().await.devices())))
@@ -306,6 +337,16 @@ async fn pair_result(
     let token = a.identities.lock().await.poll(id, &p.poll)?;
     Ok(Json(json!({"token":token})))
 }
+async fn native_pair(State(a): State<Shared>, h: HeaderMap, uri: Uri, Json(p): Json<Pair>) -> Api<Json<serde_json::Value>> {
+    native_origin(&a, &h, &uri)?;
+    let (id, poll) = a.identities.lock().await.request(&p.ticket, p.label)?;
+    Ok(Json(json!({"id":id,"poll":poll})))
+}
+async fn native_pair_result(State(a): State<Shared>, h: HeaderMap, uri: Uri, Path(id): Path<Uuid>, Query(p): Query<Poll>) -> Api<Json<serde_json::Value>> {
+    native_origin(&a, &h, &uri)?;
+    let token = a.identities.lock().await.poll(id, &p.poll)?;
+    Ok(Json(json!({"token":token})))
+}
 #[derive(Deserialize)]
 struct Ticket {
     token: String,
@@ -329,7 +370,7 @@ async fn bootstrap(State(a): State<Shared>, Query(t): Query<Ticket>) -> Api<Resp
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>连接语音遥控</title>
 <style>body{{font:17px system-ui;max-width:34rem;margin:2rem auto;padding:1rem;line-height:1.8}}a{{color:#1947cf;text-decoration:underline;overflow-wrap:anywhere;-webkit-touch-callout:default}}code{{overflow-wrap:anywhere}}textarea{{display:block;box-sizing:border-box;width:100%;padding:.75rem;font:14px monospace;line-height:1.5;border:1px solid #bcc6d8;border-radius:8px;user-select:text;-webkit-user-select:text}}.hint{{font-size:15px;color:#475569}}</style></head>
 <body><h1>首次连接这台电脑</h1><p>已安装并信任证书可直接进入输入页。</p><p><a href="{phone}">打开输入页</a></p>
-<h2>首次使用</h2><ol><li><a id="download-certificate" href="{certificate}">下载本机证书描述文件</a></li><li>打开 iPhone 设置 → 通用 → VPN 与设备管理，安装“豆包语音遥控 · 本机证书”。</li><li>设置 → 通用 → 关于本机 → 证书信任设置，开启 Doubao PTT Local CA 的完全信任。</li><li>回到此页，打开输入页并请求配对，在电脑配置页确认。</li></ol>
+<h2>首次使用</h2><ol><li><a id="download-certificate" href="{certificate}">下载本机证书描述文件</a></li><li>打开 iPhone 设置 → 通用 → VPN 与设备管理，安装“豆包语音遥控 · 本机证书”。</li><li>设置 → 通用 → 关于本机 → 证书信任设置，开启 Doubao PTT Local CA 的完全信任。</li><li>回到此页，打开输入页完成配对，无需电脑确认。</li></ol>
 <p class="hint">请用 Safari 下载并安装证书。在 Chrome 中可长按上面的下载链接，复制链接地址后粘贴到 Safari。也可以选择并复制下方完整地址。</p>
 <label for="certificate-url">证书下载地址（可选择复制）</label><textarea id="certificate-url" readonly rows="4" spellcheck="false" autocapitalize="off">{certificate}</textarea>
 <p>证书 SHA-256（应与电脑配置页一致）：<br><code>{fingerprint}</code></p><p>此描述文件只包含本机根证书，卸载软件后可移除它。二维码和下载链接有效期 5 分钟。</p></body></html>"#
@@ -372,6 +413,12 @@ async fn upgrade(
     Ok(ws
         .max_message_size(protocol::MAX_MESSAGE)
         .max_frame_size(protocol::MAX_MESSAGE)
+        .on_upgrade(move |s| socket(a, s)))
+}
+
+async fn native_upgrade(State(a): State<Shared>, h: HeaderMap, uri: Uri, ws: WebSocketUpgrade) -> Api<Response> {
+    native_origin(&a, &h, &uri)?;
+    Ok(ws.max_message_size(protocol::MAX_MESSAGE).max_frame_size(protocol::MAX_MESSAGE)
         .on_upgrade(move |s| socket(a, s)))
 }
 
@@ -435,7 +482,7 @@ async fn socket(a: Shared, mut socket: WebSocket) {
                 let Some(Ok(message))=message else{break};
                 let result=match message {
                     Message::Text(text)=>match serde_json::from_str::<ClientMessage>(&text){
-                        Ok(ClientMessage::Heartbeat)=>{a.controller.heartbeat(connection).await;Ok(())}
+                        Ok(ClientMessage::Heartbeat)=>{a.controller.heartbeat(connection).await;match tokio::time::timeout(Duration::from_millis(500),sink.send(Message::Text(serde_json::to_string(&ServerMessage::Heartbeat).unwrap().into()))).await {Ok(r)=>r.map_err(anyhow::Error::from),Err(_)=>Err(anyhow::anyhow!("heartbeat send timeout"))}}
                         Ok(ClientMessage::Start{session_id})=>a.controller.start(connection,session_id).await,
                         Ok(ClientMessage::End{session_id,last_seq,action})=>a.controller.end(connection,session_id,last_seq,action).await,
                         Ok(ClientMessage::Cancel{session_id})=>{a.controller.cancel(connection,session_id).await;Ok(())}

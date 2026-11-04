@@ -3,6 +3,24 @@ import { frame, congested } from './framing';
 
 const el=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 const talk=el<HTMLButtonElement>('talk');
+const waveform=el('voice-waveform'),waveBars=[...waveform.querySelectorAll<HTMLElement>('span')];
+const waveSamples=Array<number>(waveBars.length).fill(0);
+let waveActive=false;
+function updateWaveform(level:number){
+  const value=waveActive&&Number.isFinite(level)?Math.min(1,Math.max(0,level)):0;
+  waveSamples.shift();waveSamples.push(value);
+  waveform.setAttribute('aria-valuenow',String(Math.round(value*100)));
+  waveBars.forEach((bar,index)=>{
+    const envelope=Math.sin((index+1)/(waveBars.length+1)*Math.PI)**0.7;
+    const sample=waveSamples[waveSamples.length-1-Math.abs(index-Math.floor(waveBars.length/2))];
+    const amplitude=Math.sqrt(Math.min(1,Math.max(0,sample-0.008)*4));
+    bar.style.height=(6+amplitude*envelope*128)+'px';
+  });
+}
+function setWaveActive(active:boolean){
+  if(waveActive===active)return;waveActive=active;waveform.classList.toggle('is-active',active);
+  waveSamples.fill(0);updateWaveform(0);
+}
 let token=localStorage.getItem('ptt-device-token')||'';
 const pairTicket=new URLSearchParams(location.hash.slice(1)).get('pair');
 history.replaceState(null,'',location.pathname);
@@ -19,8 +37,9 @@ let endTimer:ReturnType<typeof setTimeout>|undefined;
 const status=(s:string)=>{el('status').textContent=s};
 const message=(type:string,values:Record<string,unknown>={})=>{if(ws?.readyState!==WebSocket.OPEN)throw Error('电脑连接已断开');ws.send(JSON.stringify({type,...values}));};
 function render(){
+  setWaveActive(!!hold||!!session&&!session.ending);
   talk.disabled=!token||!!session?.ending;talk.setAttribute('aria-pressed',String(!!session||!!hold));
-  el('badge').textContent=connected?'已连接':connecting?'连接中':'未连接';
+  el('badge').textContent=token?'已配对':'未配对';
   el('talk-label').textContent=session?.ending?'正在结束':session?.ready?'正在输入':session?'准备中':hold?'正在连接':'按住说话';
   el('talk-hint').textContent=session?.ending?'正在传完尾音':!connected?(needsGesture?'按住即可启用麦克风':connecting?'正在连接麦克风':'按住即可连接麦克风'):releaseEnter?'松开后按 Enter':'松开结束本次输入';
   talk.setAttribute('aria-label',releaseEnter?'按住说话，松开后按 Enter':'按住说话，松开结束');
@@ -35,7 +54,7 @@ function disconnect(reason:string){
   session=null;connected=false;connecting=false;
   const old=ws;ws=null;old?.close();worklet?.port.postMessage({type:'cancel'});worklet?.disconnect();worklet=null;
   media?.getTracks().forEach(t=>t.stop());media=null;const oldCtx=ctx;ctx=null;void oldCtx?.close();
-  el('level').style.width='0%';status(reason);render();
+  status(reason);render();
 }
 function cancel(reason:string){
   const wasHolding=!!hold;hold=null;
@@ -82,7 +101,7 @@ async function initializeMicrophone(attempt:number):Promise<boolean>{
     ctx.createMediaStreamSource(media).connect(worklet);worklet.connect(ctx.destination);
     worklet.port.onmessage=({data})=>{
       if(data.type==='meter'){
-        const n=Math.min(100,Math.round(data.level*240));el('level').style.width=n+'%';el('level').parentElement?.setAttribute('aria-valuenow',String(n));return;
+        updateWaveform(data.level*5);return;
       }
       if(!session||data.id!==session.id)return;
       try{
@@ -104,7 +123,7 @@ async function initializeMicrophone(attempt:number):Promise<boolean>{
         if(audioContext.state!=='running'){disconnect('麦克风尚未就绪，按住说话可重新连接。');return;}
         clearTimeout(handshake);connecting=false;connected=true;needsGesture=false;socketWait?.(true);socketWait=null;releaseEnter=Array.isArray(m.capabilities)&&m.capabilities.includes('release_enter');el('mock').hidden=!m.mock;
         heartbeat=setInterval(()=>{try{message('heartbeat')}catch{disconnect('连接已断开，请重新连接。')}},250);
-        status(hold?'已连接，正在准备输入。':'已连接，按住说话。');render();
+        status(hold?'正在准备输入。':'按住说话即可开始。');render();
       }else if(m.type==='ready'&&session&&m.session_id===session.id){session.ready=true;status('正在向电脑输入声音，松开结束。');render();}
       else if(m.type==='ended'&&m.session_id===session?.id){pendingAction=m.enter_pending?m.session_id:null;session=null;clearTimeout(endTimer);status(m.complete?(m.enter_pending?'听写已结束，等待按 Enter。':'本次声音已传完，电脑快捷键已释放。'):m.reason==='short_press'?'按住时间太短，本次已取消。':m.reason==='doubao_stopped'?'豆包提前结束了录音，本次已停止，请重新按住。':`本次已停止（${m.reason}），请重新按住。`);render();}
       else if(m.type==='action_result'&&m.session_id===pendingAction&&!session){pendingAction=null;status(m.status==='executed'?'已按 Enter。':m.status==='failed'?'Enter 未完成，请在电脑操作。':'本次未按 Enter。');}
@@ -135,7 +154,7 @@ talk.addEventListener('pointermove',e=>{
 });
 talk.addEventListener('pointerup',e=>{
   if(!hold||e.pointerId!==hold.pointerId)return;e.preventDefault();hold=null;
-  if(!session||session.ending||e.pointerId!==session.pointerId){status(connected?'已连接，再次按住说话。':connecting?'正在连接麦克风…':'按住说话可重新连接。');render();return;}
+  if(!session||session.ending||e.pointerId!==session.pointerId){status(connected?'再次按住说话。':connecting?'正在连接麦克风…':'按住说话可重新连接。');render();return;}
   session.above=e.clientY<session.top;
   session.action=releaseEnter&&!session.above?'enter':'finish';
   session.ending=true;worklet?.port.postMessage({type:'end',id:session.id});render();
@@ -152,7 +171,7 @@ el('pair').addEventListener('click',async()=>{
   const button=el<HTMLButtonElement>('pair');button.disabled=true;
   try{
     const r=await fetch('/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket:pairTicket,label:el<HTMLInputElement>('label').value})});const p=await r.json();if(!r.ok)throw Error(p.error);
-    el('pair-status').textContent='请到电脑配置页确认这部手机。';
+    el('pair-status').textContent='正在完成配对…';
     const started=Date.now();
     while(Date.now()-started<300000){
       await new Promise(r=>setTimeout(r,1000));const r=await fetch(`/pair-result/${p.id}?poll=${encodeURIComponent(p.poll)}`,{cache:'no-store'});const result=await r.json();if(!r.ok)throw Error(result.error);

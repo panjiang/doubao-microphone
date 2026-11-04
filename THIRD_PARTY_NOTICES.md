@@ -15,3 +15,27 @@ In particular, DevGen is not redistributed as a product installer.
 
 HIDMaestro was consulted as architectural background. No HIDMaestro runtime,
 source module or binary was incorporated in this prototype.
+
+
+VB-CABLE Windows installer dependency
+------------------------------------
+The Windows installer includes the original, unmodified VB-CABLE Driver Pack 45
+archive from VB-Audio / Vincent Burel. This proprietary dependency retains its
+own end-user terms and is not covered by this application's MIT license.
+Source: https://www.vb-cable.com/ (https://vb-audio.com/Cable/).
+VB-CABLE is donationware; all participations are welcome.
+Support or licenses: https://shop.vb-audio.com/.
+
+The vendor's current published permission allows as-is bundling and silent
+installation when its origin and donationware model remain visible. Additional
+terms apply to professional/organizational deployment. See
+https://vb-audio.com/Services/licensing.htm (reviewed 2026-11-03).
+The older readme inside Pack 45 contains an integration-permission clause;
+the current explicit published bundling permission is the basis for this use.
+The complete original readme is displayed with the installer license notice.
+The package version, hashes and verified signer identities are recorded in
+packaging/vbcable.lock.json. Vendor binaries stay in the ignored build cache,
+not the Git source tree. The application does not uninstall this shared driver.
+
+BlackHole remains separately installed on macOS. No BlackHole binaries are
+bundled by this change, and no change is made to this application's MIT license.

@@ -1,6 +1,44 @@
 use crate::controller::Controller;
 use anyhow::Result;
 
+#[cfg(target_os = "windows")]
+fn windows_tray_pixels() -> u32 {
+    use windows::{
+        Win32::UI::{
+            HiDpi::{GetDpiForSystem, GetDpiForWindow, GetSystemMetricsForDpi},
+            WindowsAndMessaging::{FindWindowW, SM_CXSMICON, SM_CYSMICON},
+        },
+        core::w,
+    };
+    unsafe {
+        let dpi = FindWindowW(w!("Shell_TrayWnd"), None)
+            .map(|window| GetDpiForWindow(window))
+            .ok()
+            .filter(|dpi| *dpi > 0)
+            .unwrap_or_else(|| GetDpiForSystem().max(96));
+        GetSystemMetricsForDpi(SM_CXSMICON, dpi)
+            .max(GetSystemMetricsForDpi(SM_CYSMICON, dpi))
+            .max(1) as u32
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_tray_icon(pixels: u32) -> tray_icon::Icon {
+    let (data, size): (&[u8], u32) = match pixels {
+        16 => (include_bytes!("../assets/icons/tray-16.rgba"), 16),
+        20 => (include_bytes!("../assets/icons/tray-20.rgba"), 20),
+        24 => (include_bytes!("../assets/icons/tray-24.rgba"), 24),
+        28 => (include_bytes!("../assets/icons/tray-28.rgba"), 28),
+        32 => (include_bytes!("../assets/icons/tray-32.rgba"), 32),
+        40 => (include_bytes!("../assets/icons/tray-40.rgba"), 40),
+        48 => (include_bytes!("../assets/icons/tray-48.rgba"), 48),
+        64 => (include_bytes!("../assets/icons/tray-64.rgba"), 64),
+        _ => (include_bytes!("../assets/icons/tray-128.rgba"), 128),
+    };
+    // Unusual DPI values use a larger source; the shell still controls display size.
+    tray_icon::Icon::from_rgba(data.to_vec(), size, size).expect("embedded tray icon")
+}
+
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: String) -> Result<()> {
     use tao::{
@@ -8,7 +46,7 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
         event_loop::{ControlFlow, EventLoopBuilder},
     };
     use tray_icon::{
-        Icon, TrayIcon, TrayIconBuilder,
+        TrayIcon, TrayIconBuilder,
         menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     };
     #[derive(Debug)]
@@ -50,6 +88,8 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
         }
     });
     let mut tray: Option<TrayIcon> = None;
+    #[cfg(target_os = "windows")]
+    let mut tray_pixels = 0;
     let mut paused = false;
     let handle = runtime.handle().clone();
     use tao::platform::run_return::EventLoopExtRunReturn;
@@ -57,16 +97,24 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
         *flow = ControlFlow::Wait;
         match event {
             Event::NewEvents(StartCause::Init) => {
-                let mut rgba = vec![0u8; 32 * 32 * 4];
-                for y in 0..32 {
-                    for x in 0..32 {
-                        if (x as i32 - 16).pow(2) + (y as i32 - 16).pow(2) < 180 {
-                            let i = (y * 32 + x) * 4;
-                            rgba[i..i + 4].copy_from_slice(&[35, 75, 198, 255]);
+                #[cfg(target_os = "windows")]
+                let icon = {
+                    tray_pixels = windows_tray_pixels();
+                    windows_tray_icon(tray_pixels)
+                };
+                #[cfg(target_os = "macos")]
+                let icon = {
+                    let mut rgba = vec![0u8; 32 * 32 * 4];
+                    for y in 0..32 {
+                        for x in 0..32 {
+                            if (x as i32 - 16).pow(2) + (y as i32 - 16).pow(2) < 180 {
+                                let i = (y * 32 + x) * 4;
+                                rgba[i..i + 4].copy_from_slice(&[35, 75, 198, 255]);
+                            }
                         }
                     }
-                }
-                let icon = Icon::from_rgba(rgba, 32, 32).expect("embedded tray icon");
+                    tray_icon::Icon::from_rgba(rgba, 32, 32).expect("embedded tray icon")
+                };
                 match TrayIconBuilder::new()
                     .with_menu(Box::new(menu.clone()))
                     .with_tooltip("豆包语音遥控")
@@ -77,6 +125,16 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
                     Err(e) => {
                         tracing::error!(error=%e,"tray startup failed");
                         *flow = ControlFlow::Exit;
+                    }
+                }
+            }
+            #[cfg(target_os = "windows")]
+            Event::NewEvents(_) => {
+                let pixels = windows_tray_pixels();
+                if pixels != tray_pixels && let Some(t) = &tray {
+                    match t.set_icon(Some(windows_tray_icon(pixels))) {
+                        Ok(()) => tray_pixels = pixels,
+                        Err(e) => tracing::warn!(error=%e, "tray DPI update failed"),
                     }
                 }
             }

@@ -29,20 +29,16 @@ pub struct Device {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub token_hash: String,
 }
-#[derive(Clone, Serialize)]
-pub struct Request {
-    pub id: Uuid,
-    pub label: String,
-}
 struct Ticket {
+    id: Uuid,
     token: String,
     created: Instant,
 }
-struct Pending {
-    request: Request,
+struct PairReceipt {
+    id: Uuid,
+    ticket_id: Uuid,
     poll_hash: String,
     token: Option<String>,
-    approved: bool,
     created: Instant,
 }
 
@@ -50,7 +46,7 @@ pub struct Identities {
     path: PathBuf,
     devices: Vec<Device>,
     ticket: Option<Ticket>,
-    pending: Option<Pending>,
+    receipt: Option<PairReceipt>,
 }
 
 impl Identities {
@@ -65,17 +61,24 @@ impl Identities {
             path,
             devices,
             ticket: None,
-            pending: None,
+            receipt: None,
         })
     }
     pub fn issue(&mut self) -> String {
         let token = secret();
         self.ticket = Some(Ticket {
+            id: Uuid::new_v4(),
             token: token.clone(),
             created: Instant::now(),
         });
-        self.pending = None;
+        self.receipt = None;
         token
+    }
+    pub fn ticket_id(&self) -> Option<Uuid> {
+        self.ticket.as_ref().map(|t| t.id)
+    }
+    pub fn completed_ticket_id(&self) -> Option<Uuid> {
+        self.receipt.as_ref().filter(|p| p.token.is_none()).map(|p| p.ticket_id)
     }
     pub fn bootstrap_allowed(&self, token: &str) -> bool {
         self.ticket.as_ref().is_some_and(|t| {
@@ -91,55 +94,32 @@ impl Identities {
             !label.trim().is_empty() && label.chars().count() <= 48,
             "设备名称必须为 1–48 个字符"
         );
+        let ticket_id = self.ticket.as_ref().expect("validated ticket").id;
         let poll = secret();
         let id = Uuid::new_v4();
-        self.pending = Some(Pending {
-            request: Request { id, label },
+        let token = secret();
+        let mut next = self.devices.clone();
+        next.push(Device { id, label, token_hash: digest(&token) });
+        // Persist before consuming the ticket so a disk failure can be retried.
+        crate::config::atomic_write(&self.path, &serde_json::to_vec_pretty(&next)?)?;
+        self.devices = next;
+        self.receipt = Some(PairReceipt {
+            id,
+            ticket_id,
             poll_hash: digest(&poll),
-            token: None,
-            approved: false,
+            token: Some(token),
             created: Instant::now(),
         });
         self.ticket = None;
         Ok((id, poll))
     }
-    pub fn pending(&self) -> Option<Request> {
-        self.pending
-            .as_ref()
-            .filter(|p| p.created.elapsed() < Duration::from_secs(300) && !p.approved)
-            .map(|p| p.request.clone())
-    }
-    pub fn approve(&mut self, id: Uuid) -> Result<()> {
-        let p = self
-            .pending
-            .as_mut()
-            .filter(|p| p.request.id == id && p.created.elapsed() < Duration::from_secs(300))
-            .ok_or_else(|| anyhow::anyhow!("配对请求不存在或已过期"))?;
-        ensure!(!p.approved, "配对已确认");
-        let token = secret();
-        let d = Device {
-            id,
-            label: p.request.label.clone(),
-            token_hash: digest(&token),
-        };
-        let mut next = self.devices.clone();
-        next.push(d);
-        crate::config::atomic_write(&self.path, &serde_json::to_vec_pretty(&next)?)?;
-        self.devices = next;
-        p.token = Some(token);
-        p.approved = true;
-        Ok(())
-    }
     pub fn poll(&mut self, id: Uuid, poll: &str) -> Result<Option<String>> {
         let p = self
-            .pending
+            .receipt
             .as_mut()
-            .filter(|p| p.request.id == id && p.created.elapsed() < Duration::from_secs(300))
+            .filter(|p| p.id == id && p.created.elapsed() < Duration::from_secs(300))
             .ok_or_else(|| anyhow::anyhow!("配对已过期，请重新扫码"))?;
         ensure!(matches(&p.poll_hash, poll), "配对凭据无效");
-        if !p.approved {
-            return Ok(None);
-        }
         let token = p
             .token
             .take()
@@ -179,15 +159,13 @@ impl Identities {
 mod tests {
     use super::*;
     #[test]
-    fn pairing_requires_approval_is_single_use_and_revocable() {
+    fn pairing_is_automatic_single_use_and_revocable() {
         let t = tempfile::tempdir().unwrap();
         let mut i = Identities::load(t.path()).unwrap();
         let ticket = i.issue();
         let (id, poll) = i.request(&ticket, "phone".into()).unwrap();
         assert!(!i.bootstrap_allowed(&ticket));
-        assert!(i.poll(id, &poll).unwrap().is_none());
         assert!(i.poll(id, "bad").is_err());
-        i.approve(id).unwrap();
         let token = i.poll(id, &poll).unwrap().unwrap();
         assert_eq!(i.authenticate(&token), Some(id));
         assert!(i.poll(id, &poll).is_err());

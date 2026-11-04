@@ -2,11 +2,11 @@
 <html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#f2f5fa"><title>按住说话</title></head>
 <body class="phone-page"><main class="phone">
 <div class="phone-content">
-<header><span class="brand">语音遥控</span><span id="badge" class="badge">未连接</span></header>
+<header><span class="brand">语音遥控</span><span id="badge" class="badge">未配对</span></header>
 <h1 id="computer">连接你的电脑</h1><p class="sub">声音在手机收集，文字在电脑输入。</p>
 <section id="pair-section" hidden><label for="label">手机名称</label><input id="label" value="我的 iPhone" maxlength="48"><button id="pair" class="primary">请求配对</button><p id="pair-status" role="status"></p></section>
-<div class="meter" role="meter" aria-label="麦克风音量" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="level"></div></div>
 <p id="status" class="status" role="status" aria-live="polite">请先在电脑配置页扫码配对。</p>
+<div class="voice-waveform" id="voice-waveform" role="meter" aria-label="语音音量" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="wave-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
 <footer><p id="mock" class="warning" hidden>开发模拟模式：不会向豆包输入声音或按键。</p></footer>
 </div>
 <div class="talk-dock"><button id="talk" class="talk" disabled aria-label="按住说话，松开结束"><svg class="mic-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg><strong id="talk-label">按住说话</strong><span id="talk-hint">按住即可连接麦克风</span></button></div>

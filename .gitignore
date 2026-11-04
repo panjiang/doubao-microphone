@@ -7,4 +7,7 @@
 *.key
 *.mobileconfig
 .DS_Store
+/ios/build/
+/ios/**/xcuserdata/
+*.xcuserstate
 

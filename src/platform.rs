@@ -37,12 +37,21 @@ pub struct SetupStatus {
     pub native_supported: bool,
     pub accessibility: bool,
     pub shortcuts: Vec<Shortcut>,
+    pub automatic_shortcut: Option<Shortcut>,
+}
+pub fn automatic_shortcut() -> Shortcut {
+    #[cfg(target_os = "windows")]
+    if crate::windows_umdf::available() {
+        return Shortcut::HidRightAlt;
+    }
+    if cfg!(target_os = "macos") { Shortcut::Fn } else { Shortcut::DoubaoVoice }
 }
 pub fn setup_status() -> SetupStatus {
     SetupStatus {
         platform: std::env::consts::OS,
         native_supported: cfg!(any(target_os = "windows", target_os = "macos")),
         accessibility: accessibility(),
+        automatic_shortcut: if cfg!(target_os = "windows") { Some(automatic_shortcut()) } else { None },
         shortcuts: [
             Shortcut::DoubaoVoice,
             Shortcut::HidRightAlt,

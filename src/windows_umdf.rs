@@ -33,6 +33,11 @@ impl Drop for Control {
 
 static CONTROL: Mutex<Option<Control>> = Mutex::new(None);
 
+// Probe access only: no feature report, key event or lease operation is sent.
+pub fn available() -> bool {
+    Control::open().is_ok()
+}
+
 pub fn press(key: u32) -> Result<()> {
     ensure!(key == 1 || key == 2, "UMDF 只允许右 Alt 或右 Ctrl");
     use windows::Win32::UI::Input::KeyboardAndMouse::*;

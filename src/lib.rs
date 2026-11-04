@@ -5,6 +5,7 @@ mod codex_input;
 pub mod config;
 pub mod controller;
 pub mod diagnostics;
+pub mod environment;
 mod enter;
 pub mod identity;
 pub mod platform;
@@ -17,3 +18,5 @@ pub mod tray;
 mod windows_umdf;
 #[cfg(target_os = "windows")]
 mod windows_voice;
+#[cfg(target_os = "windows")]
+mod windows_environment;

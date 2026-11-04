@@ -16,6 +16,8 @@ pub struct Settings {
     pub bootstrap_port: u16,
     pub output_device: String,
     pub shortcut: crate::platform::Shortcut,
+    #[serde(default)]
+    pub shortcut_manual: bool,
     pub warmup_ms: u64,
     #[serde(default = "default_enter_delay")]
     pub enter_delay_ms: u64,
@@ -56,6 +58,7 @@ impl Default for Settings {
                 crate::platform::Shortcut::DoubaoVoice
             },
             warmup_ms: 350,
+            shortcut_manual: false,
             enter_delay_ms: default_enter_delay(),
             autostart: false,
             diagnostic_recording: false,
@@ -112,19 +115,34 @@ impl Settings {
 pub struct Interface {
     pub name: String,
     pub ip: Ipv4Addr,
+    pub ethernet: bool,
 }
 
 pub fn interfaces() -> Vec<Interface> {
-    if_addrs::get_if_addrs()
+    let mut interfaces: Vec<_> = if_addrs::get_if_addrs()
         .unwrap_or_default()
         .into_iter()
         .filter_map(|i| match i.ip() {
-            std::net::IpAddr::V4(ip) if !ip.is_loopback() && !ip.is_link_local() => {
-                Some(Interface { name: i.name, ip })
+            std::net::IpAddr::V4(ip) if !ip.is_loopback() && !ip.is_link_local()
+                && !ip.is_unspecified() && !ip.is_multicast() && !ip.is_broadcast() => {
+                let rank = network_rank(i.index);
+                Some((rank, Interface { name: i.name, ip, ethernet: rank == 0 }))
             }
             _ => None,
         })
-        .collect()
+        .collect();
+    interfaces.sort_by_key(|(rank, _)| *rank);
+    interfaces.into_iter().map(|(_, interface)| interface).collect()
+}
+
+fn network_rank(index: Option<u32>) -> u8 {
+    #[cfg(target_os = "windows")]
+    {
+        unsafe extern "C" { fn ptt_network_rank(index: u32) -> u32; }
+        index.map(|index| unsafe { ptt_network_rank(index) } as u8).unwrap_or(3)
+    }
+    #[cfg(not(target_os = "windows"))]
+    { let _ = index; 1 }
 }
 
 pub fn data_dir(override_path: Option<PathBuf>) -> Result<PathBuf> {

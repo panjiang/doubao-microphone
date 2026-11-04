@@ -202,6 +202,13 @@ fn unprotect(b: &[u8]) -> Result<Vec<u8>> {
     crypt(b, true)
 }
 
+pub fn public_ca_base64(dir: &Path) -> Result<String> {
+    let pem = std::fs::read_to_string(dir.join("ca.pem"))?;
+    let b64 = pem.lines().filter(|s| !s.starts_with("---")).collect::<String>();
+    let der = STANDARD.decode(b64).context("invalid public CA PEM")?;
+    Ok(STANDARD.encode(der))
+}
+
 pub fn fingerprint(dir: &Path) -> Result<String> {
     let pem = std::fs::read_to_string(dir.join("ca.pem"))?;
     let b64 = pem

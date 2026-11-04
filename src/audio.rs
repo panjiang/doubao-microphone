@@ -47,6 +47,33 @@ pub fn devices(mock: bool) -> Result<Vec<Device>> {
     anyhow::bail!("音频原生端仅支持 Windows/macOS；开发测试请使用 --mock")
 }
 
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub(crate) fn select_output_index(wanted: &str, devices: &[Device]) -> Result<usize> {
+    // A saved ID has priority over friendly names; never merge the two match sets.
+    let by_id: Vec<_> = devices.iter().enumerate()
+        .filter(|(_, device)| device.id == wanted).map(|(index, _)| index).collect();
+    ensure!(by_id.len() <= 1, "音频设备标识重复，请刷新设备后重新选择");
+    if let Some(index) = by_id.first() { return Ok(*index); }
+
+    let by_name: Vec<_> = devices.iter().enumerate()
+        .filter(|(_, device)| device.name == wanted || device.name.starts_with(&format!("{wanted} (")))
+        .map(|(index, _)| index).collect();
+    ensure!(by_name.len() <= 1, "检测到多个同名音频输出设备，请在配置页选择具体设备");
+    if let Some(index) = by_name.first() { return Ok(*index); }
+
+    #[cfg(target_os = "windows")]
+    if wanted.starts_with("wasapi:") {
+        let cables: Vec<_> = devices.iter().enumerate()
+            .filter(|(_, device)| device.name == "CABLE Input" || device.name.starts_with("CABLE Input ("))
+            .map(|(index, _)| index).collect();
+        ensure!(!cables.is_empty(), "已保存的音频设备已失效，且未检测到 CABLE Input。请安装 VB-CABLE 并刷新设备");
+        ensure!(cables.len() == 1, "已保存的音频设备已失效，且检测到多个 CABLE Input，请在配置页重新选择");
+        tracing::warn!("saved WASAPI endpoint unavailable; using the unique CABLE Input");
+        return Ok(cables[0]);
+    }
+    anyhow::bail!("未找到所选音频输出设备，请在配置页刷新设备后重新选择")
+}
+
 enum Command {
     Open {
         device: String,
@@ -347,21 +374,19 @@ impl Native {
         use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
         use ringbuf::traits::{Consumer, Split};
         let host = cpal::default_host();
-        let mut candidates = Vec::new();
+        let mut devices = Vec::new();
+        let mut descriptions = Vec::new();
         for d in host.output_devices()? {
             let name = d.description()?.name().to_string();
-            if d.id()?.to_string() == wanted
-                || name == wanted
-                || name.starts_with(&format!("{wanted} ("))
-            {
-                candidates.push(d);
-            }
+            descriptions.push(Device {
+                id: d.id()?.to_string(),
+                virtual_candidate: name.contains("CABLE Input") || name.contains("BlackHole"),
+                name,
+            });
+            devices.push(d);
         }
-        ensure!(
-            candidates.len() == 1,
-            "找不到唯一音频输出设备，请在配置页选择：{wanted}"
-        );
-        let device = candidates.remove(0);
+        let index = select_output_index(wanted, &descriptions)?;
+        let device = devices.remove(index);
         let cfg = device.default_output_config()?;
         let rate = cfg.sample_rate();
         let channels = cfg.channels() as usize;
