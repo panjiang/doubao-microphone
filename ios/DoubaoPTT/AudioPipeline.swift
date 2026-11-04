@@ -96,10 +96,11 @@ final class AudioPipeline: @unchecked Sendable {
             } catch { fail("音频尾部处理失败，本次输入已取消。") }
         }
     }
-    func cancel() {
+    func cancel(completion:(()->Void)?=nil) {
         work.async { [weak self] in
-            guard let self else { return };sessionID=nil;frame=nil;samples.removeAll(keepingCapacity:true)
+            guard let self else { completion?();return };sessionID=nil;frame=nil;samples.removeAll(keepingCapacity:true)
             converter?.reset();if let ring { ptt_ring_clear(ring.pointer) }
+            completion?()
         }
     }
     func stop() {

@@ -9,7 +9,7 @@ unsafe extern "C" {
     fn ptt_umdf_close(handle: isize);
 }
 
-struct Control(isize);
+struct Control(isize, u32);
 impl Control {
     fn open() -> Result<Self> {
         let handle = unsafe { ptt_umdf_open() };
@@ -17,7 +17,7 @@ impl Control {
             handle != -1 && handle != 0,
             "找不到 UMDF 键盘组件或无访问权限；请先安装组件并检查权限"
         );
-        Ok(Self(handle))
+        Ok(Self(handle, 0))
     }
     fn command(&self, operation: u8, key: u32) -> Result<()> {
         let error = unsafe { ptt_umdf_command(self.0, operation, key) };
@@ -32,6 +32,7 @@ impl Drop for Control {
 }
 
 static CONTROL: Mutex<Option<Control>> = Mutex::new(None);
+static LAST_RELEASE: Mutex<Option<(u32, std::time::Instant)>> = Mutex::new(None);
 
 // Probe access only: no feature report, key event or lease operation is sent.
 pub fn available() -> bool {
@@ -51,20 +52,33 @@ pub fn press(key: u32) -> Result<()> {
         VK_LWIN,
         VK_RWIN,
     ] {
-        ensure!(
-            unsafe { GetAsyncKeyState(modifier.0 as i32) } >= 0,
-            "请先松开电脑上的修饰键"
-        );
+        // A successful HID release queues the report; Windows may still expose
+        // our previous key-down briefly. Wait only for a recently owned key,
+        // without releasing or ignoring any physical modifier.
+        if unsafe { GetAsyncKeyState(modifier.0 as i32) } < 0 {
+            let recently_owned = LAST_RELEASE.lock().ok().and_then(|r| *r).is_some_and(|(key, at)| {
+                at.elapsed() <= std::time::Duration::from_millis(500)
+                    && ((key == 1 && modifier == VK_RMENU) || (key == 2 && modifier == VK_RCONTROL))
+            });
+            if recently_owned {
+                let deadline = std::time::Instant::now() + std::time::Duration::from_millis(100);
+                while unsafe { GetAsyncKeyState(modifier.0 as i32) } < 0 && std::time::Instant::now() < deadline {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+            }
+        }
+        ensure!(unsafe { GetAsyncKeyState(modifier.0 as i32) } >= 0, "请先松开电脑上的修饰键");
     }
     let mut slot = CONTROL
         .lock()
         .map_err(|_| anyhow::anyhow!("UMDF 输入锁异常"))?;
     ensure!(slot.is_none(), "UMDF 输入已在进行中");
-    let device = Control::open()?;
+    let mut device = Control::open()?;
     if let Err(error) = device.command(1, key) {
         let _ = device.command(3, 0);
         return Err(error);
     }
+    device.1 = key;
     *slot = Some(device);
     Ok(())
 }
@@ -81,7 +95,9 @@ pub fn release() -> Result<()> {
         .lock()
         .map_err(|_| anyhow::anyhow!("UMDF 输入锁异常"))?;
     if let Some(device) = slot.take() {
-        device.command(3, 0)
+        device.command(3, 0)?;
+        if let Ok(mut recent) = LAST_RELEASE.lock() { *recent = Some((device.1, std::time::Instant::now())); }
+        Ok(())
     } else {
         // Parent-process emergency release has its own handle. This prototype
         // permits only one application/session; driver lease remains the fallback.

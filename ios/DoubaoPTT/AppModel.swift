@@ -14,11 +14,14 @@ import AVFoundation
     private var client:SocketClient?
     private var connectionTask:Task<Void,Never>?
     private var pairTask:Task<Void,Never>?
+    private var holdTask:Task<Void,Never>?
+    private var holdQualified=false
+    private var holdSequence=0
     private var pairClient:PairingClient?
     private var observers:[NSObjectProtocol]=[]
-    private var holding=false
+    @Published private(set) var holding=false
     private var foreground=false
-    private var generation=0
+    @Published private(set) var generation=0
     private var sessionID:UUID?
     private var pendingEnter:UUID?
     private var releaseEnter=false
@@ -41,9 +44,6 @@ import AVFoundation
         observers.append(center.addObserver(forName:AVAudioSession.mediaServicesWereResetNotification,object:nil,queue:.main) { [weak self] _ in
             Task { @MainActor in self?.stop("音频服务已重置，请重新按住。") }
         })
-    }
-    var buttonLabel:String {
-        switch phase { case .idle:return "按住说话";case .connecting:return "正在连接";case .priming:return "准备中";case .streaming:return "正在输入";case .draining:return "正在结束" }
     }
     func scene(_ state:ScenePhase) {
         foreground=state == .active
@@ -74,10 +74,21 @@ import AVFoundation
         } catch { status=(error as? PTTError)?.localizedDescription ?? "请扫描电脑配置页中的 iPhone App 二维码。" }
     }
     func press() {
-        guard computer != nil,!pairing,foreground else { return }
-        holding=true
+        guard computer != nil,!pairing,foreground,!holding else { return }
+        holding=true;holdQualified=false;holdSequence+=1
+        let sequence=holdSequence,attempt=generation
         if let pending=pendingEnter { client?.control(["type":"cancel","session_id":pending.uuidString]);pendingEnter=nil }
-        if phase == .draining { cancelEnterAfterDrain=true;return }
+        if phase == .draining { cancelEnterAfterDrain=true }
+        holdTask?.cancel()
+        holdTask=Task { [weak self] in
+            do { try await Task.sleep(nanoseconds:150_000_000) } catch { return }
+            guard let self,!Task.isCancelled,holding,foreground,holdSequence==sequence,generation==attempt else { return }
+            holdTask=nil;holdQualified=true;prepareHeldSpeech()
+        }
+    }
+    private func prepareHeldSpeech() {
+        guard holding,holdQualified,foreground else { return }
+        if phase == .draining { cancelEnterAfterDrain=true;status="正在结束上一轮，请保持按住。";return }
         if connected && audio.running { begin();return }
         guard connectionTask==nil else { return }
         let attempt=generation;phase = .connecting;status="正在准备麦克风和电脑连接。"
@@ -109,22 +120,36 @@ import AVFoundation
         }
     }
     private func begin() {
-        guard holding,foreground,connected,sessionID==nil,phase != .draining,let client else { return }
+        guard holding,holdQualified,foreground,connected,sessionID==nil,phase != .draining,let client else { return }
         let id=UUID();sessionID=id;pendingEnter=nil;phase = .priming;status="准备中，请开始说话。"
         client.control(["type":"start","session_id":id.uuidString])
         audio.begin(id) { [weak client] data,count in client?.audio(data,samples:count) }
     }
-    func release(above:Bool) {
-        holding=false
+    func release(finishOnly:Bool) {
+        let qualified=holdQualified
+        holding=false;holdQualified=false;holdSequence+=1;holdTask?.cancel();holdTask=nil
         if phase == .draining { return }
-        guard let id=sessionID else { if phase == .connecting { stop("连接准备已取消，请重新按住。") };return }
-        guard phase == .streaming else { stop("本次按住过短，已取消。请重新按住说话。");return }
+        guard let id=sessionID else {
+            if phase == .connecting { stop("连接准备已取消，请重新按住。") }
+            else if !qualified { status="按住说话即可开始。" }
+            return
+        }
         guard let client else { stop("电脑连接已断开。");return }
+        if phase == .priming {
+            phase = .draining;status="正在取消本次短按。"
+            // Queue cancel behind every already-produced frame, as with a normal end.
+            audio.cancel { [weak client] in client?.control(["type":"cancel","session_id":id.uuidString]) }
+            waitForEnd(id);return
+        }
+        guard phase == .streaming else { stop("本次输入已取消，请重新按住。");return }
         phase = .draining;status="正在完成输入。"
-        let action=releaseEnter && !above ? "enter":"finish"
+        let action=releaseEnter && !finishOnly ? "enter":"finish"
         audio.finish(id) { [weak client] last in
             client?.control(["type":"end","session_id":id.uuidString,"last_seq":last.map { $0 as Any } ?? NSNull(),"action":action])
         }
+        waitForEnd(id)
+    }
+    private func waitForEnd(_ id:UUID) {
         endTimer?.cancel();endTimer=Task { [weak self] in
             try? await Task.sleep(nanoseconds:1_500_000_000)
             if !Task.isCancelled,self?.sessionID==id { self?.stop("结束确认超时，本次输入已停止。") }
@@ -135,9 +160,10 @@ import AVFoundation
         let type=event["type"] as? String
         if type=="hello" { releaseEnter=(event["capabilities"] as? [String] ?? []).contains("release_enter");return }
         guard let raw=event["session_id"] as? String,let id=UUID(uuidString:raw) else { return }
-        if type=="ready",id==sessionID { phase = .streaming;status="正在向电脑输入声音。" }
+        if type=="ready",id==sessionID,phase == .priming { phase = .streaming;status="正在向电脑输入声音。" }
         if type=="ended",id==sessionID {
-            endTimer?.cancel();endTimer=nil;sessionID=nil;phase = .idle
+            let resumeHeld=cancelEnterAfterDrain
+            endTimer?.cancel();endTimer=nil;sessionID=nil;phase = .idle;audio.cancel()
             let complete=event["complete"] as? Bool ?? false
             pendingEnter=complete && (event["enter_pending"] as? Bool ?? false) ? id:nil
             if cancelEnterAfterDrain {
@@ -145,7 +171,12 @@ import AVFoundation
                 cancelEnterAfterDrain=false
             }
             status=complete ? (pendingEnter == nil ? "本次语音已结束，请在电脑确认输入结果。":"语音已结束，等待电脑发送回车。") : "本次输入已取消或不完整，请重新按住。"
-            if holding { begin() }
+            if holding && resumeHeld {
+                if holdQualified { prepareHeldSpeech() } else { status="请保持按住，准备输入。" }
+            } else if holding {
+                // An unsolicited abort must never restart the same physical hold.
+                holding=false;holdQualified=false;holdSequence+=1;holdTask?.cancel();holdTask=nil
+            }
         }
         if type=="action_result",id==pendingEnter,sessionID==nil {
             pendingEnter=nil
@@ -153,7 +184,7 @@ import AVFoundation
         }
     }
     func stop(_ reason:String) {
-        generation+=1;holding=false;connectionTask?.cancel();connectionTask=nil;endTimer?.cancel();endTimer=nil
+        generation+=1;holding=false;holdQualified=false;holdSequence+=1;holdTask?.cancel();holdTask=nil;connectionTask?.cancel();connectionTask=nil;endTimer?.cancel();endTimer=nil
         if let id=sessionID { client?.control(["type":"cancel","session_id":id.uuidString]) }
         if let id=pendingEnter { client?.control(["type":"cancel","session_id":id.uuidString]) }
         audio.cancel();audio.stop();client?.close();client=nil
