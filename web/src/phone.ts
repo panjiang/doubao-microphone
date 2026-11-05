@@ -113,16 +113,18 @@ async function initializeMicrophone(attempt:number):Promise<boolean>{
       }catch(e){disconnect(String(e));}
     };
     ws=new WebSocket(`wss://${location.host}/ws`);const socket=ws;
+    let lastReceived=performance.now();
     const ready=new Promise<boolean>(resolve=>{socketWait=resolve;});
     const handshake=setTimeout(()=>{if(attempt===generation&&!connected)disconnect('连接超时，请检查电脑程序和防火墙。')},7000);
     socket.addEventListener('open',()=>{if(attempt!==generation)return;try{message('hello',{version:1,token,sample_rate:ctx!.sampleRate,channels:1})}catch(e){disconnect(String(e))}});
     socket.addEventListener('message',({data})=>{
       if(attempt!==generation)return;
-      const m=JSON.parse(data);
+      let m;try{m=JSON.parse(data);if(!m||typeof m!=='object')throw Error('invalid response');}catch{disconnect('电脑响应无法识别，请重新按住连接。');return;}
+      lastReceived=performance.now();
       if(m.type==='hello'){
         if(audioContext.state!=='running'){disconnect('麦克风尚未就绪，按住说话可重新连接。');return;}
         clearTimeout(handshake);connecting=false;connected=true;needsGesture=false;socketWait?.(true);socketWait=null;releaseEnter=Array.isArray(m.capabilities)&&m.capabilities.includes('release_enter');el('mock').hidden=!m.mock;
-        heartbeat=setInterval(()=>{try{message('heartbeat')}catch{disconnect('连接已断开，请重新连接。')}},250);
+        heartbeat=setInterval(()=>{if(performance.now()-lastReceived>=1000){disconnect('电脑响应超时，请检查网络，恢复后重新按住。');return;}try{message('heartbeat')}catch{disconnect('连接已断开，请重新连接。')}},250);
         status(hold?'正在准备输入。':'按住说话即可开始。');render();
       }else if(m.type==='ready'&&session&&m.session_id===session.id){session.ready=true;status('正在向电脑输入声音，松开结束。');render();}
       else if(m.type==='ended'&&m.session_id===session?.id){pendingAction=m.enter_pending?m.session_id:null;session=null;clearTimeout(endTimer);status(m.complete?(m.enter_pending?'听写已结束，等待按 Enter。':'本次声音已传完，电脑快捷键已释放。'):m.reason==='short_press'?'按住时间太短，本次已取消。':m.reason==='doubao_stopped'?'豆包提前结束了录音，本次已停止，请重新按住。':`本次已停止（${m.reason}），请重新按住。`);render();}

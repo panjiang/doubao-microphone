@@ -3,6 +3,7 @@ use crate::{
     audio::Audio,
     config::Settings,
     protocol::{ActionStatus, AudioFrame, EndAction, ServerMessage},
+    recovery::InputRecovery,
     session::{Phase, Session, Transition},
 };
 use anyhow::{Result, ensure};
@@ -13,12 +14,15 @@ use std::{
 };
 use tokio::sync::{Mutex, mpsc, oneshot, watch};
 use uuid::Uuid;
+pub use crate::recovery::InputState;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Status {
     pub phase: Phase,
     pub connected: bool,
     pub paused: bool,
+    pub input_state: InputState,
+    pub input_recovery_attempts: u8,
     pub mock: bool,
     pub queued_ms: u64,
     pub error: Option<String>,
@@ -73,6 +77,8 @@ impl Controller {
             phase: Phase::Disconnected,
             connected: false,
             paused: false,
+            input_state: InputState::Ready,
+            input_recovery_attempts: 0,
             mock,
             queued_ms: 0,
             error: None,
@@ -101,6 +107,9 @@ impl Controller {
             last_voice: None,
             end_action: EndAction::Finish,
             pending_enter: None,
+            input_recovery: InputRecovery::new(),
+            recovery_cleanup: false,
+            disconnect_requested: None,
         };
         tokio::spawn(a.run());
         Ok(Self {
@@ -111,8 +120,10 @@ impl Controller {
     }
     async fn call(&self, build: impl FnOnce(oneshot::Sender<Result<()>>) -> Command) -> Result<()> {
         let (tx, rx) = oneshot::channel();
-        self.tx.send(build(tx)).await?;
-        tokio::time::timeout(Duration::from_secs(5), rx).await??
+        tokio::time::timeout(Duration::from_secs(5), async {
+            self.tx.send(build(tx)).await?;
+            rx.await?
+        }).await?
     }
     pub async fn connect(
         &self,
@@ -169,8 +180,10 @@ impl Controller {
     }
     pub async fn input_accessibility(&self) -> Result<bool> {
         let (tx, rx) = oneshot::channel();
-        self.tx.send(Command::InspectInput(tx)).await?;
-        tokio::time::timeout(Duration::from_secs(1), rx).await??
+        tokio::time::timeout(Duration::from_secs(1), async {
+            self.tx.send(Command::InspectInput(tx)).await?;
+            rx.await?
+        }).await?
     }
     pub async fn shutdown(&self) {
         let (tx, rx) = oneshot::channel();
@@ -207,6 +220,9 @@ struct Actor {
     last_voice: Option<crate::platform::VoiceState>,
     end_action: EndAction,
     pending_enter: Option<PendingEnter>,
+    input_recovery: InputRecovery,
+    recovery_cleanup: bool,
+    disconnect_requested: Option<&'static str>,
 }
 impl Actor {
     async fn run(mut self) {
@@ -216,21 +232,35 @@ impl Actor {
         let mut last_tick = Instant::now();
         loop {
             tokio::select! {
-                biased;
                 command=self.rx.recv()=>{
                     let Some(command)=command else{break};
                     match command {
                         Command::Connect{id,connection,rate,events,reply}=>{
+                            if reply.is_closed() || events.is_closed() { continue; }
+                            if self.device.is_some() && (self.device==Some(id) || self.events.as_ref().is_some_and(|e| e.is_closed())
+                                || self.epoch.elapsed().saturating_sub(self.session.heartbeat)>=crate::session::LEASE) {
+                                self.drop_connection("reconnected").await;
+                            }
                             let r=async{
-                                ensure!(self.device.is_none(),"已有一部手机连接，请先断开");ensure!(!self.paused,"电脑已暂停接收");ensure!(self.key_test.is_none(),"快捷键测试中，请稍后连接");
+                                self.ensure_receiving()?;
+                                ensure!(self.device.is_none(),"已有一部手机连接，请先断开");ensure!(self.key_test.is_none(),"快捷键测试中，请稍后连接");
                                 self.audio.open(self.settings.lock().await.output_device.clone(),rate).await?;
+                                if reply.is_closed() || events.is_closed() {
+                                    self.audio.close().await;
+                                    anyhow::bail!("手机连接已取消，请重新按住");
+                                }
                                 self.phone_rate=rate;
                                 self.device=Some(id);self.connection=Some(connection);self.events=Some(events);self.session.connect(self.epoch.elapsed());self.error=None;Ok(())
                             }.await;let _=reply.send(r);
                         }
                         Command::Start(connection,id,reply)=>{
+                            if reply.is_closed() { continue; }
                             let r=async {
-                                ensure!(!self.paused && self.connection==Some(connection),"接收已暂停或未连接");
+                                self.ensure_receiving()?;
+                                ensure!(self.connection==Some(connection),"连接已失效，请松手后重新按住");
+                                ensure!(self.events.as_ref().is_some_and(|events|!events.is_closed())
+                                    && self.epoch.elapsed().saturating_sub(self.session.heartbeat)<crate::session::LEASE,
+                                    "连接已失效，请松手后重新按住");
                                 if self.session.id==Some(id){return Ok(());}
                                 self.cancel_enter("new_session");
                                 ensure!(!self.audio.failed(),"音频设备异常，请重新连接");
@@ -248,6 +278,7 @@ impl Actor {
                                 if let Err(e)=self.agent.press_configured(key,settings.codex_empty_compatibility).await{
                                     self.error=Some(format!("{e:#}"));
                                     if let Some(d)=&self.diagnostic {d.event(format!("trigger_failed error={e:#}"));}
+                                    if self.agent.failed() { self.input_fault(format!("{e:#}")); }
                                     self.abort("shortcut_failed").await;return Err(e);
                                 }
                                 self.session.shortcut_pressed(self.epoch.elapsed());
@@ -290,12 +321,16 @@ impl Actor {
                         Command::Heartbeat(connection)=>{if self.connection==Some(connection){self.session.heartbeat=self.epoch.elapsed();}}
                         Command::Disconnect(id)=>{if self.connection==Some(id){self.drop_connection("disconnected").await;}}
                         Command::Revoke(id)=>{if self.device==Some(id){self.drop_connection("revoked").await;}}
-                        Command::Pause(p)=>{self.paused=p;if p{self.cancel_enter("paused");self.abort("paused").await;self.key_test=None;let _=self.agent.release().await;}}
+                        Command::Pause(p)=>{self.paused=p;if p{self.drop_connection("paused").await;self.key_test=None;if let Err(e)=self.agent.release().await{self.input_fault(format!("{e:#}"));}}}
                         Command::TestShortcut(reply)=>{
-                            let r=if self.device.is_some()||self.session.active()||self.key_test.is_some()||self.paused {Err(anyhow::anyhow!("请先断开手机并恢复接收，再测试快捷键"))}else{self.key_test=Some((Instant::now()+Duration::from_secs(3),false));self.error=None;Ok(())};
+                            let r=if self.device.is_some()||self.session.active()||self.key_test.is_some()||self.paused||self.input_recovery.state!=InputState::Ready {Err(anyhow::anyhow!("请先断开手机，并确认接收和输入服务已就绪，再测试快捷键"))}else{self.key_test=Some((Instant::now()+Duration::from_secs(3),false));self.error=None;Ok(())};
                             let _=reply.send(r);
                         }
-                        Command::InspectInput(reply)=>{let _=reply.send(self.agent.inspect_accessibility().await);}
+                        Command::InspectInput(reply)=>{
+                            let r=if self.input_recovery.state==InputState::Ready {self.agent.inspect_accessibility().await}else{Err(anyhow::anyhow!("输入服务正在恢复或需要处理，请稍后重新检测"))};
+                            if let Err(e)=&r && self.agent.failed(){self.input_fault(format!("{e:#}"));}
+                            let _=reply.send(r);
+                        }
                         Command::Configure(s,dir,reply)=>{
                             self.cancel_enter("configuration_changed");
                             let r=async {
@@ -314,18 +349,18 @@ impl Actor {
                 _=ticks.tick()=>{
                     if last_tick.elapsed()>=Duration::from_secs(1) {
                         self.drop_connection("resume_required").await;
-                        self.key_test=None;let _=self.agent.release().await;
+                        self.key_test=None;if let Err(e)=self.agent.release().await{self.input_fault(format!("{e:#}"));}
                     }
                     last_tick=Instant::now();
                     if let Some((deadline,pressed))=self.key_test
                         && Instant::now()>=deadline {
-                            if pressed {if let Err(e)=self.agent.release().await{self.error=Some(e.to_string());self.paused=true;}self.key_test=None;}
+                            if pressed {if let Err(e)=self.agent.release().await{self.input_fault(format!("{e:#}"));}self.key_test=None;}
                             else {
                                 let key=self.settings.lock().await.shortcut;
-                                match self.agent.press(key).await {Ok(())=>self.key_test=Some((Instant::now()+Duration::from_secs(3),true)),Err(e)=>{self.error=Some(e.to_string());self.key_test=None;}}
+                                match self.agent.press(key).await {Ok(())=>self.key_test=Some((Instant::now()+Duration::from_secs(3),true)),Err(e)=>{self.error=Some(e.to_string());self.key_test=None;if self.agent.failed(){self.input_fault(format!("{e:#}"));}}}
                             }
                     }
-                    if self.session.active() && self.audio.failed(){self.abort("audio_device_failed").await;}
+                    if self.session.active() && self.audio.failed(){self.error=Some("音频设备异常，本次已停止，请检查设备后重新按住".into());self.disconnect_requested=Some("audio_device_failed");}
                     if let Some(t)=self.session.tick(self.epoch.elapsed(),self.audio.queued_ms()){self.apply(t).await;}
                     if self.device.is_some() && self.epoch.elapsed().saturating_sub(self.session.heartbeat)>=Duration::from_secs(1){
                         self.drop_connection("heartbeat_timeout").await;
@@ -333,7 +368,7 @@ impl Actor {
                     if self.pending_enter.as_ref().is_some_and(|p|Instant::now()>=p.deadline) {
                         self.finish_enter().await;
                     }
-                    if renewal.elapsed()>=Duration::from_millis(250){
+                    if self.input_recovery.state==InputState::Ready && renewal.elapsed()>=Duration::from_millis(250){
                         match self.agent.renew().await {
                             Ok(Some(voice))=>{
                                 if self.last_voice.as_ref()!=Some(&voice) {
@@ -346,9 +381,30 @@ impl Actor {
                                 }
                             }
                             Ok(None)=>{},
-                            Err(e)=>{self.error=Some(e.to_string());self.paused=true;self.abort("input_agent_failed").await;}
+                            Err(e)=>{self.input_fault(format!("{e:#}"));}
                         }
+                        if self.input_recovery.state==InputState::Ready {self.input_recovery.healthy(Instant::now());}
                         renewal=Instant::now();
+                    }
+                }
+            }
+            if let Some(reason)=self.disconnect_requested.take(){self.drop_connection(reason).await;}
+            if std::mem::take(&mut self.recovery_cleanup) {
+                self.key_test=None;
+                self.drop_connection("input_agent_failed").await;
+                if let Err(e)=self.agent.release().await {self.error=Some(format!("输入服务恢复中：{e:#}"));}
+            }
+            if self.input_recovery.due(Instant::now()) {
+                self.input_recovery.attempt();
+                match self.agent.recover().await {
+                    Ok(())=>{
+                        self.input_recovery.succeeded(Instant::now());self.error=None;
+                        tracing::info!(attempts=self.input_recovery.attempts,"input agent recovered; awaiting a new phone hold");
+                    }
+                    Err(e)=>{
+                        self.input_recovery.failed(Instant::now());
+                        self.error=Some(format!("输入服务恢复失败（{}/3）：{e:#}{}",self.input_recovery.attempts,
+                            if self.input_recovery.state==InputState::Failed {"；请检查权限或重新启动电脑端程序"}else{"；稍后自动重试"}));
                     }
                 }
             }
@@ -356,6 +412,8 @@ impl Actor {
                 phase: self.session.phase,
                 connected: self.device.is_some(),
                 paused: self.paused,
+                input_state: self.input_recovery.state,
+                input_recovery_attempts: self.input_recovery.attempts,
                 mock: self.mock,
                 queued_ms: self.audio.queued_ms(),
                 error: self.error.clone(),
@@ -377,13 +435,18 @@ impl Actor {
         self.agent.shutdown().await;
     }
     async fn drop_connection(&mut self, reason: &'static str) {
-        self.cancel_enter(reason);
-        self.abort(reason).await;
+        // Detach the dead transport before cleanup emits Ended/ActionResult.
+        // A phone disappearing is not a user pause or an input-service fault.
+        self.disconnect_requested = None;
+        self.events = None;
         self.device = None;
         self.connection = None;
-        self.events = None;
+        self.cancel_enter(reason);
+        self.abort(reason).await;
         self.session.phase = Phase::Disconnected;
         self.audio.close().await;
+        if self.audio.failed(){self.audio=Audio::new(self.mock);}
+        self.disconnect_requested = None;
     }
     async fn abort(&mut self, reason: &'static str) {
         if let Some(t) = self.session.abort(reason) {
@@ -416,11 +479,10 @@ impl Actor {
                 let complete = complete && cleared.is_ok() && released.is_ok();
                 if let Err(e) = cleared {
                     self.error = Some(format!("{e:#}"));
-                    self.paused = true;
+                    self.disconnect_requested=Some("audio_clear_failed");
                 }
                 if let Err(e) = released {
-                    self.error = Some(e.to_string());
-                    self.paused = true;
+                    self.input_fault(format!("{e:#}"));
                 }
                 let release_time = Instant::now();
                 let wants_enter = std::mem::take(&mut self.end_action) == EndAction::Enter;
@@ -429,6 +491,8 @@ impl Actor {
                     && reason == "completed"
                     && crate::enter::supported()
                     && !self.paused
+                    && self.input_recovery.state==InputState::Ready
+                    && self.disconnect_requested.is_none()
                     && self.connection.is_some();
                 if enter_pending {
                     let delay = self.settings.lock().await.enter_delay_ms;
@@ -472,6 +536,9 @@ impl Actor {
             return;
         };
         let blocked = self.paused
+            || self.input_recovery.state!=InputState::Ready
+            || self.disconnect_requested.is_some()
+            || self.events.as_ref().is_none_or(|events|events.is_closed())
             || self.connection != Some(pending.connection)
             || self.session.active()
             || self.audio.failed()
@@ -482,8 +549,7 @@ impl Actor {
             match self.agent.tap_enter().await {
                 Ok(result) => result,
                 Err(e) => {
-                    self.error = Some(format!("回车未完成：{e:#}"));
-                    self.paused = true;
+                    self.input_fault(format!("回车未完成：{e:#}"));
                     (ActionStatus::Failed, "input_failed".into())
                 }
             }
@@ -499,8 +565,28 @@ impl Actor {
         if let Some(tx) = &self.events
             && tx.try_send(e).is_err()
         {
-            self.error = Some("手机未及时接收状态，请重新连接".into());
-            self.paused = true;
+            if self.input_recovery.state==InputState::Ready {
+                self.error = Some("手机连接已中断或接收积压，请松手后重新按住".into());
+            }
+            self.disconnect_requested=Some("phone_transport_failed");
         }
+    }
+    fn ensure_receiving(&self)->Result<()> {
+        ensure!(!self.paused,"电脑已手动暂停接收，请在电脑配置页或托盘恢复接收");
+        match self.input_recovery.state {
+            InputState::Ready=>Ok(()),
+            InputState::Recovering=>anyhow::bail!("电脑输入服务正在恢复，请稍后重新按住"),
+            InputState::Failed=>anyhow::bail!("电脑输入服务连续恢复失败，请检查权限或重新启动电脑端程序"),
+        }
+    }
+    fn input_fault(&mut self,error:String) {
+        tracing::warn!(error=%error,"input service fault");
+        self.error=Some(error);
+        if self.input_recovery.state==InputState::Ready {
+            self.input_recovery.fault(Instant::now());
+            self.recovery_cleanup=true;
+        }
+        self.cancel_enter("input_agent_failed");
+        self.end_action=EndAction::Finish;
     }
 }

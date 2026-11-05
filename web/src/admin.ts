@@ -73,8 +73,9 @@ el('ticket').addEventListener('click',async()=>{
 });
 el('pause').addEventListener('click',async()=>{try{await api('pause','PUT',{paused:!paused})}catch(e){error(e)}});
 async function poll(){
-  try{const r=await api('status'),s=r.status;paused=s.paused;active=!!s.session_id||s.testing;el('mock').hidden=!s.mock;el('badge').textContent=s.testing?'快捷键测试中':paused?'已暂停':s.connected?'手机已连接':'未连接';
-    el('runtime').textContent=`状态：${s.phase} · 音频排队：${s.queued_ms}ms${s.error?' · '+s.error:''}`;
+  try{const r=await api('status'),s=r.status;paused=s.paused;active=!!s.session_id||s.testing;el('mock').hidden=!s.mock;el('badge').textContent=paused?'已手动暂停':s.input_state==='recovering'?'输入服务恢复中':s.input_state==='failed'?'输入服务需处理':s.testing?'快捷键测试中':s.connected?'手机已连接':'未连接';
+    const inputState=s.input_state==='recovering'?` · 输入服务恢复中（已尝试 ${s.input_recovery_attempts}/3）`:s.input_state==='failed'?' · 输入服务连续恢复失败，请检查权限或重启程序':'';
+    el('runtime').textContent=`状态：${s.phase} · 音频排队：${s.queued_ms}ms${inputState}${s.error?' · '+s.error:''}`;
     el('pause').textContent=paused?'恢复接收':'暂停接收';
     for(const input of el('settings').querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button'))input.disabled=active;
     syncShortcut();

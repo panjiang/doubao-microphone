@@ -10,6 +10,7 @@ mod enter;
 pub mod identity;
 pub mod platform;
 pub mod protocol;
+mod recovery;
 pub mod server;
 pub mod session;
 pub mod tls;

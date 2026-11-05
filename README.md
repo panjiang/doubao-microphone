@@ -18,7 +18,7 @@
 
 ## 支持状态
 
-当前为**开发预览版**。[下载 v0.2.3 安装包及构建产物](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.3)，也可从源码构建。使用前请先阅读平台限制。
+当前为**开发预览版**。[下载 v0.2.4 安装包及构建产物](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.4)，也可从源码构建。使用前请先阅读平台限制。
 
 | 平台 | 要求 | 当前状态 |
 | --- | --- | --- |

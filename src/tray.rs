@@ -137,7 +137,11 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
                     "手机：未连接"
                 });
                 state.set_text(if s.paused {
-                    "状态：已暂停"
+                    "状态：已手动暂停"
+                } else if s.input_state==crate::controller::InputState::Recovering {
+                    "状态：输入服务恢复中"
+                } else if s.input_state==crate::controller::InputState::Failed {
+                    "状态：输入服务需处理，请打开配置页"
                 } else if s.error.is_some() {
                     "状态：异常，请打开配置页"
                 } else if s.testing {

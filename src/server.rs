@@ -463,10 +463,9 @@ async fn socket(a: Shared, mut socket: WebSocket) {
             vec![]
         },
     };
-    if sink
-        .send(Message::Text(serde_json::to_string(&hello).unwrap().into()))
-        .await
-        .is_err()
+    if !matches!(tokio::time::timeout(Duration::from_millis(500),sink
+        .send(Message::Text(serde_json::to_string(&hello).unwrap().into())))
+        .await,Ok(Ok(())))
     {
         a.controller.disconnect(connection).await;
         return;
@@ -489,7 +488,7 @@ async fn socket(a: Shared, mut socket: WebSocket) {
                     },
                     Message::Binary(b)=>match protocol::AudioFrame::decode(&b,sample_rate){Ok(f)=>a.controller.frame(connection,f).await,Err(e)=>Err(e)},
                     Message::Close(_)=>break,
-                    Message::Ping(p)=>{if sink.send(Message::Pong(p)).await.is_err(){break;}Ok(())}
+                    Message::Ping(p)=>{if !matches!(tokio::time::timeout(Duration::from_millis(500),sink.send(Message::Pong(p))).await,Ok(Ok(()))){break;}Ok(())}
                     _=>Ok(())
                 };
                 if let Err(e)=result {
@@ -502,15 +501,15 @@ async fn socket(a: Shared, mut socket: WebSocket) {
     a.controller.disconnect(connection).await;
 }
 async fn send_error(socket: &mut WebSocket, code: &str, message: &str) -> Result<()> {
-    socket
+    tokio::time::timeout(Duration::from_millis(500),socket
         .send(Message::Text(
             serde_json::to_string(&ServerMessage::Error {
                 code: code.into(),
                 message: message.into(),
             })?
             .into(),
-        ))
-        .await?;
+        )))
+        .await??;
     Ok(())
 }
 

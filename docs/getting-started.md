@@ -1,10 +1,10 @@
 # 安装与首次配置
 
-本指南适用于桌面端 0.2.3 和 iPhone App 0.1.0 构建 24。App 从构建 23 起支持统一二维码，也能识别旧桌面的 JSON 二维码。
+本指南适用于桌面端 0.2.4 和 iPhone App 0.1.0 构建 24。App 从构建 23 起支持统一二维码，也能识别旧桌面的 JSON 二维码。
 
 Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.md)；电脑环境和虚拟音频配置仍使用本指南。
 
-可从 [v0.2.3 Release](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.3) 获取开发预览产物，也可以[从源码构建](development.md)。iOS 真机产物仍需自行签名；下文安装步骤不代表已经完成面向所有用户的正式分发。
+可从 [v0.2.4 Release](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.4) 获取开发预览产物，也可以[从源码构建](development.md)。iOS 真机产物仍需自行签名；下文安装步骤不代表已经完成面向所有用户的正式分发。
 
 ## 准备电脑
 
