@@ -1,0 +1,205 @@
+name: Version build
+run-name: Version build · ${{ inputs.version || github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 0.2.2），留空读取 Cargo.toml；必须与源码一致'
+        type: string
+        required: false
+      draft_release:
+        description: '构建成功后创建草稿 Release（不会公开发布）'
+        type: boolean
+        default: true
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: version-build-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.version.outputs.commit }}
+      ios_version: ${{ steps.version.outputs.ios_version }}
+      ios_build: ${{ steps.version.outputs.ios_build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate source version and tag
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: python3 scripts/ci-release.py version --requested-version "$REQUESTED_VERSION"
+
+  windows:
+    needs: version
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Prepare pinned Rust toolchain
+        run: rustup show active-toolchain
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: artifacts/vendor/vb-cable-45/VBCABLE_Driver_Pack45.zip
+          key: vbcable-${{ hashFiles('packaging/vbcable.lock.json') }}
+      - name: Obtain official VB-CABLE build input
+        run: |
+          $spec = Get-Content packaging/vbcable.lock.json -Raw | ConvertFrom-Json
+          $dir = 'artifacts/vendor/vb-cable-45'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $package = Join-Path $dir $spec.filename
+          if (!(Test-Path -LiteralPath $package)) {
+            Invoke-WebRequest -Uri $spec.source_url -OutFile $package
+          }
+          if ((Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash -ne $spec.sha256) {
+            throw 'Official VB-CABLE archive checksum mismatch'
+          }
+          # build-windows also checks every pinned vendor signature; never installs drivers here.
+      - name: Build Windows application and full installer
+        run: ./scripts/build-windows.ps1 -SkipTests -VbCablePackage artifacts/vendor/vb-cable-45/VBCABLE_Driver_Pack45.zip
+      - name: Package versioned products and checksums
+        run: python scripts/ci-release.py package windows-x64
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ needs.version.outputs.tag }}-windows-x64
+          path: dist/release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  macos:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: aarch64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Prepare pinned Rust toolchain
+        env:
+          RUST_TARGET: ${{ matrix.arch }}-apple-darwin
+        run: |
+          rustup show active-toolchain
+          rustup target add "$RUST_TARGET"
+      - name: Build macOS development DMG
+        env:
+          MACOS_ARCHS: ${{ matrix.arch }}
+          SKIP_TESTS: '1'
+        run: bash scripts/build-macos.sh
+      - name: Package versioned products and checksums
+        env:
+          PACKAGE_KIND: macos-${{ matrix.arch }}
+        run: python3 scripts/ci-release.py package "$PACKAGE_KIND"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ needs.version.outputs.tag }}-macos-${{ matrix.arch }}
+          path: dist/release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  ios:
+    needs: version
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build simulator and unsigned iPhone products
+        run: bash ios/build.sh all
+      - name: Package products with iOS version/build and checksums
+        run: python3 scripts/ci-release.py package ios
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ needs.version.outputs.tag }}-ios-${{ needs.version.outputs.ios_version }}-build${{ needs.version.outputs.ios_build }}
+          path: dist/release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  draft-release:
+    needs: [version, windows, macos, ios]
+    if: github.event_name == 'push' || inputs.draft_release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: draft-release-${{ needs.version.outputs.tag }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-${{ needs.version.outputs.tag }}-*
+          path: dist/release-assets
+          merge-multiple: true
+      - name: Generate combined checksums
+        run: python3 scripts/ci-release.py checksums dist/release-assets
+      - name: Create or update draft release only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          COMMIT: ${{ needs.version.outputs.commit }}
+          IOS_VERSION: ${{ needs.version.outputs.ios_version }}
+          IOS_BUILD: ${{ needs.version.outputs.ios_build }}
+        run: |
+          python3 scripts/create-draft-release.py

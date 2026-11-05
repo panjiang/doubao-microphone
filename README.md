@@ -80,6 +80,7 @@ Windows 完整安装器会准备 VB-CABLE；Mac 安装向导在缺少设备时�
 
 - [安装与首次配置](docs/getting-started.md)
 - [开发与构建](docs/development.md)
+- [Actions 版本构建与草稿 Release](docs/releases.md)
 - [iPhone App 构建与安装](ios/README.md)
 - [故障排查与卸载](docs/troubleshooting.md)
 - [双平台架构](docs/cross-platform.md) · [通信协议](docs/protocol.md) · [统一配对二维码](docs/native-ios-protocol.md)
