@@ -12,7 +12,7 @@
 <key>UILaunchScreen</key><dict/>
 <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
 <key>UIUserInterfaceStyle</key><string>Light</string>
-<key>NSMicrophoneUsageDescription</key><string>将按住期间的语音传给你配对的电脑，用于电脑语音输入。前台就绪期间的待命声音不会发送。</string>
+<key>NSMicrophoneUsageDescription</key><string>按住说话时采集声音并传给你配对的电脑，用于语音输入；松手处理完尾音后停止采音。</string>
 <key>NSCameraUsageDescription</key><string>扫描你电脑上的配对二维码，建立与这台电脑的可信连接。</string>
 <key>NSLocalNetworkUsageDescription</key><string>连接你配对的局域网电脑，传送按住说话状态和声音。</string>
 <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>

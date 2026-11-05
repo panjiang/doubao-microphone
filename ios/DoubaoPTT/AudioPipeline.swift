@@ -15,6 +15,7 @@ final class AudioPipeline: @unchecked Sendable {
     var onFailure:((String)->Void)?
     private let work=DispatchQueue(label:"ptt.audio.convert",qos:.userInitiated)
     private var engine:AVAudioEngine?
+    private var audioSessionActive=false
     private var ring:AudioRingOwner?
     private var timer:DispatchSourceTimer?
     private var source:AVAudioPCMBuffer?
@@ -41,38 +42,44 @@ final class AudioPipeline: @unchecked Sendable {
         precondition(Thread.isMainThread)
         if running { return }
         let audio=AVAudioSession.sharedInstance()
-        try audio.setCategory(.record,mode:.measurement,options:[])
-        try audio.setPreferredIOBufferDuration(0.02)
-        try audio.setActive(true)
-        if let builtIn=audio.availableInputs?.first(where:{$0.portType == .builtInMic}) { try audio.setPreferredInput(builtIn) }
-        let engine=AVAudioEngine();let node=engine.inputNode;let format=node.outputFormat(forBus:0)
-        guard format.sampleRate>=8000,format.sampleRate<=192000,format.channelCount>0,format.channelCount<=8,
-              format.commonFormat == .pcmFormatFloat32,!format.isInterleaved,
-              let mono=AVAudioFormat(standardFormatWithSampleRate:format.sampleRate,channels:1),
-              let wire=AVAudioFormat(standardFormatWithSampleRate:24000,channels:1),
-              let input=AVAudioPCMBuffer(pcmFormat:mono,frameCapacity:4096),
-              let output=AVAudioPCMBuffer(pcmFormat:wire,frameCapacity:16384),
-              let converter=AVAudioConverter(from:mono,to:wire) else {
-            try? audio.setActive(false);throw PTTError.message("手机当前音频格式不可用，请断开外接音频设备后重试。")
-        }
-        let ring=try AudioRingOwner(capacity:UInt32(format.sampleRate/2))
-        work.sync {
-            self.epoch+=1
-            self.ring=ring;self.source=input;self.output=output;self.converter=converter
-            self.rate=format.sampleRate;self.failed=false;self.sessionID=nil;self.samples.removeAll(keepingCapacity:true)
-        }
-        node.installTap(onBus:0,bufferSize:1024,format:format) { buffer,_ in
-            // No allocation, conversion, dispatch, disk or network operation in this callback.
-            guard let channels=buffer.floatChannelData else { return }
-            let pointers=UnsafeRawPointer(channels).assumingMemoryBound(to:UnsafePointer<Float>?.self)
-            ptt_ring_write(ring.pointer,pointers,buffer.format.channelCount,buffer.frameLength)
-        }
-        do { engine.prepare();try engine.start() }
-        catch { node.removeTap(onBus:0);work.sync { self.ring=nil };try? audio.setActive(false);throw error }
-        self.engine=engine;savedRoute=route()
-        work.sync {
-            let timer=DispatchSource.makeTimerSource(queue:work);timer.schedule(deadline:.now(),repeating:0.01)
-            timer.setEventHandler { [weak self] in self?.consume() };self.timer=timer;timer.resume()
+        do {
+            try audio.setCategory(.record,mode:.measurement,options:[])
+            try audio.setPreferredIOBufferDuration(0.02)
+            try audio.setActive(true)
+            audioSessionActive=true
+            if let builtIn=audio.availableInputs?.first(where:{$0.portType == .builtInMic}) { try audio.setPreferredInput(builtIn) }
+            let engine=AVAudioEngine();let node=engine.inputNode;let format=node.outputFormat(forBus:0)
+            guard format.sampleRate>=8000,format.sampleRate<=192000,format.channelCount>0,format.channelCount<=8,
+                  format.commonFormat == .pcmFormatFloat32,!format.isInterleaved,
+                  let mono=AVAudioFormat(standardFormatWithSampleRate:format.sampleRate,channels:1),
+                  let wire=AVAudioFormat(standardFormatWithSampleRate:24000,channels:1),
+                  let input=AVAudioPCMBuffer(pcmFormat:mono,frameCapacity:4096),
+                  let output=AVAudioPCMBuffer(pcmFormat:wire,frameCapacity:16384),
+                  let converter=AVAudioConverter(from:mono,to:wire) else {
+                throw PTTError.message("手机当前音频格式不可用，请断开外接音频设备后重试。")
+            }
+            let ring=try AudioRingOwner(capacity:UInt32(format.sampleRate/2))
+            work.sync {
+                self.epoch+=1
+                self.ring=ring;self.source=input;self.output=output;self.converter=converter
+                self.rate=format.sampleRate;self.failed=false;self.sessionID=nil;self.lastMeter=0;self.samples.removeAll(keepingCapacity:true)
+            }
+            node.installTap(onBus:0,bufferSize:1024,format:format) { buffer,_ in
+                // No allocation, conversion, dispatch, disk or network operation in this callback.
+                guard let channels=buffer.floatChannelData else { return }
+                let pointers=UnsafeRawPointer(channels).assumingMemoryBound(to:UnsafePointer<Float>?.self)
+                ptt_ring_write(ring.pointer,pointers,buffer.format.channelCount,buffer.frameLength)
+            }
+            self.engine=engine
+            engine.prepare();try engine.start()
+            savedRoute=route()
+            work.sync {
+                let timer=DispatchSource.makeTimerSource(queue:work);timer.schedule(deadline:.now(),repeating:0.01)
+                timer.setEventHandler { [weak self] in self?.consume() };self.timer=timer;timer.resume()
+            }
+        } catch {
+            // Includes failures after session activation but before engine startup.
+            stop();throw error
         }
     }
     func begin(_ id:UUID,onFrame:@escaping(Data,Int)->Void) {
@@ -106,8 +113,12 @@ final class AudioPipeline: @unchecked Sendable {
     func stop() {
         precondition(Thread.isMainThread)
         engine?.inputNode.removeTap(onBus:0);engine?.stop();engine=nil
-        work.sync { epoch+=1;timer?.cancel();timer=nil;sessionID=nil;frame=nil;samples.removeAll();ring=nil;source=nil;output=nil;converter=nil;failed=true }
-        try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation)
+        work.sync { epoch+=1;timer?.cancel();timer=nil;sessionID=nil;frame=nil;samples.removeAll();ring=nil;source=nil;output=nil;converter=nil;lastMeter=0;failed=true }
+        savedRoute=""
+        if audioSessionActive {
+            try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation)
+            audioSessionActive=false
+        }
     }
     private func consume() {
         guard !failed,let ring,let source,let pointer=source.floatChannelData?[0] else { return }
