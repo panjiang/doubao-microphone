@@ -37,6 +37,8 @@ jobs:
       commit: ${{ steps.version.outputs.commit }}
       ios_version: ${{ steps.version.outputs.ios_version }}
       ios_build: ${{ steps.version.outputs.ios_build }}
+      android_version: ${{ steps.version.outputs.android_version }}
+      android_build: ${{ steps.version.outputs.android_build }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -178,8 +180,44 @@ jobs:
           compression-level: 0
           retention-days: 30
 
+  android:
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            android/**/*.gradle
+            android/**/*.lockfile
+            android/gradle/wrapper/gradle-wrapper.properties
+      - name: Use preinstalled Android SDK or install missing pinned components
+        run: |
+          sdk="${ANDROID_HOME:?Android SDK must be available}"
+          if [[ ! -f "$sdk/platforms/android-35/android.jar" || ! -d "$sdk/build-tools/35.0.0" ]]; then
+            "$sdk/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
+          fi
+      - name: Compile unsigned Android APK and run static lint
+        working-directory: android
+        run: ./gradlew --no-daemon --console plain -PunsignedApk :app:assembleDebug :app:lintDebug
+      - name: Package versioned Android product and checksums
+        run: python3 scripts/ci-release.py package android
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ needs.version.outputs.tag }}-android-${{ needs.version.outputs.android_version }}-build${{ needs.version.outputs.android_build }}
+          path: dist/release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
   draft-release:
-    needs: [version, windows, macos, ios]
+    needs: [version, windows, macos, ios, android]
     if: github.event_name == 'push' || inputs.draft_release
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -206,5 +244,7 @@ jobs:
           COMMIT: ${{ needs.version.outputs.commit }}
           IOS_VERSION: ${{ needs.version.outputs.ios_version }}
           IOS_BUILD: ${{ needs.version.outputs.ios_build }}
+          ANDROID_VERSION: ${{ needs.version.outputs.android_version }}
+          ANDROID_BUILD: ${{ needs.version.outputs.android_build }}
         run: |
           python3 scripts/create-draft-release.py

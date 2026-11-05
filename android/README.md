@@ -4,6 +4,8 @@
 
 首版提供开发测试签名 APK，未上架应用商店。编译、签名检查不代表已经通过安卓真机语音链路验收。
 
+公开安装包见 [v0.2.3 Release](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.3)。Actions 生成未签名 APK，维护者在本机用稳定密钥签名后再公开；签名私钥不上传构建机。文件名中的 Android 版本独立于桌面版本。
+
 ## 安装与使用
 
 1. 将 `DoubaoRemote-0.1.0-android-debug.apk` 传到手机，按 Android 提示允许本次安装来源，再安装。

@@ -28,7 +28,9 @@ def main():
         "- macOS：Apple Silicon / Intel 独立测试 DMG，ad-hoc 签名，**未公证**。"
         "构建成功不代表 Intel 或全部语音链路已经实机验证。\n"
         f"- iOS {os.environ['IOS_VERSION']}（构建 {os.environ['IOS_BUILD']}）："
-        "模拟器包与**未签名**真机产物；真机使用需自行开发签名，不能直接安装。\n\n"
+        "模拟器包与**未签名**真机产物；真机使用需自行开发签名，不能直接安装。\n"
+        f"- Android {os.environ['ANDROID_VERSION']}（构建 {os.environ['ANDROID_BUILD']}）："
+        "Android 10+ 原生客户端。CI 产物**未签名**，须维护者在本机使用稳定密钥签名，替换 APK 与校验清单后再公开；安卓真机链路尚未验收。\n\n"
         f"[安装与平台限制](https://github.com/{repo}/blob/{commit}/docs/getting-started.md) · "
         f"[验证范围](https://github.com/{repo}/blob/{commit}/docs/verification.md)\n\n"
         "附各平台构建清单与 SHA256SUMS.txt。CI 只构建打包，未运行录音、按键或实机验收。\n",

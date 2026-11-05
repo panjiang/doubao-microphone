@@ -46,8 +46,12 @@ def versions():
     ios_builds = set(re.findall(r"CURRENT_PROJECT_VERSION = (\d+);", project))
     if len(ios_versions) != 1 or len(ios_builds) != 1:
         raise ValueError("iOS Debug and Release version/build must agree")
+    android = (ROOT / "android/app/build.gradle").read_text(encoding="utf-8")
+    android_version = re.search(r"versionName '([\d.]+)'", android)[1]
+    android_build = re.search(r"versionCode (\d+)", android)[1]
     return {"version": version, "tag": f"v{version}",
-            "ios_version": ios_versions.pop(), "ios_build": ios_builds.pop()}
+            "ios_version": ios_versions.pop(), "ios_build": ios_builds.pop(),
+            "android_version": android_version, "android_build": android_build}
 
 
 def check_version(requested):
@@ -98,6 +102,9 @@ def package(kind):
             app = ROOT / "ios/build" / target / "Build/Products" / folder / "DoubaoPTT.app"
             subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",
                             str(app), str(ASSETS / f"{prefix}-{suffix}.zip")], check=True)
+    elif kind == "android":
+        apk = ROOT / "android/app/build/outputs/apk/debug/app-debug-unsigned.apk"
+        shutil.copy2(apk, ASSETS / f"DoubaoRemote-Android-{values['android_version']}-build{values['android_build']}-unsigned.apk")
     else:
         raise ValueError(f"Unsupported package kind: {kind}")
     values.update(platform=kind, commit=os.environ.get("GITHUB_SHA", "local"),
@@ -105,7 +112,8 @@ def package(kind):
                            f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
                            f"{os.environ.get('GITHUB_RUN_ID', '')}"),
                   signing={"windows-x64": "unsigned application/installer; vendor driver retains original signature",
-                           "ios": "unsigned; device product requires your own development signing"}.get(
+                           "ios": "unsigned; device product requires your own development signing",
+                           "android": "unsigned CI debug APK; sign locally with the existing key before distribution"}.get(
                                kind, "ad-hoc development signature; not notarized"))
     (ASSETS / f"build-{kind}.json").write_text(
         json.dumps(values, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -132,7 +140,7 @@ def main():
     version = sub.add_parser("version")
     version.add_argument("--requested-version", default="")
     bundle = sub.add_parser("package")
-    bundle.add_argument("kind", choices=["windows-x64", "macos-aarch64", "macos-x86_64", "ios"])
+    bundle.add_argument("kind", choices=["windows-x64", "macos-aarch64", "macos-x86_64", "ios", "android"])
     sums = sub.add_parser("checksums")
     sums.add_argument("folder", type=Path)
     args = parser.parse_args()

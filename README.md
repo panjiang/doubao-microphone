@@ -18,7 +18,7 @@
 
 ## 支持状态
 
-当前为**开发预览版**。仓库提供源码和构建脚本，尚未发布 [Release 安装包](https://github.com/panjiang/doubao-voice-remote/releases)。使用前请先阅读平台限制。
+当前为**开发预览版**。[下载 v0.2.3 安装包及构建产物](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.3)，也可从源码构建。使用前请先阅读平台限制。
 
 | 平台 | 要求 | 当前状态 |
 | --- | --- | --- |
@@ -26,7 +26,7 @@
 | macOS / Apple Silicon | macOS 14.2+ | 已构建并验证 Fn 触发、虚拟音频及延迟 Enter；现有包为开发签名，未完成正式公证 |
 | macOS / Intel | macOS 14.2+ | 已通过 CI 构建，尚未完成实机验证 |
 | iPhone App | iOS 18+ | 原生 SwiftUI App，当前需自行开发签名安装，未提供 App Store / TestFlight 分发 |
-| Android App | Android 10+ | 原生 Kotlin App，提供测试 APK 构建入口，真机语音链路待验证 |
+| Android App | Android 10+ | 原生 Kotlin App，提供测试签名 APK，真机语音链路待验证 |
 | 手机网页 | iOS 18+ Safari | 可使用同一个二维码进入；首次需手动安装并信任电脑证书 |
 
 Linux 仅提供开发模拟模式。已验证的版本、场景和剩余项目见[验证记录](docs/verification.md)，不能据此保证所有豆包版本和电脑环境均可用。
