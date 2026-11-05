@@ -1,122 +1,91 @@
-# 豆包语音遥控（doubao-voice-remote）
+<img src="assets/icons/doubao-ptt.svg" alt="豆包语音遥控" width="72" height="72">
 
-用 iPhone 遥控电脑端豆包语音输入，按住说话，松手完成，支持 Windows 和 macOS。
+# 豆包语音遥控
 
-仓库：[`panjiang/doubao-voice-remote`](https://github.com/panjiang/doubao-voice-remote)。现有命令 `doubao-ptt`、安装包名称及应用标识保留，以兼容已安装程序、配对和证书。
+用 iPhone 遥控电脑端豆包输入法：按住说话，松手完成输入。
 
-iPhone 同时作为无线麦克风和远程语音快捷键。电脑端豆包负责识别及文字输入；本项目传声音、管理按住／松开，不读取识别结果；Windows 手机页正常松手后会延迟按一次 Enter，上滑出按钮后松手则仅完成听写。
+iPhone 同时充当无线麦克风和遥控器，电脑上的豆包输入法负责识别，将文字写入当前输入框。桌面端面向 Windows 和 macOS，手机可使用原生 App「豆包遥控」或 Safari 网页。
 
-桌面端是 **Rust 常驻程序＋原生托盘／菜单栏**，无 Tauri、Electron 或 WebView。手机可使用网页或[原生 iOS App](ios/README.md)，电脑配置使用本机网页。桌面端 0.2.2 与 App 0.1.0 构建 23 使用同一个配对二维码：App 直接配对，手机相机扫码进入网页。App 无需安装系统根证书，并兼容旧桌面的 JSON 二维码。
+**电脑光标放入输入框 → 手机按住说话 → 豆包识别输入 → 松手结束**
 
-## 当前状态
+## 功能
 
-当前 `main` 包含 Windows UMDF 虚拟键盘、原生 iPhone App 和 macOS 适配。Windows 已由用户确认手机按住可唤起豆包、输入文字并结束；Mac mini 已确认 CoreGraphics 模拟 Fn、BlackHole 输入及正常结束可用。原理及排查经验见 [Windows 输入兼容性总结](docs/windows-input-findings.md)，Mac 的具体版本及实测范围见 [macOS 验证记录](docs/macos-validation.md)。这不代表全部平台及故障验收通过。
+- **一个二维码配对**：App 和手机相机扫描同一个码，无需选择连接方式。
+- **松手回车**：正常结束后默认等待 1 秒按 Enter，也可通过滑出操作区域仅完成听写。
+- **按需连接**：按住时自动准备麦克风和连接；中断后再次按住可重连。
+- **桌面托盘运行**：通过本机网页配置设备、快捷键、回车等待和登录自启动。
+- **环境检查**：检测虚拟麦克风、豆包运行状态及可确认的相关设置。
 
-这是可构建、可测试的开发实现。**模拟测试不代表已通过豆包、iPhone 或 macOS 实机验收。**逐项证据和缺口见 [验证记录](docs/verification.md)。先按 [P0 实机验证](docs/p0-validation.md) 确认模拟快捷键被当前豆包版本接受，再进行日常试用。
+## 支持状态
 
-支持目标：Windows 11 x64、macOS 14.2+（Apple Silicon／Intel）、iOS 18+ Safari。当前没有 Linux 原生音频／按键／托盘实现，Linux 仅用于 `--mock --headless` 开发验证。
+当前为**开发预览版**。仓库提供源码和构建脚本，尚未发布 [Release 安装包](https://github.com/panjiang/doubao-voice-remote/releases)。使用前请先阅读平台限制。
 
-## 构建
+| 平台 | 要求 | 当前状态 |
+| --- | --- | --- |
+| Windows | Windows 11 x64 | 已验证手机到豆包的输入链路；UMDF 键盘组件仍为研究实现，普通安装包不包含它。备用兼容模式受豆包版本限制 |
+| macOS / Apple Silicon | macOS 14.2+ | 已构建并验证 Fn 触发、虚拟音频及延迟 Enter；现有包为开发签名，未完成正式公证 |
+| macOS / Intel | macOS 14.2+ | 提供构建入口，尚未完成构建与实机验证 |
+| iPhone App | iOS 18+ | 原生 SwiftUI App，当前需自行开发签名安装，未提供 App Store / TestFlight 分发 |
+| 手机网页 | iOS 18+ Safari | 可使用同一个二维码进入；首次需手动安装并信任电脑证书 |
 
-需要 Rust 1.94.0、Node.js 22+、npm。Windows 需要 MSVC C++ 构建工具和 Windows SDK；macOS 需要 Mac 与 Xcode Command Line Tools。工程级 Cargo/npm 配置优先使用国内镜像，不改变系统配置。
+Linux 仅提供开发模拟模式。已验证的版本、场景和剩余项目见[验证记录](docs/verification.md)，不能据此保证所有豆包版本和电脑环境均可用。
 
-```sh
-cd web
-npm ci --ignore-scripts
-npm run build
-cd ..
-cargo build --locked
-cargo test --locked --all-targets
-cargo clippy --locked --all-targets -- -D warnings
-```
+## 开始使用
 
-先构建网页：Rust 会把 `web/dist` 嵌入二进制，运行时不依赖 Node、npm、Vite 或外部 CDN。修改页面后需重新构建网页和 Rust 二进制。
+先按照[安装与首次配置](docs/getting-started.md)准备桌面程序、豆包输入法和虚拟音频设备。
 
-正式构建使用 `scripts/build-windows.ps1` 或 `scripts/build-macos.sh`。Windows 完整安装包需要 Inno Setup 6.7+ 和原版 VB-CABLE Pack 45 缓存；构建先校验锁定哈希和签名，不自动下载。便携版需要显式传入 `-PortableOnly`，不会冒充完整安装包。详见 [Windows 安装交付](docs/windows-installer.md)。macOS 构建两个架构前需安装相应 Rust target；可通过 `MACOS_ARCHS=aarch64` 只构建 Apple Silicon。正式签名设置 Developer ID `APPLE_SIGNING_IDENTITY`，公证设置已有的 Keychain `NOTARY_PROFILE`。未提供凭据时只生成开发测试签名包；Apple Development 签名也不等于正式分发签名。离线构建使用 `OFFLINE=1`，已有网页产物可用 `SKIP_FRONTEND=1`。macOS 安装和平台共用逻辑见 [双平台适配说明](docs/cross-platform.md)。
+1. **连接同一局域网**：iPhone 使用 Wi-Fi，电脑可接网线；避免隔离的访客网络。
+2. **检查电脑环境**：从托盘或菜单栏打开配置页，确认豆包已运行、音频路由正确，并完成必要的系统授权。
+3. **扫码配对**：点击「生成配对二维码」，用 App 或手机相机扫描。二维码五分钟内单次有效，成功后自动收起。
+4. **按住说话**：把电脑光标放入目标输入框，在手机上按住并说话。
 
-## 首次使用
+| 手机入口 | 按住区域 | 松手后按 Enter | 仅完成听写 |
+| --- | --- | --- | --- |
+| 豆包遥控 App | 顶栏以下的区域 | 在按下位置出现的固定圆内松手 | 滑出圆外后松手；滑回圆内可恢复回车 |
+| Safari 网页 | 「按住说话」按钮 | 在按钮内正常松手 | 向上滑出按钮后松手；滑回按钮可恢复回车 |
 
-1. Windows 使用完整安装包：已包含原版 [VB-CABLE](https://vb-audio.com/Cable/)，缺少时由安装向导自动安装，按系统提示同意管理员授权，并在提示时重启。macOS 打开 DMG 内的“安装语音遥控”；缺少 [BlackHole 2ch](https://existential.audio/blackhole/) 时，向导从官方来源下载、验证并安装，已有设备复用。按系统提示完成管理员授权或重启。
-2. Windows 自动选择可访问的 UMDF 右 Alt；未检测到组件时回退到原有豆包兼容模式。后者适配默认位置的豆包输入法 1.0.0.23，需开启悬浮工具栏。macOS 默认使用 Fn。两端均可在高级诊断中手动匹配豆包设置，不能将任意模拟键视为一定被豆包接受。
-3. 启动 `doubao-ptt serve --open`，或使用安装后创建的桌面快捷方式。Windows 安装包和 macOS 已安装应用首次启动默认启用当前用户登录自启动；后台自启动不打开网页，可在配置页关闭。Mac 升级保留已保存的自启动选择。
-4. 在本机配置页选择本机局域网 IPv4、音频输出和豆包实际配置的快捷键，保存。网络地址或端口更改后需要重启程序。
-5. Windows：本程序输出选择 **CABLE Input**，豆包麦克风选择 **CABLE Output**。macOS：两边均选择 **BlackHole 2ch**。若豆包没有单独选择功能，手动设置系统默认输入；这也会影响其他使用默认麦克风的应用。
-6. macOS 在系统设置 → 隐私与安全性 → 辅助功能，授权主应用和 `Contents/Resources/DoubaoPTTInput.app` 输入代理。使用豆包输入法或在豆包中开启全局语音。配置页只读检查这两项权限、语音设置和虚拟设备；实际兼容性以当前版本的实测为准。
-7. 点击“生成配对二维码”，用“豆包遥控”App 或手机相机扫描同一个码，不需要先选连接方式。App 直接完成配对；二维码五分钟内单次有效，配对成功后自动收起。
-8. 手机相机扫码进入网页。网页首次使用需在 Safari 下载、安装本机证书描述文件，再在 **设置 → 通用 → 关于本机 → 证书信任设置** 开启 `Doubao PTT Local CA` 的完全信任，然后返回向导打开 HTTPS 输入页完成配对，无需电脑二次确认。证书流程超过五分钟时重新生成二维码。此证书步骤不适用于 App。
-9. 已配对手机直接按住“按住说话”：尚未连接时自动初始化麦克风和电脑连接，并按系统提示允许访问；初次连接时等显示“正在输入”再开口。已经连接时直接开始听写，松开后等待本次结束。
+Enter 由当前电脑应用决定是发送消息还是换行。等待时间可在配置页调整；固定等待不代表已经确认豆包写完文字。等待期间再次按住会取消上一次待发的 Enter。
 
-待命时麦克风保持就绪，iPhone 会显示系统麦克风指示；待命声音不发送。离开页面、切到后台或系统中断时停止采集；返回后再次按住说话才重新连接。不要开启虚拟设备“侦听”，不需要把声音播放到扬声器。
+手机需保持前台使用。锁屏、切后台、来电或断线会结束本次输入，恢复后重新按住；不支持后台或锁屏录音。
 
-手机添加到主屏幕是可选操作。锁屏、切后台、来电或页面失焦会中止本次输入，重新连接后需再次按住。首版不保证锁屏或后台收音。
+## 音频怎么连接
 
-## 托盘与运行
+| 电脑 | 本程序输出到 | 豆包输入法选择的麦克风 |
+| --- | --- | --- |
+| Windows | CABLE Input | CABLE Output |
+| macOS | BlackHole 2ch | BlackHole 2ch |
 
-托盘提供连接状态、运行状态、打开配置页、暂停／恢复和退出。退出时先释放快捷键，再停止音频和网络。程序运行在当前登录用户会话，不安装为系统服务。
+Windows 完整安装器会准备 VB-CABLE；Mac 安装向导在缺少设备时从官方来源获取 BlackHole。它们是虚拟音频设备，负责把手机声音送到豆包，不能用普通扬声器代替。更多步骤见[安装说明](docs/getting-started.md)。
 
-默认端口：本机管理 `127.0.0.1:38440`；首次证书向导 `选定IP:38441`；手机 HTTPS/WSS `选定IP:38443`。只对私人网络放行后两者，不开放管理端口，不修改路由器端口映射。
+## 数据与权限
 
-Windows 手动放行示例（管理员 PowerShell，仅在确认所选网络为私人网络后执行）：
+- 手机与电脑通过局域网连接，音频使用 HTTPS/WSS 传输。本项目不提供云端语音转发；语音识别由豆包输入法完成。
+- 默认不保存录音或识别正文。「故障录音诊断」需手动开启，采集文件仅保存在电脑本地，可自行删除。
+- App 使用相机扫码、麦克风采音，并访问局域网；配对凭据保存在本设备 Keychain。
+- App 在内部信任扫码指定的电脑证书，无需安装系统根证书；Safari 网页首次使用需要手动完成证书信任。
+- 可在电脑配置页撤销配对。卸载本程序不会自动卸载共享的虚拟音频设备。
 
-```powershell
-New-NetFirewallRule -DisplayName 'DoubaoPTT LAN' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 38441,38443 -Profile Private -Program 'C:\实际安装路径\doubao-ptt.exe'
-```
+## 开发与文档
 
-macOS 若弹出接收入站连接提示，允许本应用。AP 访客隔离、VPN 或不同子网可能导致手机不可达；使用同一路由器，电脑可以接网线。
+桌面端使用 Rust、Tokio、Axum 和 CPAL；网页使用 TypeScript / Vite；iPhone App 使用 SwiftUI、UIKit 和 AVAudioEngine。Windows、macOS、iOS 与网页均在本仓库维护。
 
-配置目录通过操作系统用户应用数据目录确定，启动日志输出实际路径。`admin-url.txt` 含本机管理令牌，不应分享；托盘可随时重新打开配置页。可用 `--data-dir` 指定开发目录。
+| 目录 | 内容 |
+| --- | --- |
+| `src/` | 桌面程序、共享会话逻辑及系统适配 |
+| `web/` | 电脑配置页和手机网页 |
+| `ios/` | 原生 iPhone App 与 Xcode 工程 |
+| `packaging/`、`scripts/` | 安装器、资源生成与构建脚本 |
+| `docs/` | 使用说明、协议与验证记录 |
+| `research/` | Windows 输入兼容性与驱动研究 |
 
-## 验证与诊断命令
+- [安装与首次配置](docs/getting-started.md)
+- [开发与构建](docs/development.md)
+- [iPhone App 构建与安装](ios/README.md)
+- [故障排查与卸载](docs/troubleshooting.md)
+- [双平台架构](docs/cross-platform.md) · [通信协议](docs/protocol.md) · [统一配对二维码](docs/native-ios-protocol.md)
 
-```sh
-# 仅枚举设备和检查平台状态，不发送按键
-doubao-ptt probe devices
+反馈问题可提交 [Issue](https://github.com/panjiang/doubao-voice-remote/issues)，请说明系统、豆包版本、手机入口和具体表现。
 
-# 三秒倒计时后按住已指定的键三秒；会产生实际键盘事件
-doubao-ptt probe key --key left_alt --seconds 3
+## 许可
 
-# 16-bit PCM WAV，单／双声道；需先从 devices 输出获得设备 ID 或完整名称
-doubao-ptt probe audio --wav sample.wav --device "CABLE Input" --hold-key left_alt
-
-# 无硬件模拟：不向真实麦克风输出，不产生真实按键
-doubao-ptt --mock --data-dir ./artifacts/mock-data serve --headless
-```
-
-无参数启动使用托盘；`serve --headless` 在命令行运行并打印一次本机配置 URL。配置页另有明确标注的快捷键测试按钮，倒计时期间应主动切换到测试输入框。测试命令和按钮都不能自行判断豆包是否识别成功。
-
-自动验证：
-
-```sh
-cd web
-npm test
-cd ..
-cargo build --locked
-node scripts/integration.mjs
-python3 scripts/verify-dependencies.py
-```
-
-集成测试启动隔离目录中的真实二进制、可信本地 TLS、WebSocket、模拟音频和输入代理子进程；不会触发真实 Alt/Fn。`PTT_BINARY` 可指定另一个构建产物。依赖校验脚本只请求官方元数据，将镜像锁文件的校验值与官方核对，结果在 `artifacts/dependency-verification.json`，不下载或执行包。
-
-## 数据与卸载
-
-只持久保存设置、配对令牌的 SHA-256 摘要、本机证书及必要密钥，不默认保存录音或文字。 0.1.2 提供默认关闭的「故障录音诊断」：经用户开启后，仅在按住期间采集手机原始 PCM 和虚拟麦克风回读，保存在数据目录 `diagnostics/` 下，每份最多 30 秒，分别保留最近 3 次正常和 3 次故障样本。每份包含 `phone.wav`、`virtual-microphone.wav`（采集失败时不生成）及状态/音量时间线 `report.json`，不上传。关闭后不再录制；已有样本由用户手动删除。兼容模式每约 250ms 查询豆包采集状态，连续确认中途停止后结束本次会话并报错，不自动重新开启豆包。原生 Windows CA 私钥由 DPAPI 保护，原生 macOS CA 私钥存于 Keychain；**模拟模式仅在开发目录存文件密钥，勿用于正式配对**。服务器叶证书私钥只在内存中存在。
-
-先退出程序，再卸载应用。Windows 安装包移除本软件配置和启动项；便携版和 macOS 使用 [卸载说明](docs/troubleshooting.md)。虚拟音频设备不自动卸载，因为可能被其他应用使用。iPhone 的本机证书描述文件需在设置中手动移除。
-
-协议细节见 [protocol.md](docs/protocol.md)，实现边界见 [验证记录](docs/verification.md)。
-
-### Codex 空框首次输入兼容
-
-0.1.4 新增默认关闭的「Codex 空框兼容（先补一个空格）」。本机实测：通过豆包工具栏启动录音，在 Codex 新会话空输入框首字写入后可能触发丢弃输入并停止；同一会话追加文字、手动按住快捷键或先输入空格则正常。开关启用后，只在受支持的 Windows Codex 商店包前台、具有焦点的 ProseMirror 空编辑器内写入一个普通空格，等待 80ms 再启动豆包；已有内容不插入空格，其他程序不处理。检查只读取一个字符及文本范围端点以判断空白，不保存输入文字。开关可在配置页关闭。故障录音事件中的 codex_primed 表示本次是否实际执行了预热；该方案是应用间兼容处理，未修改豆包或 Codex 的程序文件。
-
-0.1.5 修正空框兼容的 UIA 组件选择：使用 CUIAutomation8 支持所需的 IUIAutomation2 超时接口，避免 0.1.4 的 E_NOINTERFACE 立即失败。原生回归测试覆盖实际生产工厂初始化。
-
-### 手机松手 Enter（Windows 研究版）
-
-`0.1.5-umdf.2` 直接使用原按住按钮：正常松手后先传完尾音、释放语音快捷键，再等待默认 1000ms 按一次 Enter；从按钮上边缘滑出后松手只完成听写，滑回再松手恢复 Enter。没有新增按钮、模式开关或上滑提示。配置页的“回车等待”可设为 0–5000ms。Enter 在当前应用中可能发送消息或换行，程序不确认识别文本是否已经全部写入，也不确认消息是否发送。
-
-新一轮按住、断线、页面隐藏、暂停、改设置或退出会取消待发回车；失败及短按不回车。回车前检查开始时的前台窗口及原生焦点控件，并确认修饰键已松开；同一浏览器原生窗口中的 DOM 输入框切换可能无法由原生窗口句柄区分。旧手机页面仍仅完成听写，未适配平台不启用回车能力。UMDF 驱动和研究证书保持不变。
-
-### 按住时按需连接麦克风（0.1.5-umdf.3）
-
-手机页面只保留按住说话入口，不再显示连接、就绪或关闭麦克风按钮。打开页面、恢复前台及网络恢复均不主动开启麦克风；真正按住时，未连接则初始化，已连接则复用。浏览器权限仍需用户同意，初始化期间松手／取消触摸不会迟到启动听写。连接可在前台待命复用，离开页面或系统中断后，下次按住才重连。正常松手 Enter 和上滑仅完成听写保持。
+本项目源码采用 [MIT License](LICENSE)。豆包输入法、VB-CABLE 和 BlackHole 由各自提供方维护，遵循各自的使用及分发条款。

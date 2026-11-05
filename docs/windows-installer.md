@@ -1,4 +1,4 @@
-# Windows 安装交付（0.2.0）
+# Windows 安装交付
 
 Windows 11 x64 完整安装包内含原版 VB-CABLE Driver Pack 45，最终用户无需另行下载安装驱动。安装器首先通过 Windows WMI 按 `VBAudioVACMME` 服务查找在场的音频设备，健康则复用；设备需要重启则在安装结束时提示；设备异常或查询失败时报告原因，不盲目覆盖或卸载驱动。
 
@@ -8,7 +8,7 @@ Windows 11 x64 完整安装包内含原版 VB-CABLE Driver Pack 45，最终用�
 
 安装完成时默认创建当前用户的桌面快捷方式，并通过已安装程序的专用 `install-defaults` 命令启用当前用户登录自启动，同时同步配置页中的开关。覆盖安装也启用此默认项，其余现有配置、配对和证书保留；随后可在配置页关闭。启动项指向安装目录的程序，参数为 `serve`，登录后仅后台运行；桌面快捷方式使用 `serve --open`。便携运行不执行安装默认项命令。
 
-Windows 主程序、安装器、桌面／开始菜单快捷方式和卸载列表统一采用原创蓝底白色麦克风图标，托盘使用内嵌的 32px RGBA 图像。生成方式见 `assets/icons/README.md`；常规构建直接使用已生成资源，需要本机 Windows SDK 提供 `rc.exe`，不增加运行时解码依赖。macOS 本轮不变。
+Windows 主程序、安装器、桌面／开始菜单快捷方式和卸载列表统一采用原创蓝底白色麦克风图标，托盘使用按任务栏 DPI 选择的内嵌 RGBA 图像。生成方式见 `assets/icons/README.md`；常规构建直接使用已生成资源，需要本机 Windows SDK 提供 `rc.exe`，不增加运行时解码依赖。macOS 的图标及安装方式见 [双平台说明](cross-platform.md)。
 
 Windows 默认自动选择语音触发方式：能打开现有 UMDF 控制接口时使用右 Alt，否则使用既有豆包兼容方式（仍受豆包版本及工具栏条件限制）。检测仅打开、关闭接口，不发送 HID 命令。普通设置只显示自动方式；其他选项在高级诊断中，启用“手动选择”并保存后生效。安装包仍不安装 UMDF 研究组件。
 
@@ -31,15 +31,15 @@ Windows 只有一个 CABLE Input 时，配置页保存稳定的 `CABLE Input` �
 
 `packaging/vbcable.lock.json` 固定原厂归档 SHA-256，以及 x64 安装器、Windows 10/11 驱动和目录文件的哈希及签名证书身份。准备脚本核对 Authenticode 状态后产生安装用文件清单、许可页和 Inno 常量；它不执行驱动安装、不导入证书，也不改变系统设备。缺少本地输入时明确失败，不偷偷下载或切换镜像源。
 
-VB-CABLE 二进制及自动生成内容位于忽略的 `artifacts/vendor/vb-cable-45/`，不提交到 Git。完整安装包输出 `dist/DoubaoPTT-Setup-0.2.0-x64.exe`；便携版不包含自动安装能力。设备安装操作仅通过完整安装向导触发。
+VB-CABLE 二进制及自动生成内容位于忽略的 `artifacts/vendor/vb-cable-45/`，不提交到 Git。完整安装包输出 `dist/DoubaoPTT-Setup-<版本>-x64.exe`；便携版不包含自动安装能力。设备安装操作仅通过完整安装向导触发。
 
-安装脚本必须使用 `ArchiveExtraction=full`：原厂包是 ZIP，Inno Setup 的 `enhanced/nopassword` 和 `enhanced` 仅支持 7z，会在首次安装驱动时报告 `Extraction failed: The archive format is unsupported`。2026-11-04 修复并重新生成了 0.1.6 安装包；此前打开的安装向导应关闭后重新启动新版文件。
+安装脚本必须使用 `ArchiveExtraction=full`：原厂包是 ZIP，Inno Setup 的 `enhanced/nopassword` 和 `enhanced` 仅支持 7z，会在首次安装驱动时报告 `Extraction failed: The archive format is unsupported`。该问题的历史修复与构建证据见 [验证记录](verification.md)。
 
 ## 来源与授权
 
 VB-CABLE 来源为 [VB-Audio](https://www.vb-cable.com/)，属于 donationware，欢迎[捐赠或购买许可证](https://shop.vb-audio.com/)。依据厂商[当前分发许可](https://vb-audio.com/Services/licensing.htm)保留原版归档，允许随软件分发和静默安装，原厂身份及支持入口出现在安装向导、许可页和安装目录的 THIRD-PARTY-LICENSES.txt 中。组织／专业环境按厂商条件取得相应授权，不把个人使用条件扩大成所有场景免费。
 
-Pack 45 原始 readme 的集成条款要求作者同意；当前官方网站明确授予满足上述条件的集成许可。本项目不修改 readme 来消除该条款，而是同时保留原文和现行许可入口。macOS 不捆绑 BlackHole，本次 Windows 集成不构成 macOS 安装自动化支持。
+Pack 45 原始 readme 的集成条款要求作者同意；当前官方网站明确授予满足上述条件的集成许可。本项目不修改 readme 来消除该条款，而是同时保留原文和现行许可入口。macOS 不捆绑 BlackHole；当前 Mac 安装向导在缺少设备时从官方来源获取并安装，见 [双平台说明](cross-platform.md)。
 
 ## 验证边界
 
