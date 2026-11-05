@@ -31,8 +31,37 @@ try {
     foreach ($expected in $spec.signed_files) {
         $path=Join-Path $work $expected.filename
         if ((Get-FileHash $path -Algorithm SHA256).Hash -ne $expected.sha256) { throw ('File hash mismatch: '+$expected.filename) }
-        $signature=Get-AuthenticodeSignature $path
-        if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $expected.signer_thumbprint) { throw ('Signature validation failed: '+$expected.filename) }
+    }
+    foreach ($expected in $spec.signed_files) {
+        $path=Join-Path $work $expected.filename
+        $signaturePath=$path
+        if ($expected.catalog) {
+            $catalogSpec=@($spec.signed_files | Where-Object { $_.filename -eq $expected.catalog })
+            if ($catalogSpec.Count -ne 1 -or $catalogSpec[0].signer_thumbprint -ne $expected.signer_thumbprint) { throw 'Driver catalog must have its own pinned hash and the expected signer' }
+            $signaturePath=Join-Path $work $expected.catalog
+        }
+        $signature=Get-AuthenticodeSignature $signaturePath
+        if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $expected.signer_thumbprint) {
+            throw ('Signature validation failed: '+$expected.filename+'; status='+$signature.Status+'; '+$signature.StatusMessage)
+        }
+        if ($expected.catalog) {
+            # Catalog-signed drivers need not contain an embedded signature. Verify
+            # membership explicitly without registering the catalog or installing a driver.
+            $signTool=(Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
+            if (!$signTool) {
+                $sdkBin=Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+                if (Test-Path -LiteralPath $sdkBin) {
+                    $signTool=Get-ChildItem -LiteralPath $sdkBin -Directory |
+                        Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+                        Sort-Object { [version]$_.Name } -Descending |
+                        ForEach-Object { Join-Path $_.FullName 'x64\signtool.exe' } |
+                        Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+                }
+            }
+            if (!$signTool) { throw 'Windows SDK signtool.exe is required to verify the catalog-signed VB-CABLE driver' }
+            & $signTool verify /v /kp /c $signaturePath $path
+            if ($LASTEXITCODE) { throw ('Driver catalog verification failed: '+$expected.filename) }
+        }
     }
     New-Item -ItemType Directory -Force $cache | Out-Null
     $cached=Join-Path $cache $spec.filename

@@ -1,5 +1,7 @@
 # Windows 安装交付
 
+构建前检查原版 VB-CABLE ZIP、文件哈希及固定签名者。目录签名的 `.sys` 通过 Windows SDK 的 `signtool verify /kp /c <catalog> <driver>` 校验，不依赖构建机已经安装驱动或注册目录文件；因此完整安装包构建还需要 SDK 中的 `signtool.exe`。只读验证不会安装驱动或更改系统信任。参见 [Microsoft SignTool 文档](https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool)。
+
 Windows 11 x64 完整安装包内含原版 VB-CABLE Driver Pack 45，最终用户无需另行下载安装驱动。安装器首先通过 Windows WMI 按 `VBAudioVACMME` 服务查找在场的音频设备，健康则复用；设备需要重启则在安装结束时提示；设备异常或查询失败时报告原因，不盲目覆盖或卸载驱动。
 
 设备缺少时，安装器校验归档及完整文件清单，解压全部原版文件，保持原厂名称和内容，并仅对原厂签名的 `VBCABLE_Setup_x64.exe -i -h` 请求管理员授权。校验到执行结束期间持有只读、拒绝写入的文件句柄。用户拒绝授权或安装后检测失败时，在安装准备页提示重试；不会报告为安装成功。原厂要求新装驱动后重启，即使设备已经出现也会在结束页提供重启选项，并在重启前跳过自动启动主程序。

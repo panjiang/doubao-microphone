@@ -10,6 +10,12 @@ $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 Push-Location $root
 try {
+    if (!$CheckOnly -and !$PortableOnly) {
+        $compiler=(Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+        if (!$compiler) { $candidate='C:\Program Files (x86)\Inno Setup 6\ISCC.exe'; if (Test-Path $candidate) { $compiler=$candidate } }
+        if (!$compiler) { throw 'Inno Setup 6.7+ missing. Install it to build the full installer, or explicitly use -PortableOnly.' }
+        & (Join-Path $PSScriptRoot 'prepare-vbcable.ps1') -PackagePath $VbCablePackage
+    }
     if (!$SkipFrontend) {
         Push-Location web
         try {
@@ -37,10 +43,6 @@ try {
     New-Item -ItemType Directory -Force dist | Out-Null
     Copy-Item target/release/doubao-ptt.exe dist/ -Force
     if (!$PortableOnly) {
-        $compiler=(Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
-        if (!$compiler) { $candidate='C:\Program Files (x86)\Inno Setup 6\ISCC.exe'; if (Test-Path $candidate) { $compiler=$candidate } }
-        if (!$compiler) { throw 'Inno Setup 6.7+ missing. Install it to build the full installer, or explicitly use -PortableOnly.' }
-        & (Join-Path $PSScriptRoot 'prepare-vbcable.ps1') -PackagePath $VbCablePackage
         $version=[regex]::Match((Get-Content Cargo.toml -Raw),'(?m)^version = "([^"]+)"').Groups[1].Value
         if (!$version) { throw 'Cannot read application version' }
         & $compiler ('/DAppVersion='+$version) packaging/windows.iss

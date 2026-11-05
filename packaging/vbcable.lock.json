@@ -21,6 +21,7 @@
     },
     {
       "filename": "vbaudio_cable64_win10.sys",
+      "catalog": "vbaudio_cable64_win10.cat",
       "sha256": "f01344602472f1b527de5ee98f18987c03db48fea444e457d061e937f1d531d5",
       "signer_thumbprint": "9A4A6CFEE73C6B65945FCAA083DFBCC1E9077E7E"
     }

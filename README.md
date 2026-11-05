@@ -24,7 +24,7 @@ iPhone 同时充当无线麦克风和遥控器，电脑上的豆包输入法负�
 | --- | --- | --- |
 | Windows | Windows 11 x64 | 已验证手机到豆包的输入链路；UMDF 键盘组件仍为研究实现，普通安装包不包含它。备用兼容模式受豆包版本限制 |
 | macOS / Apple Silicon | macOS 14.2+ | 已构建并验证 Fn 触发、虚拟音频及延迟 Enter；现有包为开发签名，未完成正式公证 |
-| macOS / Intel | macOS 14.2+ | 提供构建入口，尚未完成构建与实机验证 |
+| macOS / Intel | macOS 14.2+ | 已通过 CI 构建，尚未完成实机验证 |
 | iPhone App | iOS 18+ | 原生 SwiftUI App，当前需自行开发签名安装，未提供 App Store / TestFlight 分发 |
 | 手机网页 | iOS 18+ Safari | 可使用同一个二维码进入；首次需手动安装并信任电脑证书 |
 
