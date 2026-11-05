@@ -22,6 +22,7 @@ enum Request {
     Renew,
     Release,
     TapEnter,
+    Inspect,
     Exit,
 }
 #[derive(Serialize, Deserialize)]
@@ -36,6 +37,8 @@ struct Reply {
     action_status: Option<crate::protocol::ActionStatus>,
     #[serde(default)]
     action_reason: Option<String>,
+    #[serde(default)]
+    accessibility: Option<bool>,
 }
 #[derive(Debug)]
 struct Rejected(String);
@@ -88,6 +91,7 @@ pub fn run(mock: bool) -> Result<()> {
         let mut codex_primed = false;
         let mut action_status = None;
         let mut action_reason = None;
+        let mut accessibility = None;
         let result = match req {
             Request::Press {
                 key,
@@ -117,6 +121,10 @@ pub fn run(mock: bool) -> Result<()> {
             Request::Release => {
                 deadline = None;
                 keyboard.release()
+            }
+            Request::Inspect => {
+                accessibility = Some(crate::platform::accessibility());
+                Ok(())
             }
             Request::TapEnter => {
                 if deadline.is_some() {
@@ -155,6 +163,7 @@ pub fn run(mock: bool) -> Result<()> {
             codex_primed,
             action_status,
             action_reason,
+            accessibility,
         };
         let mut out = std::io::stdout().lock();
         serde_json::to_writer(&mut out, &reply)?;
@@ -291,6 +300,9 @@ impl Agent {
             reply.action_status.context("输入代理未返回 Enter 结果")?,
             reply.action_reason.unwrap_or_default(),
         ))
+    }
+    pub async fn inspect_accessibility(&mut self) -> Result<bool> {
+        self.request(Request::Inspect).await?.accessibility.context("输入代理未返回权限状态")
     }
     pub async fn release(&mut self) -> Result<()> {
         if self.held.is_none() {

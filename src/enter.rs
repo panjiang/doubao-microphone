@@ -1,6 +1,7 @@
 //! Fixed Enter action; never switches focus or reads editor text.
 use anyhow::Result;
 
+#[cfg(target_os = "windows")]
 #[derive(Clone, Copy)]
 pub(crate) struct Target {
     window: isize,
@@ -9,8 +10,13 @@ pub(crate) struct Target {
     thread: u32,
 }
 
+#[cfg(target_os = "macos")]
+pub(crate) use crate::macos::EnterTarget as Target;
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub(crate) struct Target;
+
 pub(crate) fn supported() -> bool {
-    cfg!(target_os = "windows")
+    cfg!(any(target_os = "windows", target_os = "macos"))
 }
 
 #[cfg(target_os = "windows")]
@@ -44,7 +50,12 @@ pub(crate) fn capture() -> Option<Target> {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "macos")]
+pub(crate) fn capture() -> Option<Target> {
+    crate::macos::capture_enter_target()
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub(crate) fn capture() -> Option<Target> {
     None
 }
@@ -107,7 +118,12 @@ pub(crate) fn tap(target: Option<Target>) -> Result<Option<&'static str>> {
     Ok(None)
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "macos")]
+pub(crate) fn tap(target: Option<Target>) -> Result<Option<&'static str>> {
+    crate::macos::tap_enter(target)
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub(crate) fn tap(_target: Option<Target>) -> Result<Option<&'static str>> {
     Ok(Some("unsupported"))
 }

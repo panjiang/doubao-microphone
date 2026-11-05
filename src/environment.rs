@@ -37,7 +37,7 @@ pub struct Report {
 impl Report {
     pub fn unavailable(message: &str) -> Self {
         Self {
-            supported: cfg!(target_os = "windows"),
+            supported: cfg!(any(target_os = "windows", target_os = "macos")),
             checks: ITEMS
                 .iter()
                 .map(|&(id, title)| Check {
@@ -53,7 +53,7 @@ impl Report {
 
 static INSPECTION: Mutex<()> = Mutex::new(());
 
-pub fn inspect(settings: &Settings, mock: bool) -> Report {
+pub fn inspect(settings: &Settings, mock: bool, _input_accessibility: Option<bool>) -> Report {
     if mock {
         return Report::unavailable("模拟模式不检查实际安装环境，请使用原生程序进行检测。");
     }
@@ -65,7 +65,9 @@ pub fn inspect(settings: &Settings, mock: bool) -> Report {
     {
         crate::windows_environment::inspect(settings)
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    { crate::macos_environment::inspect(settings, _input_accessibility) }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         let _ = settings;
         Report {

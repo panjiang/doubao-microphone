@@ -20,6 +20,7 @@ export function initEnvironment(request:(signal:AbortSignal)=>Promise<Report>):v
   const legacy=document.getElementById('environment-legacy')!;
   const note=document.getElementById('environment-note')!;
   let running=false;
+  let displayItems:ReadonlyArray<readonly [string,string]>=items;
 
   function row(id:string,title:string,state:State,detail:string):HTMLLIElement {
     const row=document.createElement('li');row.className='environment-row';row.dataset.check=id;row.dataset.state=state;
@@ -36,7 +37,7 @@ export function initEnvironment(request:(signal:AbortSignal)=>Promise<Report>):v
   async function refresh():Promise<void> {
     if(running)return;running=true;button.disabled=true;
     list.setAttribute('aria-busy','true');
-    list.replaceChildren(...items.map(([id,title])=>row(id,title,'loading','正在检查…')));
+    list.replaceChildren(...displayItems.map(([id,title])=>row(id,title,'loading','正在检查…')));
     const controller=new AbortController();let timedOut=false;
     const timer=setTimeout(()=>{timedOut=true;controller.abort()},10000);
     try {
@@ -44,14 +45,16 @@ export function initEnvironment(request:(signal:AbortSignal)=>Promise<Report>):v
       if(typeof report?.supported!=='boolean'||!Array.isArray(report.checks))throw Error('检测响应无法识别');
       if(!report.supported){list.hidden=true;button.hidden=true;note.hidden=true;legacy.hidden=false;return;}
       legacy.hidden=true;list.hidden=false;note.hidden=false;button.hidden=false;
-      list.replaceChildren(...items.map(([id,title])=>{
+      const extra=report.checks.filter(item=>!items.some(([id])=>id===item.id)).map(item=>[item.id,item.title||item.id] as const);
+      displayItems=[...items,...extra];
+      list.replaceChildren(...displayItems.map(([id,title])=>{
         const result=report.checks.find(item=>item.id===id);
         if(!result||!['pass','fail','unknown','not_applicable'].includes(result.state)||typeof result.detail!=='string')return row(id,title,'unknown','未取得有效检测结果，请重新检测。');
         return row(id,typeof result.title==='string'?result.title:title,result.state,result.detail);
       }));
     } catch(e) {
       const detail=timedOut?'检测超过 10 秒，请检查程序是否运行后重新检测。':`检测未完成：${e instanceof Error?e.message:String(e)}。请重新检测。`;
-      list.replaceChildren(...items.map(([id,title])=>row(id,title,'unknown',detail)));
+      list.replaceChildren(...displayItems.map(([id,title])=>row(id,title,'unknown',detail)));
     } finally {
       clearTimeout(timer);list.setAttribute('aria-busy','false');button.disabled=false;running=false;
     }

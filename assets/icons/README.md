@@ -14,4 +14,6 @@
 
 SVG 和 GDI+ 绘图坐标均保存在生成脚本中；修改图形时同步两者并重新生成。生成文件随源码提交，常规构建无需重新生成、联网或增加图片解码依赖。
 
-Windows SDK 的资源编译器 `rc.exe` 在构建时将 ICO 嵌入主程序；支持通过 `RC` 环境变量指定编译器。安装包读取同一 ICO。macOS 图标本轮保持原实现。
+Windows SDK 的资源编译器 `rc.exe` 在构建时将 ICO 嵌入主程序；支持通过 `RC` 环境变量指定编译器。安装包读取同一 ICO。
+
+macOS 主应用、输入代理及安装器使用 `DoubaoPTT.icns`，包括 16–1024px 的标准图像表示。可在 Mac 运行 `swift scripts/generate-macos-icons.swift`，使用相同矢量坐标和系统 CoreGraphics/ImageIO/iconutil 重新生成，无需下载工具。菜单栏嵌入同一套 `tray-64.rgba` 麦克风图；最终显示尺寸由 macOS 菜单栏控制。

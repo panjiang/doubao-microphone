@@ -41,7 +41,7 @@ pub fn devices(mock: bool) -> Result<Vec<Device>> {
                 name,
             });
         }
-        return Ok(out);
+        Ok(out)
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     anyhow::bail!("音频原生端仅支持 Windows/macOS；开发测试请使用 --mock")
@@ -426,7 +426,7 @@ impl Native {
             err_m.failed.store(true, Ordering::Release);
         };
         // Fixed-size callback scratch storage; never allocate in the device callback.
-        let config: cpal::StreamConfig = cfg.clone().into();
+        let config: cpal::StreamConfig = cfg.into();
         let stream = match cfg.sample_format() {
             cpal::SampleFormat::F32 => {
                 device.build_output_stream(config, move |d: &mut [f32], _| fill(d), error, None)?

@@ -4,7 +4,7 @@ import AVFoundation
 @MainActor final class AppModel:ObservableObject {
     enum Phase { case idle,connecting,priming,streaming,draining }
     @Published var computer:Computer?
-    @Published var status="扫描电脑配置页的 iPhone App 二维码。"
+    @Published var status="扫描电脑配置页的配对二维码。"
     @Published var phase:Phase = .idle
     @Published var level:Double=0
     @Published var scanner=false
@@ -50,12 +50,12 @@ import AVFoundation
         if !foreground { stop("本次输入已结束，返回后请重新按住。") }
         if state == .background { pairTask?.cancel();pairTask=nil;pairClient?.close();pairClient=nil;pairing=false }
     }
-    func openScanner() { stop("请扫描电脑配置页的 iPhone App 二维码。");scanner=true }
+    func openScanner() { stop("请扫描电脑配置页的配对二维码。");scanner=true }
     func scan(_ text:String) {
         scanner=false
-        guard text.utf8.count<=16384,let data=text.data(using:.utf8) else { status="二维码数据过大或无效。";return }
+        guard text.utf8.count<=16384 else { status="二维码数据过大或无效。";return }
         do {
-            let payload=try JSONDecoder().decode(PairPayload.self,from:data)
+            let payload=try PairPayload.parse(text)
             let pending=try payload.record()
             pairTask?.cancel();pairClient?.close()
             let pairingClient=PairingClient(pending);pairClient=pairingClient
@@ -71,7 +71,7 @@ import AVFoundation
                 pairingClient.close()
                 if !Task.isCancelled { self?.pairing=false;self?.pairClient=nil;self?.pairTask=nil }
             }
-        } catch { status=(error as? PTTError)?.localizedDescription ?? "请扫描电脑配置页中的 iPhone App 二维码。" }
+        } catch { status=(error as? PTTError)?.localizedDescription ?? "请扫描电脑配置页中的配对二维码。" }
     }
     func press() {
         guard computer != nil,!pairing,foreground,!holding else { return }

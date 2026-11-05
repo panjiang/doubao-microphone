@@ -4,7 +4,8 @@
 <key>CFBundleName</key><string>DoubaoPTTInput</string>
 <key>CFBundleIdentifier</key><string>local.doubao-ptt.input</string>
 <key>CFBundleExecutable</key><string>doubao-ptt</string>
-<key>CFBundleVersion</key><string>0.2.0</string>
+<key>CFBundleIconFile</key><string>DoubaoPTT</string>
+<key>CFBundleVersion</key><string>0.2.2</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>LSUIElement</key><true/>
 <key>LSMinimumSystemVersion</key><string>14.2</string>

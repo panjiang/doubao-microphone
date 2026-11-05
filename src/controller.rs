@@ -49,6 +49,7 @@ enum Command {
     Revoke(Uuid),
     Pause(bool),
     TestShortcut(oneshot::Sender<Result<()>>),
+    InspectInput(oneshot::Sender<Result<bool>>),
     Configure(Settings, std::path::PathBuf, oneshot::Sender<Result<()>>),
     Shutdown(oneshot::Sender<()>),
 }
@@ -165,6 +166,11 @@ impl Controller {
     }
     pub async fn test_shortcut(&self) -> Result<()> {
         self.call(Command::TestShortcut).await
+    }
+    pub async fn input_accessibility(&self) -> Result<bool> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(Command::InspectInput(tx)).await?;
+        tokio::time::timeout(Duration::from_secs(1), rx).await??
     }
     pub async fn shutdown(&self) {
         let (tx, rx) = oneshot::channel();
@@ -289,6 +295,7 @@ impl Actor {
                             let r=if self.device.is_some()||self.session.active()||self.key_test.is_some()||self.paused {Err(anyhow::anyhow!("请先断开手机并恢复接收，再测试快捷键"))}else{self.key_test=Some((Instant::now()+Duration::from_secs(3),false));self.error=None;Ok(())};
                             let _=reply.send(r);
                         }
+                        Command::InspectInput(reply)=>{let _=reply.send(self.agent.inspect_accessibility().await);}
                         Command::Configure(s,dir,reply)=>{
                             self.cancel_enter("configuration_changed");
                             let r=async {

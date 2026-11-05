@@ -106,8 +106,16 @@ fn main() -> Result<()> {
             let dir = config::data_dir(args.data_dir)?;
             // Per-user single instance: keep this TCP listener for the process lifetime.
             let mut settings = config::Settings::load(&dir)?;
-            if cfg!(target_os = "windows") && !args.mock && !settings.shortcut_manual {
+            if cfg!(any(target_os = "windows", target_os = "macos")) && !args.mock && !settings.shortcut_manual {
                 settings.shortcut = platform::automatic_shortcut();
+            }
+            #[cfg(target_os = "macos")]
+            if !args.mock && !dir.join("settings.json").exists() {
+                // First launch after installation. Preserve explicit saved preferences on upgrades.
+                settings.autostart = std::env::current_exe()?.starts_with("/Applications")
+                    || std::env::var_os("HOME").is_some_and(|home| std::env::current_exe().is_ok_and(|exe|exe.starts_with(PathBuf::from(home).join("Applications"))));
+                if settings.autostart { platform::set_autostart(true)?; }
+                settings.save(&dir)?;
             }
             settings.validate()?;
             let admin_lock =

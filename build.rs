@@ -1,4 +1,11 @@
 fn main() {
+    println!("cargo:rerun-if-changed=src/macos_native.m");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        cc::Build::new().file("src/macos_native.m").flag("-fobjc-arc").compile("ptt_macos");
+        for framework in ["AppKit", "ApplicationServices", "SystemConfiguration", "Carbon"] {
+            println!("cargo:rustc-link-lib=framework={framework}");
+        }
+    }
     println!("cargo:rerun-if-changed=src/umdf_native.c");
     println!("cargo:rerun-if-changed=src/windows_network.c");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {

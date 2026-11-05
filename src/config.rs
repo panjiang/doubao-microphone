@@ -141,7 +141,9 @@ fn network_rank(index: Option<u32>) -> u8 {
         unsafe extern "C" { fn ptt_network_rank(index: u32) -> u32; }
         index.map(|index| unsafe { ptt_network_rank(index) } as u8).unwrap_or(3)
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    { index.map(crate::macos::network_rank).unwrap_or(3) }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     { let _ = index; 1 }
 }
 

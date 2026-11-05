@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "0.2.0"
+#define AppVersion "0.2.2"
 #endif
 #include "..\artifacts\vendor\vb-cable-45\vbcable.generated.iss"
 [Setup]

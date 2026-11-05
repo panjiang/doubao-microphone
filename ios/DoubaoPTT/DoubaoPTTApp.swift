@@ -16,7 +16,7 @@ struct ContentView:View {
     var body:some View {
         VStack(spacing:0) {
             HStack {
-                Text("语音遥控").font(.system(size:15,weight:.semibold))
+                Text("豆包遥控").font(.system(size:15,weight:.semibold))
                 Spacer()
                 if model.computer != nil { Button { model.openScanner() } label:{ Image(systemName:"qrcode.viewfinder").font(.system(size:20)) }.accessibilityLabel("重新扫码配对").disabled(model.pairing || model.holding) }
                 Text(model.computer == nil ? "未配对":"已配对").font(.system(size:12)).padding(.horizontal,10).padding(.vertical,6).background(Color(red:0.88,green:0.91,blue:0.95)).clipShape(Capsule())
@@ -35,7 +35,7 @@ struct ContentView:View {
         .sheet(isPresented:$model.scanner) {
             NavigationStack {
                 Scanner(onScan:{model.scan($0)},onError:{model.scanner=false;model.status=$0})
-                    .navigationTitle("扫描 App 配对二维码").navigationBarTitleDisplayMode(.inline)
+                    .navigationTitle("扫描配对二维码").navigationBarTitleDisplayMode(.inline)
                     .toolbar { ToolbarItem(placement:.cancellationAction) { Button("取消") { model.scanner=false } } }
             }
         }

@@ -37,6 +37,9 @@ pub async fn prepare(dir: &Path, ip: std::net::Ipv4Addr, mock: bool) -> Result<T
     p.distinguished_name
         .push(DnType::CommonName, "Doubao PTT Local Bridge");
     p.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::ServerAuth];
+    // Preserve the existing CA while issuing interoperable server certificates,
+    // including clients which enforce RFC 5280 Authority Key Identifier checks.
+    p.use_authority_key_identifier_extension = true;
     let leaf_key = KeyPair::generate()?;
     let leaf = p.signed_by(&leaf_key, &ca, &key)?;
     let saved_ca = std::fs::read_to_string(public)?;
@@ -77,7 +80,7 @@ fn load_or_create_ca(dir: &Path, mock: bool) -> Result<KeyPair> {
         let account = format!("ca-{}", crate::identity::digest(&dir.to_string_lossy()));
         let entry = keyring::Entry::new("local.doubao-ptt", &account)?;
         match entry.get_password() {
-            Ok(pem) => return Ok(KeyPair::from_pem(&pem)?),
+            Ok(pem) => Ok(KeyPair::from_pem(&pem)?),
             Err(keyring::Error::NoEntry) => {
                 ensure!(
                     !dir.join("ca.pem").exists(),
@@ -85,9 +88,9 @@ fn load_or_create_ca(dir: &Path, mock: bool) -> Result<KeyPair> {
                 );
                 let key = KeyPair::generate()?;
                 entry.set_password(&key.serialize_pem())?;
-                return Ok(key);
+                Ok(key)
             }
-            Err(e) => return Err(e.into()),
+            Err(e) => Err(e.into()),
         }
     }
     #[cfg(target_os = "windows")]

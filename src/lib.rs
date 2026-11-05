@@ -14,6 +14,10 @@ pub mod server;
 pub mod session;
 pub mod tls;
 pub mod tray;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+mod macos_environment;
 #[cfg(target_os = "windows")]
 mod windows_umdf;
 #[cfg(target_os = "windows")]

@@ -13,11 +13,37 @@ struct PairPayload: Decodable {
     let port: Int
     let ticket: String
     let ca_der: String
+    static func parse(_ text:String) throws -> PairPayload {
+        guard text.utf8.count<=16384 else { throw PTTError.message("二维码数据过大或无效。") }
+        if text.first=="{" {
+            let payload=try JSONDecoder().decode(PairPayload.self,from:Data(text.utf8))
+            _=try payload.record();return payload // Older desktop JSON QR codes remain valid.
+        }
+        guard let link=URLComponents(string:text),link.scheme?.lowercased()=="http",
+              link.user==nil,link.password==nil,link.path=="/setup",let host=link.host,
+              let bootstrap=link.port,(1024...65535).contains(bootstrap),
+              let query=link.queryItems,query.count==1,query[0].name=="token",let ticket=query[0].value,
+              let fragment=link.fragment,
+              let fields=URLComponents(string:"?"+fragment)?.queryItems,
+              fields.count==3,Set(fields.map(\.name))==Set(["v","port","ca"]),
+              fields.allSatisfy({$0.value != nil}) else {
+            throw PTTError.message("请扫描电脑配置页的配对二维码。")
+        }
+        let values=Dictionary(uniqueKeysWithValues:fields.map{($0.name,$0.value!)})
+        guard values["v"]=="1",let port=Int(values["port"]!),let encoded=values["ca"],
+              encoded.utf8.allSatisfy({(65...90).contains($0)||(97...122).contains($0)||(48...57).contains($0)||$0==45||$0==95}),encoded.count%4 != 1 else {
+            throw PTTError.message("配对二维码格式无法识别，请在电脑上重新生成。")
+        }
+        let base64=encoded.replacingOccurrences(of:"-",with:"+").replacingOccurrences(of:"_",with:"/")
+            + String(repeating:"=",count:(4-encoded.count%4)%4)
+        let payload=PairPayload(type:"doubao_ptt_pair",version:1,host:host,port:port,ticket:ticket,ca_der:base64)
+        _=try payload.record();return payload
+    }
     func record() throws -> Computer {
         guard type == "doubao_ptt_pair", version == 1, ticket.count >= 32, ticket.count <= 256,
               let ca=Data(base64Encoded: ca_der), ca.count <= 8192,
               SecCertificateCreateWithData(nil,ca as CFData) != nil else {
-            throw PTTError.message("请扫描电脑配置页的 iPhone App 配对二维码。")
+            throw PTTError.message("请扫描电脑配置页的配对二维码。")
         }
         let computer=Computer(host:host,port:port,ca:ca,token:"",name:"我的电脑")
         try computer.validate(); return computer

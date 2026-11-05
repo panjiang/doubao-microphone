@@ -38,6 +38,7 @@ pub struct SetupStatus {
     pub accessibility: bool,
     pub shortcuts: Vec<Shortcut>,
     pub automatic_shortcut: Option<Shortcut>,
+    pub release_enter: bool,
 }
 pub fn automatic_shortcut() -> Shortcut {
     #[cfg(target_os = "windows")]
@@ -51,7 +52,8 @@ pub fn setup_status() -> SetupStatus {
         platform: std::env::consts::OS,
         native_supported: cfg!(any(target_os = "windows", target_os = "macos")),
         accessibility: accessibility(),
-        automatic_shortcut: if cfg!(target_os = "windows") { Some(automatic_shortcut()) } else { None },
+        release_enter: crate::enter::supported(),
+        automatic_shortcut: if cfg!(any(target_os = "windows", target_os = "macos")) { Some(automatic_shortcut()) } else { None },
         shortcuts: [
             Shortcut::DoubaoVoice,
             Shortcut::HidRightAlt,
@@ -358,7 +360,7 @@ pub fn set_autostart(enabled: bool) -> Result<()> {
         } else if path.exists() {
             std::fs::remove_file(path)?;
         }
-        return Ok(());
+        Ok(())
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {

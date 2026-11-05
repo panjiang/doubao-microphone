@@ -5,10 +5,12 @@
 <key>CFBundleDisplayName</key><string>豆包语音遥控</string>
 <key>CFBundleIdentifier</key><string>local.doubao-ptt.app</string>
 <key>CFBundleExecutable</key><string>doubao-ptt</string>
-<key>CFBundleVersion</key><string>0.2.0</string>
-<key>CFBundleShortVersionString</key><string>0.2.0</string>
+<key>CFBundleIconFile</key><string>DoubaoPTT</string>
+<key>CFBundleVersion</key><string>0.2.2</string>
+<key>CFBundleShortVersionString</key><string>0.2.2</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>LSUIElement</key><true/>
 <key>LSMinimumSystemVersion</key><string>14.2</string>
 <key>NSLocalNetworkUsageDescription</key><string>接收你配对的 iPhone 发送的语音和按住说话状态。</string>
+<key>NSMicrophoneUsageDescription</key><string>仅在你开启故障录音诊断时，从虚拟麦克风回读本次音频以排查输入问题。</string>
 </dict></plist>

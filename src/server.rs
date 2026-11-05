@@ -203,7 +203,7 @@ async fn write_config(
     Json(mut s): Json<Settings>,
 ) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
-    if cfg!(target_os = "windows") && !a.mock && !s.shortcut_manual {
+    if cfg!(any(target_os = "windows", target_os = "macos")) && !a.mock && !s.shortcut_manual {
         s.shortcut = tokio::task::spawn_blocking(crate::platform::automatic_shortcut).await?;
     }
     s.validate()?;
@@ -242,7 +242,10 @@ async fn environment(State(a): State<Shared>, h: HeaderMap) -> Api<Json<crate::e
     authorize(&a, &h)?;
     let settings = a.controller.settings.lock().await.clone();
     let mock = a.mock;
-    let report = tokio::task::spawn_blocking(move || crate::environment::inspect(&settings, mock)).await?;
+    let input_accessibility = if cfg!(target_os = "macos") && !mock {
+        a.controller.input_accessibility().await.ok()
+    } else { None };
+    let report = tokio::task::spawn_blocking(move || crate::environment::inspect(&settings, mock, input_accessibility)).await?;
     Ok(Json(report))
 }
 async fn ticket(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
@@ -252,30 +255,26 @@ async fn ticket(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::V
         let token = identities.issue();
         (token, identities.ticket_id())
     };
-    let url = format!(
-        "http://{}:{}/setup?token={token}",
-        a.initial.lan_ip, a.initial.bootstrap_port
-    );
+    let url = pairing_url(&a.initial, &token, &crate::tls::public_ca_base64(&a.dir)?);
     let svg = qrcode::QrCode::new(url.as_bytes())?
         .render::<qrcode::render::svg::Color>()
-        .min_dimensions(240, 240)
+        .min_dimensions(320, 320)
         .build();
     let phone = format!(
         "https://{}:{}/#pair={token}",
         a.initial.lan_ip, a.initial.mobile_port
     );
     Ok(Json(
-        json!({"url":url,"phone_url":phone,"qr_svg":svg,"native_qr_svg":native_svg(&a, &token)?,"ticket_id":ticket_id,"expires_in":300}),
+        json!({"url":url,"phone_url":phone,"qr_svg":svg,"native_qr_svg":svg,"ticket_id":ticket_id,"expires_in":300}),
     ))
 }
-fn native_svg(a: &App, ticket: &str) -> Result<String> {
-    let payload = json!({
-        "type":"doubao_ptt_pair", "version":1,
-        "host":a.initial.lan_ip.to_string(), "port":a.initial.mobile_port,
-        "ticket":ticket, "ca_der":crate::tls::public_ca_base64(&a.dir)?,
-    });
-    Ok(qrcode::QrCode::new(serde_json::to_vec(&payload)?)?
-        .render::<qrcode::render::svg::Color>().min_dimensions(320, 320).build())
+fn pairing_url(settings: &Settings, ticket: &str, ca_base64: &str) -> String {
+    // The same HTTP link opens the existing browser bootstrap page. Native apps
+    // parse its fragment locally and pin the CA before making any HTTPS request.
+    // Fragments are never transmitted in the bootstrap HTTP request.
+    let ca = ca_base64.trim_end_matches('=').replace('+', "-").replace('/', "_");
+    format!("http://{}:{}/setup?token={ticket}#v=1&port={}&ca={ca}",
+        settings.lan_ip, settings.bootstrap_port, settings.mobile_port)
 }
 
 async fn list_devices(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
@@ -517,6 +516,20 @@ async fn send_error(socket: &mut WebSocket, code: &str, message: &str) -> Result
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn unified_pair_link_keeps_ca_in_fragment_and_preserves_bytes() {
+        use base64::{Engine, engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD}};
+        let settings=crate::config::Settings { lan_ip:"192.168.1.20".parse().unwrap(), ..Default::default() };
+        let certificate=[0xfb,0xff,0xfe,0,1];
+        let url=super::pairing_url(&settings,"example-ticket",&STANDARD.encode(certificate));
+        let (request,fragment)=url.split_once('#').unwrap();
+        let uri:axum::http::Uri=request.parse().unwrap();
+        assert_eq!(uri.authority().unwrap().as_str(),"192.168.1.20:38441");
+        assert_eq!(uri.path_and_query().unwrap().as_str(),"/setup?token=example-ticket");
+        assert!(!request.contains("ca="));
+        let encoded=fragment.strip_prefix("v=1&port=38443&ca=").unwrap();
+        assert_eq!(URL_SAFE_NO_PAD.decode(encoded).unwrap(),certificate);
+    }
     use super::*;
     #[test]
     fn http2_authority_does_not_require_an_http1_host_header() {

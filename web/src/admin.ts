@@ -5,6 +5,7 @@ let token=new URLSearchParams(location.hash.slice(1)).get('token')||sessionStora
 history.replaceState(null,'',location.pathname);if(token)sessionStorage.setItem('ptt-admin-token',token);
 let config:Record<string,any>,paused=false,active=false,busy=false;
 let automaticShortcut:string|undefined;
+let currentPlatform='';
 let qrTicket:string|undefined,qrGeneration=0;
 function clearPairCode(){qrTicket=undefined;el('qr').replaceChildren();el('setup-link').hidden=true;el('phone-link').hidden=true;}
 async function api(path:string,method='GET',body?:unknown,signal?:AbortSignal):Promise<any>{const r=await fetch('/api/'+path,{method,headers:{Authorization:'Bearer '+token,...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body),cache:'no-store',signal});const data=await r.json();if(!r.ok)throw Error(data.error||'请求失败');return data;}
@@ -19,27 +20,30 @@ function syncShortcut(){
   select.disabled=active||!manual;
   const label=select.value==='hid_right_alt'?'右 Alt（UMDF）':names[select.value]||select.value;
   el<HTMLInputElement>('trigger-summary').value=(manual?'手动：':'自动：')+label;
-  el('trigger-help').textContent=manual?'手动方式仅用于诊断，普通模拟按键可能无法触发豆包。修改后需保存设置。':automaticShortcut==='hid_right_alt'?'已检测到可访问的 UMDF 组件，使用右 Alt。检测不会发送按键。':'未检测到可访问的 UMDF 组件，使用豆包兼容模式；需要开启豆包悬浮工具栏，当前仅适配默认位置安装的 Windows 1.0.0.23。';
+  el('trigger-help').textContent=manual?'手动方式仅用于诊断，请与豆包的长按快捷键保持一致。修改后需保存设置。':currentPlatform==='macos'?'默认使用 Fn / 地球仪，需允许主应用及输入代理的辅助功能权限。检测不会发送按键。':automaticShortcut==='hid_right_alt'?'已检测到可访问的 UMDF 组件，使用右 Alt。检测不会发送按键。':'未检测到可访问的 UMDF 组件，使用豆包兼容模式；需要开启豆包悬浮工具栏，当前仅适配默认位置安装的 Windows 1.0.0.23。';
   el('codex-compat-row').hidden=select.value!=='doubao_voice';
+  el('codex-compat-help').hidden=select.value!=='doubao_voice';
 }
 async function load(){
   const [s,setup]=await Promise.all([api('config'),api('setup')]);config=s;
-  el<HTMLInputElement>('computer_name').value=s.computer_name;el<HTMLInputElement>('warmup_ms').value=String(s.warmup_ms);el<HTMLInputElement>('enter_delay_ms').value=String(s.enter_delay_ms??1000);el('enter-delay-row').hidden=setup.platform.platform!=='windows';el<HTMLInputElement>('autostart').checked=s.autostart;el<HTMLInputElement>('diagnostic_recording').checked=s.diagnostic_recording;el<HTMLInputElement>('codex_empty_compatibility').checked=s.codex_empty_compatibility;el('codex-compat-row').hidden=setup.platform.platform!=='windows';
+  currentPlatform=setup.platform.platform;
+  el<HTMLInputElement>('computer_name').value=s.computer_name;el<HTMLInputElement>('warmup_ms').value=String(s.warmup_ms);el<HTMLInputElement>('enter_delay_ms').value=String(s.enter_delay_ms??1000);el('enter-delay-row').hidden=!setup.platform.release_enter;el<HTMLInputElement>('autostart').checked=s.autostart;el<HTMLInputElement>('diagnostic_recording').checked=s.diagnostic_recording;el<HTMLInputElement>('codex_empty_compatibility').checked=s.codex_empty_compatibility;el('codex-compat-row').hidden=currentPlatform!=='windows';el('codex-compat-help').hidden=currentPlatform!=='windows';
   const windows=setup.platform.platform==='windows';
-  const cableOutputs=setup.outputs.filter((d:any)=>d.virtual_candidate&&/^CABLE Input(?:\s*\(|$)/i.test(d.name.trim()));
+  const mac=currentPlatform==='macos',expectedOutput=mac?'BlackHole 2ch':'CABLE Input';
+  const cableOutputs=setup.outputs.filter((d:any)=>d.virtual_candidate&&(mac?d.name==='BlackHole 2ch':/^CABLE Input(?:\s*\(|$)/i.test(d.name.trim())));
   if(windows)el('audio-setup').textContent=cableOutputs.length?'已检测到虚拟麦克风。程序输出使用 CABLE Input，请在豆包中选择 CABLE Output。':'尚未检测到虚拟麦克风。请重新运行 DoubaoPTT 安装包，向导会自动安装；提示需要重启时，请先重启电脑。';
-  const available=windows?setup.outputs.filter((d:any)=>cableOutputs.includes(d)||d.id==='mock'):setup.outputs;
-  const singleCable=windows&&cableOutputs.length===1;
-  const outputValue=(d:any)=>singleCable&&d===cableOutputs[0]?'CABLE Input':d.id;
+  const available=windows||mac?setup.outputs.filter((d:any)=>cableOutputs.includes(d)||d.id==='mock'):setup.outputs;
+  const singleCable=(windows||mac)&&cableOutputs.length===1;
+  const outputValue=(d:any)=>singleCable&&d===cableOutputs[0]?expectedOutput:d.id;
   const outputs=available.map((d:any)=>({value:outputValue(d),label:windows?d.name:(d.virtual_candidate?'推荐 · ':'')+d.name}));
   const selected=available.find((d:any)=>d.id===s.output_device||d.name===s.output_device||d.name.startsWith(s.output_device+' ('));
   let chosen=selected?outputValue(selected):undefined;
-  if(!chosen&&windows)chosen=outputs[0]?.value;
-  if(!chosen){const missing=windows?'CABLE Input':s.output_device;outputs.unshift({value:missing,label:windows?'CABLE Input（未检测到 VB-CABLE，请安装或刷新）':missing+'（未找到，请安装或刷新）'});chosen=missing;}
+  if(!chosen&&(windows||mac))chosen=outputs[0]?.value;
+  if(!chosen){const missing=windows||mac?expectedOutput:s.output_device;outputs.unshift({value:missing,label:missing+'（未找到，请运行安装包或刷新）'});chosen=missing;}
   options('output_device',outputs,chosen);
   const shortcutNames=setup.platform.platform==='macos'?{...names,left_alt:'左 Option',right_alt:'右 Option'}:names;
   const shortcuts=setup.platform.shortcuts.length?setup.platform.shortcuts:Object.keys(shortcutNames);options('shortcut',shortcuts.map((k:string)=>({value:k,label:shortcutNames[k]||k})),s.shortcut);
-  automaticShortcut=windows?setup.platform.automatic_shortcut:undefined;
+  automaticShortcut=setup.platform.automatic_shortcut??undefined;
   el('trigger-summary-row').hidden=!automaticShortcut;el('trigger-diagnostics').hidden=!automaticShortcut;
   if(automaticShortcut){el('shortcut-advanced-host').append(el('shortcut-row'));el<HTMLInputElement>('shortcut_manual').checked=!!s.shortcut_manual;syncShortcut();}
   const ips=setup.interfaces.map((i:any)=>({value:i.ip,label:`${i.name}${i.ethernet?'（以太网优先）':''} · ${i.ip}`}));if(!ips.some((i:any)=>i.value===s.lan_ip))ips.unshift({value:s.lan_ip,label:s.lan_ip});options('lan_ip',ips,s.lan_ip);
@@ -58,17 +62,15 @@ el('refresh').addEventListener('click',()=>void load().catch(error));
 el('test-key').addEventListener('click',async()=>{try{await api('test-key','POST');notice('请在 3 秒内切换到测试输入框；随后按住已保存的快捷键 3 秒。是否被豆包接受需人工观察。')}catch(e){error(e)}});
 el('ticket').addEventListener('click',async()=>{
   const generation=++qrGeneration,button=el<HTMLButtonElement>('ticket');
-  const native=el<HTMLSelectElement>('pair-kind').value==='native';
   clearPairCode();button.disabled=true;
   try{
     const t=await api('pair-ticket','POST');if(generation!==qrGeneration)return;
-    qrTicket=t.ticket_id;el('qr').innerHTML=native?t.native_qr_svg:t.qr_svg;
-    const link=el<HTMLAnchorElement>('setup-link');link.hidden=native;if(!native){link.href=t.url;link.textContent=t.url;}
-    const phone=el<HTMLAnchorElement>('phone-link');phone.hidden=native;if(!native){phone.href=t.phone_url;phone.textContent='已信任证书？直接打开手机输入页';}
-    notice(native?'请用 iPhone App 扫码，即可自动配对。无需安装系统证书；二维码有效期 5 分钟。':'二维码有效期 5 分钟，生成新二维码会作废旧二维码。');
+    qrTicket=t.ticket_id;el('qr').innerHTML=t.qr_svg;
+    const link=el<HTMLAnchorElement>('setup-link');link.hidden=false;link.href=t.url;
+    const phone=el<HTMLAnchorElement>('phone-link');phone.hidden=false;phone.href=t.phone_url;phone.textContent='网页已信任证书？直接打开输入页';
+    notice('App 和手机相机均可扫描此码，配对成功后二维码自动收起。');
   }catch(e){if(generation===qrGeneration)error(e)}finally{button.disabled=false;}
 });
-el('pair-kind').addEventListener('change',()=>{++qrGeneration;clearPairCode();});
 el('pause').addEventListener('click',async()=>{try{await api('pause','PUT',{paused:!paused})}catch(e){error(e)}});
 async function poll(){
   try{const r=await api('status'),s=r.status;paused=s.paused;active=!!s.session_id||s.testing;el('mock').hidden=!s.mock;el('badge').textContent=s.testing?'快捷键测试中':paused?'已暂停':s.connected?'手机已连接':'未连接';

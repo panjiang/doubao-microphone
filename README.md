@@ -1,12 +1,16 @@
-# 手机按住说话遥控豆包
+# 豆包语音遥控（doubao-voice-remote）
+
+用 iPhone 遥控电脑端豆包语音输入，按住说话，松手完成，支持 Windows 和 macOS。
+
+仓库：[`panjiang/doubao-voice-remote`](https://github.com/panjiang/doubao-voice-remote)。现有命令 `doubao-ptt`、安装包名称及应用标识保留，以兼容已安装程序、配对和证书。
 
 iPhone 同时作为无线麦克风和远程语音快捷键。电脑端豆包负责识别及文字输入；本项目传声音、管理按住／松开，不读取识别结果；Windows 手机页正常松手后会延迟按一次 Enter，上滑出按钮后松手则仅完成听写。
 
-桌面端是 **Rust 常驻程序＋原生托盘／菜单栏**，无 Tauri、Electron 或 WebView。手机可使用网页或[原生 iOS App](ios/README.md)，电脑配置使用本机网页。原生 App 0.1.0 需搭配桌面端 0.2.0，通过 App 二维码配对，无需安装系统根证书。
+桌面端是 **Rust 常驻程序＋原生托盘／菜单栏**，无 Tauri、Electron 或 WebView。手机可使用网页或[原生 iOS App](ios/README.md)，电脑配置使用本机网页。桌面端 0.2.2 与 App 0.1.0 构建 23 使用同一个配对二维码：App 直接配对，手机相机扫码进入网页。App 无需安装系统根证书，并兼容旧桌面的 JSON 二维码。
 
 ## 当前状态
 
-本研究分支已完成 Windows UMDF 虚拟键盘的本机验证：用户确认手机按住可唤起豆包、输入文字并结束。原理及排查经验见 [Windows 输入兼容性总结](docs/windows-input-findings.md)，证据和正式发布缺口见 [UMDF 实测记录](research/windows-umdf/VALIDATION.md)。这是独立研究版本，尚未合并 main，也不代表 macOS 或全部故障验收通过。下文首次使用中的 0.1.5 默认兼容模式指原版本。
+当前 `main` 包含 Windows UMDF 虚拟键盘、原生 iPhone App 和 macOS 适配。Windows 已由用户确认手机按住可唤起豆包、输入文字并结束；Mac mini 已确认 CoreGraphics 模拟 Fn、BlackHole 输入及正常结束可用。原理及排查经验见 [Windows 输入兼容性总结](docs/windows-input-findings.md)，Mac 的具体版本及实测范围见 [macOS 验证记录](docs/macos-validation.md)。这不代表全部平台及故障验收通过。
 
 这是可构建、可测试的开发实现。**模拟测试不代表已通过豆包、iPhone 或 macOS 实机验收。**逐项证据和缺口见 [验证记录](docs/verification.md)。先按 [P0 实机验证](docs/p0-validation.md) 确认模拟快捷键被当前豆包版本接受，再进行日常试用。
 
@@ -28,18 +32,18 @@ cargo clippy --locked --all-targets -- -D warnings
 
 先构建网页：Rust 会把 `web/dist` 嵌入二进制，运行时不依赖 Node、npm、Vite 或外部 CDN。修改页面后需重新构建网页和 Rust 二进制。
 
-正式构建使用 `scripts/build-windows.ps1` 或 `scripts/build-macos.sh`。Windows 完整安装包需要 Inno Setup 6.7+ 和原版 VB-CABLE Pack 45 缓存；构建先校验锁定哈希和签名，不自动下载。便携版需要显式传入 `-PortableOnly`，不会冒充完整安装包。详见 [Windows 安装交付](docs/windows-installer.md)。macOS 构建两个架构前需安装相应 Rust target；正式签名设置 `APPLE_SIGNING_IDENTITY`，公证设置已有的 Keychain `NOTARY_PROFILE`。未提供凭据时只生成标为开发测试的 ad-hoc 签名包。
+正式构建使用 `scripts/build-windows.ps1` 或 `scripts/build-macos.sh`。Windows 完整安装包需要 Inno Setup 6.7+ 和原版 VB-CABLE Pack 45 缓存；构建先校验锁定哈希和签名，不自动下载。便携版需要显式传入 `-PortableOnly`，不会冒充完整安装包。详见 [Windows 安装交付](docs/windows-installer.md)。macOS 构建两个架构前需安装相应 Rust target；可通过 `MACOS_ARCHS=aarch64` 只构建 Apple Silicon。正式签名设置 Developer ID `APPLE_SIGNING_IDENTITY`，公证设置已有的 Keychain `NOTARY_PROFILE`。未提供凭据时只生成开发测试签名包；Apple Development 签名也不等于正式分发签名。离线构建使用 `OFFLINE=1`，已有网页产物可用 `SKIP_FRONTEND=1`。macOS 安装和平台共用逻辑见 [双平台适配说明](docs/cross-platform.md)。
 
 ## 首次使用
 
-1. Windows 使用完整安装包：已包含原版 [VB-CABLE](https://vb-audio.com/Cable/)，缺少时由安装向导自动安装，按系统提示同意管理员授权，并在提示时重启。已有 VB-CABLE 会直接复用，不覆盖或卸载。macOS 当前仍需单独安装 [BlackHole 2ch](https://existential.audio/blackhole/)。
-2. Windows 0.1.5 默认使用「豆包兼容模式」，适配默认位置安装的豆包输入法 1.0.0.23，通过现有悬浮工具栏启动和结束语音；请开启豆包的展示工具栏，并固定麦克风为 CABLE Output。该模式不模拟 Alt／Ctrl，不修改豆包程序或安装键盘驱动。豆包更新版本或布局后会拒绝触发，须重新适配。
-3. 启动 `doubao-ptt serve --open`，或使用安装后创建的桌面快捷方式。Windows 安装包默认启用当前用户登录自启动，后台运行且不自动打开网页；可在配置页关闭。
+1. Windows 使用完整安装包：已包含原版 [VB-CABLE](https://vb-audio.com/Cable/)，缺少时由安装向导自动安装，按系统提示同意管理员授权，并在提示时重启。macOS 打开 DMG 内的“安装语音遥控”；缺少 [BlackHole 2ch](https://existential.audio/blackhole/) 时，向导从官方来源下载、验证并安装，已有设备复用。按系统提示完成管理员授权或重启。
+2. Windows 自动选择可访问的 UMDF 右 Alt；未检测到组件时回退到原有豆包兼容模式。后者适配默认位置的豆包输入法 1.0.0.23，需开启悬浮工具栏。macOS 默认使用 Fn。两端均可在高级诊断中手动匹配豆包设置，不能将任意模拟键视为一定被豆包接受。
+3. 启动 `doubao-ptt serve --open`，或使用安装后创建的桌面快捷方式。Windows 安装包和 macOS 已安装应用首次启动默认启用当前用户登录自启动；后台自启动不打开网页，可在配置页关闭。Mac 升级保留已保存的自启动选择。
 4. 在本机配置页选择本机局域网 IPv4、音频输出和豆包实际配置的快捷键，保存。网络地址或端口更改后需要重启程序。
 5. Windows：本程序输出选择 **CABLE Input**，豆包麦克风选择 **CABLE Output**。macOS：两边均选择 **BlackHole 2ch**。若豆包没有单独选择功能，手动设置系统默认输入；这也会影响其他使用默认麦克风的应用。
-6. macOS 在系统设置 → 隐私与安全性 → 辅助功能，授权主应用和 `Contents/Resources/DoubaoPTTInput.app` 输入代理。Fn 为候选快捷键，其与豆包的兼容性需实测。权限撤销后停止使用并重新授权。
-7. 生成 5 分钟配对二维码，用 iPhone Safari 扫码。首次下载并安装本机证书描述文件，再在 **设置 → 通用 → 关于本机 → 证书信任设置** 开启 `Doubao PTT Local CA` 的完全信任。安装描述文件本身不等于已信任。
-8. 返回向导打开 HTTPS 输入页，请求配对；无需在电脑二次确认。二维码单次使用，证书流程耗时超过 5 分钟时重新生成。
+6. macOS 在系统设置 → 隐私与安全性 → 辅助功能，授权主应用和 `Contents/Resources/DoubaoPTTInput.app` 输入代理。使用豆包输入法或在豆包中开启全局语音。配置页只读检查这两项权限、语音设置和虚拟设备；实际兼容性以当前版本的实测为准。
+7. 点击“生成配对二维码”，用“豆包遥控”App 或手机相机扫描同一个码，不需要先选连接方式。App 直接完成配对；二维码五分钟内单次有效，配对成功后自动收起。
+8. 手机相机扫码进入网页。网页首次使用需在 Safari 下载、安装本机证书描述文件，再在 **设置 → 通用 → 关于本机 → 证书信任设置** 开启 `Doubao PTT Local CA` 的完全信任，然后返回向导打开 HTTPS 输入页完成配对，无需电脑二次确认。证书流程超过五分钟时重新生成二维码。此证书步骤不适用于 App。
 9. 已配对手机直接按住“按住说话”：尚未连接时自动初始化麦克风和电脑连接，并按系统提示允许访问；初次连接时等显示“正在输入”再开口。已经连接时直接开始听写，松开后等待本次结束。
 
 待命时麦克风保持就绪，iPhone 会显示系统麦克风指示；待命声音不发送。离开页面、切到后台或系统中断时停止采集；返回后再次按住说话才重新连接。不要开启虚拟设备“侦听”，不需要把声音播放到扬声器。

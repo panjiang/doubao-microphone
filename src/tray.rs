@@ -103,18 +103,9 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
                     windows_tray_icon(tray_pixels)
                 };
                 #[cfg(target_os = "macos")]
-                let icon = {
-                    let mut rgba = vec![0u8; 32 * 32 * 4];
-                    for y in 0..32 {
-                        for x in 0..32 {
-                            if (x as i32 - 16).pow(2) + (y as i32 - 16).pow(2) < 180 {
-                                let i = (y * 32 + x) * 4;
-                                rgba[i..i + 4].copy_from_slice(&[35, 75, 198, 255]);
-                            }
-                        }
-                    }
-                    tray_icon::Icon::from_rgba(rgba, 32, 32).expect("embedded tray icon")
-                };
+                let icon = tray_icon::Icon::from_rgba(
+                    include_bytes!("../assets/icons/tray-64.rgba").to_vec(),64,64,
+                ).expect("embedded microphone icon");
                 match TrayIconBuilder::new()
                     .with_menu(Box::new(menu.clone()))
                     .with_tooltip("豆包语音遥控")
