@@ -55,7 +55,7 @@ git push origin v0.2.3
 | `DoubaoRemote-iOS-<版本>-build<构建号>-simulator.zip` | Apple Silicon Mac 上的 iOS 模拟器产物 |
 | `build-<平台>.json`、`SHA256SUMS*.txt` | 源码提交、版本、签名状态和文件校验值 |
 
-所有作业使用 GitHub 托管 runner，优先复用 npm、Cargo 和 VB-CABLE 缓存。缺少缓存时通过仓库现有依赖源获取依赖，VB-CABLE 只从锁文件指定的官方地址下载并校验；不执行第三方驱动安装、不修改系统级镜像或代理。无需上传本机签名证书、Apple 账号或 SSH 密钥。
+所有作业使用 GitHub 托管 runner，优先复用 npm、Cargo 和 VB-CABLE 缓存。缺少缓存时先使用仓库现有依赖源；npm 镜像失败时，仅在 CI 工作目录临时回退至官方 npm，保持锁定版本及 integrity 校验，结束后恢复原锁文件。VB-CABLE 只从锁文件指定的官方地址下载并校验；不执行第三方驱动安装、不修改系统级镜像或代理。无需上传本机签名证书、Apple 账号或 SSH 密钥。
 
 ## 草稿复核与公开
 
