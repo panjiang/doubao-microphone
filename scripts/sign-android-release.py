@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--alias", required=True)
     parser.add_argument("--password-env", required=True, help="Environment variable holding the signing password")
     parser.add_argument("--expected-certificate", required=True, help="SHA-256 of the expected existing signing certificate")
+    parser.add_argument("--public-dir", type=Path, help="Empty output folder for the four public attachments")
     args = parser.parse_args()
     assets = args.assets_dir
     manifest = assets / "build-android.json"
@@ -53,6 +54,9 @@ def main():
     # apksigner may create an auxiliary v4 signature, not needed for normal APK installs.
     signed.with_suffix(".apk.idsig").unlink(missing_ok=True)
     subprocess.run([sys.executable, str(Path(__file__).with_name("ci-release.py")), "checksums", str(assets)], check=True)
+    if args.public_dir:
+        subprocess.run([sys.executable, str(Path(__file__).with_name("ci-release.py")),
+                        "public-assets", str(assets), "--output", str(args.public_dir)], check=True)
     print(f"Signed {signed.name}; existing certificate verified: {certificate}")
 
 

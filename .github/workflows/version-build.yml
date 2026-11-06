@@ -108,15 +108,7 @@ jobs:
 
   macos:
     needs: version
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-15
-            arch: aarch64
-          - runner: macos-15-intel
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -136,7 +128,7 @@ jobs:
           restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
       - name: Prepare pinned Rust toolchain
         env:
-          RUST_TARGET: ${{ matrix.arch }}-apple-darwin
+          RUST_TARGET: aarch64-apple-darwin
         run: |
           rustup show active-toolchain
           rustup target add "$RUST_TARGET"
@@ -144,17 +136,17 @@ jobs:
         run: node scripts/ci-frontend.mjs
       - name: Build macOS development DMG
         env:
-          MACOS_ARCHS: ${{ matrix.arch }}
+          MACOS_ARCHS: 'aarch64'
           SKIP_FRONTEND: '1'
           SKIP_TESTS: '1'
         run: bash scripts/build-macos.sh
       - name: Package versioned products and checksums
         env:
-          PACKAGE_KIND: macos-${{ matrix.arch }}
+          PACKAGE_KIND: macos-aarch64
         run: python3 scripts/ci-release.py package "$PACKAGE_KIND"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-${{ needs.version.outputs.tag }}-macos-${{ matrix.arch }}
+          name: release-${{ needs.version.outputs.tag }}-macos-aarch64
           path: dist/release-assets/*
           if-no-files-found: error
           compression-level: 0
@@ -168,8 +160,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Build simulator and unsigned iPhone products
-        run: bash ios/build.sh all
+      - name: Build unsigned iPhone product
+        run: bash ios/build.sh device
       - name: Package products with iOS version/build and checksums
         run: python3 scripts/ci-release.py package ios
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -237,7 +229,15 @@ jobs:
           merge-multiple: true
       - name: Generate combined checksums
         run: python3 scripts/ci-release.py checksums dist/release-assets
-      - name: Create or update draft release only
+      - name: Retain internal manifests and unsigned APK for local signing
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-candidate-${{ needs.version.outputs.tag }}
+          path: dist/release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Create draft with public download files only
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.version.outputs.tag }}

@@ -10,7 +10,6 @@ import plistlib
 import re
 import shutil
 import subprocess
-import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "dist" / "release-assets"
@@ -84,24 +83,15 @@ def package(kind):
     if kind == "windows-x64":
         installer = ROOT / "dist" / f"DoubaoRemote-Setup-{version}-x64.exe"
         shutil.copy2(installer, ASSETS / installer.name)
-        with zipfile.ZipFile(ASSETS / f"DoubaoRemote-{version}-windows-x64-portable.zip",
-                             "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.write(ROOT / "dist/doubao-remote.exe", "doubao-remote.exe")
-            archive.write(ROOT / "LICENSE", "LICENSE")
-            archive.writestr("README.txt", "Development preview. Portable build requires VB-CABLE.\n"
-                             "The experimental UMDF keyboard is NOT included.\n"
-                             "Setup: https://github.com/panjiang/doubao-remote/blob/main/docs/getting-started.md\n")
     elif kind.startswith("macos-"):
         arch = kind.removeprefix("macos-")
         dmg = ROOT / "dist" / f"DoubaoRemote-{version}-macos-{arch}-test.dmg"
         shutil.copy2(dmg, ASSETS / dmg.name)
     elif kind == "ios":
         prefix = f"DoubaoRemote-iOS-{values['ios_version']}-build{values['ios_build']}"
-        for target, folder, suffix in (("device", "Release-iphoneos", "device-unsigned"),
-                                       ("simulator", "Release-iphonesimulator", "simulator")):
-            app = ROOT / "ios/build" / target / "Build/Products" / folder / "DoubaoRemote.app"
-            subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",
-                            str(app), str(ASSETS / f"{prefix}-{suffix}.zip")], check=True)
+        app = ROOT / "ios/build/device/Build/Products/Release-iphoneos/DoubaoRemote.app"
+        subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",
+                        str(app), str(ASSETS / f"{prefix}-device-unsigned.zip")], check=True)
     elif kind == "android":
         apk = ROOT / "android/app/build/outputs/apk/debug/app-debug-unsigned.apk"
         shutil.copy2(apk, ASSETS / f"DoubaoRemote-Android-{values['android_version']}-build{values['android_build']}-unsigned.apk")
@@ -134,6 +124,48 @@ def checksums(folder, name):
     (folder / name).write_text("".join(lines), encoding="utf-8")
 
 
+def public_asset_names(values=None):
+    """The four user-facing release attachments, across every version."""
+    values = values or versions()
+    version = values["version"]
+    return [
+        f"DoubaoRemote-{version}-macos-aarch64-test.dmg",
+        f"DoubaoRemote-Android-{values['android_version']}-build{values['android_build']}-debug.apk",
+        f"DoubaoRemote-iOS-{values['ios_version']}-build{values['ios_build']}-device-unsigned.zip",
+        f"DoubaoRemote-Setup-{version}-x64.exe",
+    ]
+
+
+def public_assets(folder, values=None, include_android=True):
+    names = public_asset_names(values)
+    if not include_android:
+        names = [name for name in names if not name.endswith("-debug.apk")]
+    paths = [folder / name for name in names]
+    missing = [path.name for path in paths if not path.is_file()]
+    if missing:
+        raise ValueError("Missing public release files: " + ", ".join(missing))
+    return paths
+
+
+def stage_public_assets(folder, output):
+    """Stage exactly four verified binaries; records remain in Actions/local cache."""
+    selected = public_assets(folder)
+    entries = dict(line.split("  ", 1)[::-1]
+                   for line in (folder / "SHA256SUMS.txt").read_text().splitlines())
+    for path in selected:
+        if entries.get(path.name) != hashlib.sha256(path.read_bytes()).hexdigest():
+            raise ValueError(f"Artifact differs from its checksum: {path.name}")
+    if output.resolve() == folder.resolve():
+        raise ValueError("Public output must be separate from internal build records")
+    if output.exists() and any(output.iterdir()):
+        raise ValueError("Use an empty public output directory")
+    output.mkdir(parents=True, exist_ok=True)
+    for path in selected:
+        shutil.copy2(path, output / path.name)
+    print(json.dumps({"public_files": [path.name for path in selected], "folder": str(output)},
+                     ensure_ascii=False, indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -143,11 +175,16 @@ def main():
     bundle.add_argument("kind", choices=["windows-x64", "macos-aarch64", "macos-x86_64", "ios", "android"])
     sums = sub.add_parser("checksums")
     sums.add_argument("folder", type=Path)
+    public = sub.add_parser("public-assets")
+    public.add_argument("folder", type=Path, help="Merged Actions candidate after local Android signing")
+    public.add_argument("--output", type=Path, required=True, help="Empty directory for the four attachments")
     args = parser.parse_args()
     if args.command == "version":
         check_version(args.requested_version)
     elif args.command == "package":
         package(args.kind)
+    elif args.command == "public-assets":
+        stage_public_assets(args.folder, args.output)
     else:
         checksums(args.folder, "SHA256SUMS.txt")
 

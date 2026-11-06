@@ -4,12 +4,21 @@
 import json
 import os
 from pathlib import Path
+import runpy
 import subprocess
 
 def main():
     root = Path(__file__).resolve().parent.parent
     tag, commit = os.environ["TAG"], os.environ["COMMIT"]
     repo = os.environ["GITHUB_REPOSITORY"]
+    release = runpy.run_path(str(root / "scripts/ci-release.py"))
+    values = release["versions"]()
+    if tag != values["tag"]:
+        raise RuntimeError("Release tag differs from the checked-out source version")
+    allowed = set(release["public_asset_names"](values))
+    # CI has no private signing key. Upload three products; the APK
+    # remains exclusively in Actions until the maintainer signs and uploads it.
+    assets = release["public_assets"](root / "dist/release-assets", values, include_android=False)
     # List must succeed: network/auth errors must not be confused with a missing release.
     pages = subprocess.check_output([
         "gh", "api", "--paginate", "--slurp", f"repos/{repo}/releases?per_page=100"], text=True)
@@ -20,20 +29,18 @@ def main():
         raise RuntimeError("Release is already public; refusing to replace its assets")
     notes = root / "dist" / "release-notes.md"
     notes.write_text(
-        f"## 豆包远程 {tag} · 开发预览\n\n"
         f"源码提交：[`{commit[:12]}`](https://github.com/{repo}/commit/{commit})\n\n"
-        f"- Windows x64：安装包包含官方 VB-CABLE；便携包需要自行准备。"
+        f"- Windows x64：安装包包含官方 VB-CABLE。"
         "应用和安装器未做代码签名，**不含实验性 UMDF 键盘组件**；"
         "备用工具栏模式受豆包版本限制。\n"
-        "- macOS：Apple Silicon / Intel 独立测试 DMG，ad-hoc 签名，**未公证**。"
-        "构建成功不代表 Intel 或全部语音链路已经实机验证。\n"
+        "- macOS：Apple Silicon 测试 DMG，ad-hoc 签名，**未公证**。\n"
         f"- iOS {os.environ['IOS_VERSION']}（构建 {os.environ['IOS_BUILD']}）："
-        "模拟器包与**未签名**真机产物；真机使用需自行开发签名，不能直接安装。\n"
+        "**未签名** iPhone 真机产物；使用需自行开发签名，不能直接安装。\n"
         f"- Android {os.environ['ANDROID_VERSION']}（构建 {os.environ['ANDROID_BUILD']}）："
-        "Android 10+ 原生客户端。CI 产物**未签名**，须维护者在本机使用稳定密钥签名，替换 APK 与校验清单后再公开；安卓真机链路尚未验收。\n\n"
+        "Android 10+ 原生客户端。未签名构建仅保存在 Actions，须维护者使用原密钥在本机签名，上传 debug.apk 后再公开；安卓真机链路尚未验收。\n\n"
         f"[安装与平台限制](https://github.com/{repo}/blob/{commit}/docs/getting-started.md) · "
         f"[验证范围](https://github.com/{repo}/blob/{commit}/docs/verification.md)\n\n"
-        "附各平台构建清单与 SHA256SUMS.txt。CI 只构建打包，未运行录音、按键或实机验收。\n",
+        "Release 附件仅保留四个下载文件；JSON 和校验记录仅保存在 Actions。草稿中的 Android APK 签名上传完成前不得公开。CI 未运行录音、按键或实机验收。\n",
         encoding="utf-8")
     if not matches:
         # --target also creates a missing tag at precisely the compiled source commit.
@@ -45,10 +52,16 @@ def main():
             raise RuntimeError("Existing draft targets another commit; refusing to replace assets")
         subprocess.run(["gh", "release", "edit", tag, "--repo", repo,
                         "--notes-file", str(notes)], check=True)
-    assets = sorted(str(p) for p in (root / "dist/release-assets").iterdir() if p.is_file())
-    if not assets:
-        raise RuntimeError("No build assets to upload")
-    subprocess.run(["gh", "release", "upload", tag, "--repo", repo, "--clobber", *assets], check=True)
+    if matches:
+        # Clean obsolete draft-only JSON, checksums, simulator/Intel and unsigned
+        # files. Never touch an already public release or replace a signed APK
+        # with its unsigned CI input when rerunning the same draft.
+        for asset in matches[0]["assets"]:
+            if asset["name"] not in allowed:
+                subprocess.run(["gh", "release", "delete-asset", tag, "--repo", repo,
+                                asset["name"], "--yes"], check=True)
+    subprocess.run(["gh", "release", "upload", tag, "--repo", repo,
+                    "--clobber", *(str(path) for path in assets)], check=True)
     url = subprocess.check_output(["gh", "release", "view", tag, "--repo", repo,
                                    "--json", "url", "--jq", ".url"], text=True).strip()
     print(f"Draft release: {url}")
