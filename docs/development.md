@@ -1,12 +1,13 @@
 # 开发与构建
 
-本仓库同时维护 Windows/macOS 桌面端、电脑配置页、手机网页和原生 iPhone App。界面操作见[安装与首次配置](getting-started.md)，本页面向从源码构建和参与开发的读者。
+本仓库同时维护 Windows/macOS 桌面端、电脑配置页、手机网页以及原生 iPhone 和 Android App。界面操作见[安装与首次配置](getting-started.md)，本页面向从源码构建和参与开发的读者。
 
 ## 工程结构
 
-- `src/`：共享会话、协议、音频队列、配对服务及平台适配。
+- `src/`：桌面端使用 Rust、Tokio、Axum 和 CPAL，负责共享会话、协议、音频队列、配对服务及平台适配。
 - `web/`：TypeScript/Vite 页面，构建后嵌入桌面二进制。
-- `ios/`：原生 SwiftUI/UIKit App，使用系统音频与网络框架。
+- `ios/`：原生 SwiftUI/UIKit App，使用 AVAudioEngine 和系统网络框架。
+- `android/`：原生 Kotlin App，使用 Android View 和 AudioRecord。
 - `packaging/`、`scripts/`：安装器、原生资源和构建工具。
 - `research/`：实验性 Windows 输入组件及验证资料，不等同于正式分发方案。
 
@@ -93,6 +94,10 @@ MACOS_ARCHS=x86_64 bash scripts/build-macos.sh
 
 构建、签名与安装见 [iOS README](../ios/README.md)。App 使用系统框架，没有第三方运行时依赖；构建不需要 XcodeGen 或 CocoaPods。
 
+## Android App
+
+构建、签名与安装见 [Android README](../android/README.md)。
+
 ## 检查与验证
 
 网页类型检查包含在 `npm run build` 中。常规代码检查：
@@ -127,6 +132,7 @@ doubao-remote probe devices
 `probe key`、`probe audio` 和配置页的快捷键测试会产生真实系统输入，应只在专用测试文档中使用。示例命令的快捷键必须与当前豆包配置一致，API 返回成功不代表豆包已经识别出文字。
 
 - [共享架构与系统差异](cross-platform.md)
+- [手机三端交互基准与差异](mobile-parity.md)
 - [音频及控制协议](protocol.md)
 - [统一配对链接与原生入口](native-ios-protocol.md)
 - [Windows 快捷键兼容性研究](windows-input-findings.md)

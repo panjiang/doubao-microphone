@@ -8,7 +8,7 @@ Windows 11 x64 完整安装包内含原版 VB-CABLE Driver Pack 45，最终用�
 
 主应用沿用当前用户安装，不要求托盘程序始终以管理员身份运行。软件卸载只移除自己的程序、启动项及原有配置，不自动卸载共享的 VB-CABLE。不修改 BIOS、Secure Boot、系统代理或驱动签名策略，也不调用系统默认音频设备切换接口。用户仍需在豆包中选择 CABLE Output，程序输出选择 CABLE Input。
 
-安装完成时默认创建当前用户的桌面快捷方式，并通过已安装程序的专用 `install-defaults` 命令启用当前用户登录自启动，同时同步配置页中的开关。覆盖安装也启用此默认项，其余现有配置、配对和证书保留；随后可在配置页关闭。启动项指向安装目录的程序，参数为 `serve`，登录后仅后台运行；桌面快捷方式使用 `serve --open`。便携运行不执行安装默认项命令。
+安装完成时默认创建当前用户的桌面快捷方式，并通过已安装程序的专用 `install-defaults` 命令启用当前用户登录自启动，同时同步配置页中的开关。可在配置页关闭登录自启动。启动项指向安装目录的程序，参数为 `serve`，登录后仅后台运行；桌面快捷方式使用 `serve --open`。
 
 Windows 主程序、安装器、桌面／开始菜单快捷方式和卸载列表统一采用原创蓝底白色麦克风图标，托盘使用按任务栏 DPI 选择的内嵌 RGBA 图像。生成方式见 `assets/icons/README.md`；常规构建直接使用已生成资源，需要本机 Windows SDK 提供 `rc.exe`，不增加运行时解码依赖。macOS 的图标及安装方式见 [双平台说明](cross-platform.md)。
 
@@ -33,7 +33,7 @@ Windows 只有一个 CABLE Input 时，配置页保存稳定的 `CABLE Input` �
 
 `packaging/vbcable.lock.json` 固定原厂归档 SHA-256，以及 x64 安装器、Windows 10/11 驱动和目录文件的哈希及签名证书身份。准备脚本核对 Authenticode 状态后产生安装用文件清单、许可页和 Inno 常量；它不执行驱动安装、不导入证书，也不改变系统设备。缺少本地输入时明确失败，不偷偷下载或切换镜像源。
 
-VB-CABLE 二进制及自动生成内容位于忽略的 `artifacts/vendor/vb-cable-45/`，不提交到 Git。完整安装包输出 `dist/DoubaoRemote-Setup-<版本>-x64.exe`；便携版不包含自动安装能力。设备安装操作仅通过完整安装向导触发。
+VB-CABLE 二进制及自动生成内容位于忽略的 `artifacts/vendor/vb-cable-45/`，不提交到 Git。完整安装包输出 `dist/DoubaoRemote-Setup-<版本>-x64.exe`。设备安装操作仅通过完整安装向导触发。
 
 安装脚本必须使用 `ArchiveExtraction=full`：原厂包是 ZIP，Inno Setup 的 `enhanced/nopassword` 和 `enhanced` 仅支持 7z，会在首次安装驱动时报告 `Extraction failed: The archive format is unsupported`。该问题的历史修复与构建证据见 [验证记录](verification.md)。
 
