@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-enum PTTError: LocalizedError {
+enum RemoteError: LocalizedError {
     case message(String)
     var errorDescription: String? { if case .message(let text)=self { return text }; return nil }
 }
@@ -14,7 +14,7 @@ struct PairPayload: Decodable {
     let ticket: String
     let ca_der: String
     static func parse(_ text:String) throws -> PairPayload {
-        guard text.utf8.count<=16384 else { throw PTTError.message("二维码数据过大或无效。") }
+        guard text.utf8.count<=16384 else { throw RemoteError.message("二维码数据过大或无效。") }
         if text.first=="{" {
             let payload=try JSONDecoder().decode(PairPayload.self,from:Data(text.utf8))
             _=try payload.record();return payload // Older desktop JSON QR codes remain valid.
@@ -27,12 +27,12 @@ struct PairPayload: Decodable {
               let fields=URLComponents(string:"?"+fragment)?.queryItems,
               fields.count==3,Set(fields.map(\.name))==Set(["v","port","ca"]),
               fields.allSatisfy({$0.value != nil}) else {
-            throw PTTError.message("请扫描电脑配置页的配对二维码。")
+            throw RemoteError.message("请扫描电脑配置页的配对二维码。")
         }
         let values=Dictionary(uniqueKeysWithValues:fields.map{($0.name,$0.value!)})
         guard values["v"]=="1",let port=Int(values["port"]!),let encoded=values["ca"],
               encoded.utf8.allSatisfy({(65...90).contains($0)||(97...122).contains($0)||(48...57).contains($0)||$0==45||$0==95}),encoded.count%4 != 1 else {
-            throw PTTError.message("配对二维码格式无法识别，请在电脑上重新生成。")
+            throw RemoteError.message("配对二维码格式无法识别，请在电脑上重新生成。")
         }
         let base64=encoded.replacingOccurrences(of:"-",with:"+").replacingOccurrences(of:"_",with:"/")
             + String(repeating:"=",count:(4-encoded.count%4)%4)
@@ -43,7 +43,7 @@ struct PairPayload: Decodable {
         guard type == "doubao_ptt_pair", version == 1, ticket.count >= 32, ticket.count <= 256,
               let ca=Data(base64Encoded: ca_der), ca.count <= 8192,
               SecCertificateCreateWithData(nil,ca as CFData) != nil else {
-            throw PTTError.message("请扫描电脑配置页的配对二维码。")
+            throw RemoteError.message("请扫描电脑配置页的配对二维码。")
         }
         let computer=Computer(host:host,port:port,ca:ca,token:"",name:"我的电脑")
         try computer.validate(); return computer
@@ -61,7 +61,7 @@ struct Computer: Codable {
         guard parts.count==4,parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) && UInt8($0) != nil }),
               (1024...65535).contains(port),!host.hasPrefix("127."),host != "0.0.0.0",
               SecCertificateCreateWithData(nil,ca as CFData) != nil else {
-            throw PTTError.message("电脑连接信息无效，请在电脑上选择可连接的局域网 IP 后重新扫码。")
+            throw RemoteError.message("电脑连接信息无效，请在电脑上选择可连接的局域网 IP 后重新扫码。")
         }
     }
     func url(_ path:String,websocket:Bool=false) -> URL {
@@ -76,7 +76,7 @@ enum PairStore {
         var q=query;q[kSecReturnData as String]=true;q[kSecMatchLimit as String]=kSecMatchLimitOne
         var result:CFTypeRef?;let status=SecItemCopyMatching(q as CFDictionary,&result)
         if status==errSecItemNotFound { return nil }
-        guard status==errSecSuccess,let data=result as? Data else { throw PTTError.message("无法读取已保存的配对，请解锁手机后重试。") }
+        guard status==errSecSuccess,let data=result as? Data else { throw RemoteError.message("无法读取已保存的配对，请解锁手机后重试。") }
         let computer=try JSONDecoder().decode(Computer.self,from:data);try computer.validate();return computer
     }
     static func save(_ computer:Computer) throws {
@@ -87,7 +87,7 @@ enum PairStore {
             var q=query;q[kSecValueData as String]=data;q[kSecAttrAccessible as String]=kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             status=SecItemAdd(q as CFDictionary,nil)
         }
-        guard status==errSecSuccess else { throw PTTError.message("无法保存配对，请解锁手机后重试。") }
+        guard status==errSecSuccess else { throw RemoteError.message("无法保存配对，请解锁手机后重试。") }
     }
 }
 
@@ -131,14 +131,14 @@ final class PairingClient {
         var request=URLRequest(url:components.url!)
         if let body { request.httpMethod="POST";request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.httpBody=try JSONSerialization.data(withJSONObject:body) }
         let (data,response)=try await session.data(for:request)
-        guard data.count <= 16384,let http=response as? HTTPURLResponse,let value=try JSONSerialization.jsonObject(with:data) as? [String:Any] else { throw PTTError.message("电脑返回的数据无法识别。") }
-        guard http.statusCode==200 else { throw PTTError.message(value["error"] as? String ?? "电脑拒绝了配对，请重新生成二维码。") }
+        guard data.count <= 16384,let http=response as? HTTPURLResponse,let value=try JSONSerialization.jsonObject(with:data) as? [String:Any] else { throw RemoteError.message("电脑返回的数据无法识别。") }
+        guard http.statusCode==200 else { throw RemoteError.message(value["error"] as? String ?? "电脑拒绝了配对，请重新生成二维码。") }
         return value
     }
     func pair(ticket:String) async throws -> Computer {
         let info=try await json("/info")
         let response=try await json("/native/pair",body:["ticket":ticket,"label":"iPhone App"])
-        guard let id=response["id"] as? String,UUID(uuidString:id) != nil,let poll=response["poll"] as? String else { throw PTTError.message("配对响应无法识别。") }
+        guard let id=response["id"] as? String,UUID(uuidString:id) != nil,let poll=response["poll"] as? String else { throw RemoteError.message("配对响应无法识别。") }
         let deadline=Date().addingTimeInterval(300)
         while Date()<deadline {
             try Task.checkCancellation()
@@ -148,6 +148,6 @@ final class PairingClient {
             }
             try await Task.sleep(nanoseconds:750_000_000)
         }
-        throw PTTError.message("配对已超时，请在电脑上重新生成二维码。")
+        throw RemoteError.message("配对已超时，请在电脑上重新生成二维码。")
     }
 }

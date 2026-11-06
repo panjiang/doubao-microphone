@@ -24,7 +24,7 @@ def versions():
     if any(int(part) > 65535 for part in version.split(".")):
         raise ValueError("Desktop version exceeds Windows installer version limits")
     lock = (ROOT / "Cargo.lock").read_text(encoding="utf-8")
-    if not re.search(r'name = "doubao-ptt"\nversion = "' + re.escape(version) + '"', lock):
+    if not re.search(r'name = "doubao-remote"\nversion = "' + re.escape(version) + '"', lock):
         raise ValueError("Cargo.lock package version differs from Cargo.toml")
     for filename in ("web/package.json", "web/package-lock.json"):
         package = json.loads((ROOT / filename).read_text(encoding="utf-8"))
@@ -41,7 +41,7 @@ def versions():
     installer = (ROOT / "packaging/windows.iss").read_text(encoding="utf-8")
     if f'#define AppVersion "{version}"' not in installer:
         raise ValueError("Windows installer fallback version differs from Cargo.toml")
-    project = (ROOT / "ios/DoubaoPTT.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+    project = (ROOT / "ios/DoubaoRemote.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
     ios_versions = set(re.findall(r"MARKETING_VERSION = ([\d.]+);", project))
     ios_builds = set(re.findall(r"CURRENT_PROJECT_VERSION = (\d+);", project))
     if len(ios_versions) != 1 or len(ios_builds) != 1:
@@ -82,24 +82,24 @@ def package(kind):
     ASSETS.mkdir(parents=True, exist_ok=True)
     version = values["version"]
     if kind == "windows-x64":
-        installer = ROOT / "dist" / f"DoubaoPTT-Setup-{version}-x64.exe"
+        installer = ROOT / "dist" / f"DoubaoRemote-Setup-{version}-x64.exe"
         shutil.copy2(installer, ASSETS / installer.name)
-        with zipfile.ZipFile(ASSETS / f"DoubaoPTT-{version}-windows-x64-portable.zip",
+        with zipfile.ZipFile(ASSETS / f"DoubaoRemote-{version}-windows-x64-portable.zip",
                              "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.write(ROOT / "dist/doubao-ptt.exe", "doubao-ptt.exe")
+            archive.write(ROOT / "dist/doubao-remote.exe", "doubao-remote.exe")
             archive.write(ROOT / "LICENSE", "LICENSE")
             archive.writestr("README.txt", "Development preview. Portable build requires VB-CABLE.\n"
                              "The experimental UMDF keyboard is NOT included.\n"
-                             "Setup: https://github.com/panjiang/doubao-voice-remote/blob/main/docs/getting-started.md\n")
+                             "Setup: https://github.com/panjiang/doubao-remote/blob/main/docs/getting-started.md\n")
     elif kind.startswith("macos-"):
         arch = kind.removeprefix("macos-")
-        dmg = ROOT / "dist" / f"DoubaoPTT-{version}-macos-{arch}-test.dmg"
+        dmg = ROOT / "dist" / f"DoubaoRemote-{version}-macos-{arch}-test.dmg"
         shutil.copy2(dmg, ASSETS / dmg.name)
     elif kind == "ios":
         prefix = f"DoubaoRemote-iOS-{values['ios_version']}-build{values['ios_build']}"
         for target, folder, suffix in (("device", "Release-iphoneos", "device-unsigned"),
                                        ("simulator", "Release-iphonesimulator", "simulator")):
-            app = ROOT / "ios/build" / target / "Build/Products" / folder / "DoubaoPTT.app"
+            app = ROOT / "ios/build" / target / "Build/Products" / folder / "DoubaoRemote.app"
             subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",
                             str(app), str(ASSETS / f"{prefix}-{suffix}.zip")], check=True)
     elif kind == "android":

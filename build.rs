@@ -30,7 +30,7 @@ fn main() {
 fn embed_windows_icon() {
     use std::{env, path::PathBuf, process::Command};
     println!("cargo:rerun-if-changed=packaging/windows-icon.rc");
-    println!("cargo:rerun-if-changed=assets/icons/doubao-ptt.ico");
+    println!("cargo:rerun-if-changed=assets/icons/doubao-remote.ico");
     println!("cargo:rerun-if-env-changed=RC");
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let resource = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("windows-icon.res");
@@ -60,5 +60,5 @@ fn embed_windows_icon() {
         status.success(),
         "Compiling the Windows application icon failed"
     );
-    println!("cargo:rustc-link-arg-bin=doubao-ptt={}", resource.display());
+    println!("cargo:rustc-link-arg-bin=doubao-remote={}", resource.display());
 }

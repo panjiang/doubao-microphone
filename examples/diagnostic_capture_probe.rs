@@ -1,7 +1,7 @@
 //! Short, read-only virtual-input check. Does not trigger Doubao or play sound.
 fn main() -> anyhow::Result<()> {
     let root = tempfile::tempdir()?;
-    let recorder = doubao_ptt::diagnostics::Recorder::start(
+    let recorder = doubao_remote::diagnostics::Recorder::start(
         root.path().to_owned(),
         uuid::Uuid::new_v4(),
         48000,

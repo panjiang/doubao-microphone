@@ -140,7 +140,7 @@ async function prepare(pressed: Hold) {
     if (!valid()) return;
     await current.context.audioWorklet.addModule('/audio-worklet.js');
     if (!valid()) return;
-    const node = new AudioWorkletNode(current.context, 'ptt-capture', {numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]});
+    const node = new AudioWorkletNode(current.context, 'remote-capture', {numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]});
     current.node = node; current.context.createMediaStreamSource(capture).connect(node); node.connect(current.context.destination);
     node.port.onmessage = ({data}) => {
       if (audio !== current || generation !== attempt) return;

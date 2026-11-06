@@ -15,5 +15,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = 'DoubaoVoiceRemote'
+rootProject.name = 'DoubaoRemote'
 include ':app'

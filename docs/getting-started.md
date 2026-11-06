@@ -1,10 +1,10 @@
 # 安装与首次配置
 
-本指南适用于桌面端 0.2.5 和 iPhone App 0.1.0 构建 30，以及Android 0.1.7（8）。App 从构建 23 起支持统一二维码，也能识别旧桌面的 JSON 二维码。
+本指南适用于桌面端 0.2.6 和 iPhone App 0.1.0 构建 30，以及Android 0.1.7（8）。App 从构建 23 起支持统一二维码，也能识别旧桌面的 JSON 二维码。
 
 Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.md)；电脑环境和虚拟音频配置仍使用本指南。
 
-可从 [v0.2.5 Release](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.5) 获取开发预览产物，也可以[从源码构建](development.md)。iOS 真机产物仍需自行签名；下文安装步骤不代表已经完成面向所有用户的正式分发。
+可从 [v0.2.6 Release](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.6) 获取开发预览产物，也可以[从源码构建](development.md)。iOS 真机产物仍需自行签名；下文安装步骤不代表已经完成面向所有用户的正式分发。
 
 ## 准备电脑
 
@@ -28,13 +28,13 @@ Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.
 ### macOS
 
 - 系统基线：macOS 14.2+；已验证 Apple Silicon，Intel 尚未实机验证。
-- 打开构建出的 DMG，运行「安装语音遥控」。缺少 BlackHole 2ch 时，安装器从官方来源获取并校验，再通过系统管理员认证安装；已有设备会复用。
+- 打开构建出的 DMG，运行「安装豆包远程」。缺少 BlackHole 2ch 时，安装器从官方来源获取并校验，再通过系统管理员认证安装；已有设备会复用。
 - 按安装器提示处理重启。在豆包和本程序中均选择 **BlackHole 2ch**。
 - 在「系统设置 → 隐私与安全性 → 辅助功能」允许主应用，以及应用包内的输入代理：
 
   ```text
-  /Applications/DoubaoPTT.app
-  /Applications/DoubaoPTT.app/Contents/Resources/DoubaoPTTInput.app
+  /Applications/DoubaoRemote.app
+  /Applications/DoubaoRemote.app/Contents/Resources/DoubaoRemoteInput.app
   ```
 
 - 默认快捷键为 **Fn / 地球仪**。切换到豆包输入法，或在豆包中启用全局语音；把豆包的长按快捷键与程序设置保持一致。
@@ -55,11 +55,11 @@ Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.
 
 ## 配对 iPhone
 
-### 使用豆包遥控 App
+### 使用豆包远程 App
 
 1. 按 [iOS 构建与安装说明](../ios/README.md)把 App 安装到 iPhone；当前没有 App Store 或 TestFlight 安装入口。
 2. 电脑配置页点击「生成配对二维码」。
-3. 打开「豆包遥控」并扫码，配对成功后电脑二维码自动收起。
+3. 打开「豆包远程」并扫码，配对成功后电脑二维码自动收起。
 
 App 使用二维码内的证书建立本台电脑的专用信任，不需要安装系统证书。顶部“已配对”表示凭据已保存；实际声音连接在按住时自动建立。
 
@@ -68,7 +68,7 @@ App 使用二维码内的证书建立本台电脑的专用信任，不需要安�
 用手机相机扫描**同一个二维码**进入向导，然后：
 
 1. 用 Safari 下载并安装本机证书描述文件。
-2. 在「设置 → 通用 → 关于本机 → 证书信任设置」开启 **Doubao PTT Local CA** 的完全信任。
+2. 在「设置 → 通用 → 关于本机 → 证书信任设置」开启 **Doubao Remote Local CA** 的完全信任。覆盖升级的旧 CA 可能仍显示原名称，请以向导显示的实际名称和 SHA-256 指纹为准，不必重新生成证书。
 3. 返回向导，打开 HTTPS 输入页完成配对。
 
 安装描述文件与开启信任是两个步骤，缺一不可。二维码五分钟内单次有效，流程中若过期，请在电脑重新生成。选择 App 时无需执行这组证书步骤。

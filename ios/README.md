@@ -1,19 +1,19 @@
-# 豆包遥控 · iPhone App
+# 豆包远程 · iPhone App
 
-使用 iPhone 麦克风，遥控电脑上的豆包输入法。原生 SwiftUI 界面配合 UIKit 触摸区域，最低支持 iOS 18，无第三方运行时依赖。
+使用 iPhone 麦克风，远程控制电脑上的豆包输入法。原生 SwiftUI 界面配合 UIKit 触摸区域，最低支持 iOS 18，无第三方运行时依赖。
 
 当前为开发预览，尚未提供 App Store 或 TestFlight 分发，需要通过 Xcode 配置开发签名并安装到自己的设备。电脑端安装与支持范围见[首次配置说明](../docs/getting-started.md)。
 
 ## 使用
 
 1. 在电脑配置页点击「生成配对二维码」。
-2. 打开「豆包遥控」，点击「扫码连接电脑」并扫码，无需再在电脑确认。
+2. 打开「豆包远程」，点击「扫码连接电脑」并扫码，无需再在电脑确认。
 3. 把电脑光标放入目标输入框，在手机顶栏以下任意位置按住说话。
 4. 圆内松手会结束听写并延迟按 Enter；滑出圆外松手仅完成听写，滑回圆内可恢复回车。
 
 操作圆直径为 180pt，固定在按下位置，边界不随音量或外围波纹变化。顶部标题栏不触发录音。
 
-桌面端 0.2.2 起与 App 0.1.0 构建 23 起使用统一二维码，App 和手机相机可扫描同一个码。当前 App 构建号为 30，同时兼容旧桌面的 JSON 二维码。App 使用内部专用证书信任，无需安装 iPhone 系统根证书；地址、CA 或凭据失效时重新扫码。
+桌面端 0.2.2 起与 App 0.1.0 构建 23 起使用统一二维码，App 和手机相机可扫描同一个码。当前 App 构建号为 32，同时兼容旧桌面的 JSON 二维码。App 使用内部专用证书信任，无需安装 iPhone 系统根证书；地址、CA 或凭据失效时重新扫码。
 
 “已配对”表示已保存电脑凭据，不代表实时连接。按住时自动连接，断线后停止本次输入，下次按住再重连。首次授权时若已松手，授权后重新按住即可。
 
@@ -28,11 +28,11 @@
 
 ## 从源码构建
 
-需要带有 iOS 18+ SDK 的 Xcode。本仓库提供可直接打开的 `DoubaoPTT.xcodeproj`，不依赖 XcodeGen、CocoaPods 或 Swift Package 下载。
+需要带有 iOS 18+ SDK 的 Xcode。本仓库提供可直接打开的 `DoubaoRemote.xcodeproj`，不依赖 XcodeGen、CocoaPods 或 Swift Package 下载。
 
 ### 使用 Xcode
 
-1. 打开 `ios/DoubaoPTT.xcodeproj`，选择 `DoubaoPTT` target。
+1. 打开 `ios/DoubaoRemote.xcodeproj`，选择 `DoubaoRemote` target。
 2. 在 Signing & Capabilities 中选择自己的签名团队，首次构建使用可由该团队注册的 Bundle ID。
 3. 连接并解锁 iPhone，按系统提示完成设备信任及开发者模式设置。
 4. 选择目标 iPhone 构建安装。
@@ -71,3 +71,5 @@ bash install.sh YOUR_DEVICE_ID
 - [历史构建、安装及实测记录](../docs/verification.md)
 
 编译、签名与安装成功不等于真机功能全部通过。扫码、权限、手势、首尾字和系统中断的验收范围以实际验证记录为准。
+
+构建 32 仅预览原生 iPhone 的深灰主题：页面背景 `#161823`，文字和配对标签适配深色，原蓝色操作圆、波纹及交互保持不变。该深灰主题已同步至手机网页及 Android 0.1.9（10）。

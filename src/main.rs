@@ -4,7 +4,7 @@
 )]
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
-use doubao_ptt::{
+use doubao_remote::{
     agent, audio, config, controller::Controller, identity, platform, server, tls, tray,
 };
 use std::{path::PathBuf, sync::Arc, time::Duration};
@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 #[derive(Parser)]
 #[command(
     version,
-    about = "手机按住说话遥控豆包 · local audio and shortcut bridge"
+    about = "豆包输入法远程控制 · Doubao Input Method Remote Control"
 )]
 struct Args {
     #[arg(long, global = true, help = "开发模拟模式；不产生原生按键和声音")]
@@ -74,8 +74,8 @@ fn main() -> Result<()> {
             settings.shortcut = platform::automatic_shortcut();
         }
         let previous = settings.autostart;
-        platform::set_autostart(true)?;
-        settings.autostart = true;
+        if !dir.join("settings.json").exists() { settings.autostart = true; }
+        platform::set_autostart(settings.autostart)?;
         if let Err(error) = settings.save(&dir) {
             let _ = platform::set_autostart(previous);
             return Err(error);
@@ -86,7 +86,7 @@ fn main() -> Result<()> {
         .with_writer(std::io::stderr)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "doubao_ptt=info".into()),
+                .unwrap_or_else(|_| "doubao_remote=info".into()),
         )
         .init();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -114,7 +114,6 @@ fn main() -> Result<()> {
                 // First launch after installation. Preserve explicit saved preferences on upgrades.
                 settings.autostart = std::env::current_exe()?.starts_with("/Applications")
                     || std::env::var_os("HOME").is_some_and(|home| std::env::current_exe().is_ok_and(|exe|exe.starts_with(PathBuf::from(home).join("Applications"))));
-                if settings.autostart { platform::set_autostart(true)?; }
                 settings.save(&dir)?;
             }
             settings.validate()?;
@@ -128,6 +127,9 @@ fn main() -> Result<()> {
             let mobile = std::net::TcpListener::bind((settings.lan_ip, settings.mobile_port))
                 .context("手机 HTTPS 端口不可用")?;
             mobile.set_nonblocking(true)?;
+            // Retarget startup only after the single-instance lock and ports are held.
+            #[cfg(any(target_os = "windows", target_os = "macos"))]
+            if !args.mock { platform::set_autostart(settings.autostart)?; }
             let _ = rustls::crypto::ring::default_provider().install_default();
             let material = runtime.block_on(tls::prepare(&dir, settings.lan_ip, args.mock))?;
             let controller =
@@ -142,6 +144,7 @@ fn main() -> Result<()> {
                 initial: settings,
                 mock: args.mock,
                 profile: material.profile,
+                ca_name: material.ca_name,
             });
             let tls_handle = axum_server::Handle::new();
             let stop_tls = tls_handle.clone();

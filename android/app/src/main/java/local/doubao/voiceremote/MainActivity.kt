@@ -32,23 +32,23 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(242, 245, 250)) }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(22, 24, 35)) }
         root.setOnApplyWindowInsetsListener { view, insets ->
             view.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
             insets.consumeSystemWindowInsets()
         }
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), dp(8), dp(16), dp(8)) }
-        val title = TextView(this).apply { text = "豆包遥控"; textSize = 15f; gravity = Gravity.CENTER_VERTICAL; setTextColor(Color.rgb(28, 35, 48)); setTypeface(typeface, Typeface.BOLD) }
+        val title = TextView(this).apply { text = "豆包远程"; textSize = 15f; gravity = Gravity.CENTER_VERTICAL; setTextColor(Color.WHITE); setTypeface(typeface, Typeface.BOLD) }
         header.addView(title, LinearLayout.LayoutParams(0, dp(40), 1f).apply { gravity = Gravity.CENTER_VERTICAL })
         scan = ImageButton(this).apply {
             setImageDrawable(QrIcon()); setBackgroundColor(Color.TRANSPARENT); setPadding(dp(8), dp(8), dp(8), dp(8))
             setOnClickListener { openScanner() }; contentDescription = "重新扫码配对"
         }
         header.addView(scan, LinearLayout.LayoutParams(dp(40), dp(40)).apply { rightMargin = dp(10) })
-        badge = TextView(this).apply { textSize = 12f; setPadding(dp(10), dp(6), dp(10), dp(6)); setTextColor(Color.rgb(67, 80, 101)); background = GradientDrawable().apply { setColor(Color.rgb(224, 232, 242)); cornerRadius = dp(30).toFloat() } }
+        badge = TextView(this).apply { textSize = 12f; setPadding(dp(10), dp(6), dp(10), dp(6)); setTextColor(Color.rgb(150, 151, 161)); background = GradientDrawable().apply { setColor(Color.argb(26, 255, 255, 255)); cornerRadius = dp(30).toFloat() } }
         header.addView(badge)
         root.addView(header)
-        root.addView(View(this).apply { setBackgroundColor(Color.rgb(218, 223, 233)) }, LinearLayout.LayoutParams(-1, dp(1)))
+        root.addView(View(this).apply { setBackgroundColor(Color.argb(31, 255, 255, 255)) }, LinearLayout.LayoutParams(-1, dp(1)))
         surface = HoldSurface(this)
         root.addView(surface, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)

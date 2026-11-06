@@ -1,6 +1,6 @@
 import SwiftUI
 
-@main struct DoubaoPTTApp:App {
+@main struct DoubaoRemoteApp:App {
     @StateObject private var model=AppModel()
     @Environment(\.scenePhase) private var scenePhase
     var body:some Scene {
@@ -16,10 +16,10 @@ struct ContentView:View {
     var body:some View {
         VStack(spacing:0) {
             HStack {
-                Text("豆包遥控").font(.system(size:15,weight:.semibold))
+                Text("豆包远程").font(.system(size:15,weight:.semibold))
                 Spacer()
                 if model.computer != nil { Button { model.openScanner() } label:{ Image(systemName:"qrcode.viewfinder").font(.system(size:20)) }.accessibilityLabel("重新扫码配对").disabled(model.pairing || model.holding) }
-                Text(model.computer == nil ? "未配对":"已配对").font(.system(size:12)).padding(.horizontal,10).padding(.vertical,6).background(Color(red:0.88,green:0.91,blue:0.95)).clipShape(Capsule())
+                Text(model.computer == nil ? "未配对":"已配对").font(.system(size:12)).padding(.horizontal,10).padding(.vertical,6).foregroundStyle(.secondary).background(Color.white.opacity(0.10)).clipShape(Capsule())
             }.padding(.horizontal,16).padding(.vertical,14)
             Divider()
             HoldSurface(computerName:model.computer?.name ?? "连接你的电脑",status:model.status,
@@ -31,7 +31,8 @@ struct ContentView:View {
                         onScan:{ model.openScanner() })
                 .frame(maxWidth:.infinity,maxHeight:.infinity)
         }
-        .background(Color(red:0.95,green:0.96,blue:0.98).ignoresSafeArea())
+        .background(Color(red:22.0/255,green:24.0/255,blue:35.0/255).ignoresSafeArea())
+        .preferredColorScheme(.dark)
         .sheet(isPresented:$model.scanner) {
             NavigationStack {
                 Scanner(onScan:{model.scan($0)},onError:{model.scanner=false;model.status=$0})

@@ -12,7 +12,7 @@ static AXUIElementRef copyElement(AXUIElementRef owner, CFStringRef name) {
     CFTypeRef value = NULL;
     AXError error = AXUIElementCopyAttributeValue(owner, name, &value);
     if (error != kAXErrorSuccess) {
-        NSLog(@"DoubaoPTT focus_capture attribute=%@ error=%d", (__bridge NSString *)name, (int)error);
+        NSLog(@"DoubaoRemote focus_capture attribute=%@ error=%d", (__bridge NSString *)name, (int)error);
         return NULL;
     }
     if (!value || CFGetTypeID(value) != AXUIElementGetTypeID()) {
@@ -51,7 +51,7 @@ void *ptt_mac_capture_target(void) {
             pid_t still = NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier;
             bool valid = still == pid && focusPid == pid && target->window && target->focus;
             if (!valid) {
-                NSLog(@"DoubaoPTT focus_capture invalid window=%d focus=%d same_app=%d same_pid=%d", target->window != NULL, target->focus != NULL, still == pid, focusPid == pid);
+                NSLog(@"DoubaoRemote focus_capture invalid window=%d focus=%d same_app=%d same_pid=%d", target->window != NULL, target->focus != NULL, still == pid, focusPid == pid);
                 ptt_mac_release_target(target); target = NULL;
             }
         }

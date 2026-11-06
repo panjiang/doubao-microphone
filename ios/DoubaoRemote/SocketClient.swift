@@ -27,7 +27,7 @@ final class SocketClient: @unchecked Sendable {
     func connect() async throws {
         try await withCheckedThrowingContinuation { (continuation:CheckedContinuation<Void,Error>) in
             queue.async { [self] in
-                guard !closed else { continuation.resume(throwing:PTTError.message("连接已取消。"));return }
+                guard !closed else { continuation.resume(throwing:RemoteError.message("连接已取消。"));return }
                 hello=continuation;opened=ProcessInfo.processInfo.systemUptime;lastReceived=opened
                 socket=session.webSocketTask(with:computer.url("/native/ws",websocket:true));socket?.maximumMessageSize=65536;socket?.resume()
                 enqueueJSON(["type":"hello","version":1,"token":computer.token,"sample_rate":24000,"channels":1])
@@ -115,7 +115,7 @@ final class SocketClient: @unchecked Sendable {
         guard !closed else { return };closed=true
         budgetLock.lock();budgetOpen=false;budgetSamples=0;budgetLock.unlock()
         timer?.cancel();timer=nil;packets.removeAll();pendingSamples=0;sending=false
-        hello?.resume(throwing:PTTError.message(reason));hello=nil
+        hello?.resume(throwing:RemoteError.message(reason));hello=nil
         socket?.cancel(with:.goingAway,reason:nil);socket=nil;session.invalidateAndCancel()
     }
     deinit { timer?.cancel();socket?.cancel(with:.goingAway,reason:nil);session.invalidateAndCancel() }

@@ -31,7 +31,7 @@ final class ScannerController:UIViewController,AVCaptureMetadataOutputObjectsDel
         guard !finished,let device=AVCaptureDevice.default(for:.video) else { return }
         do {
             let input=try AVCaptureDeviceInput(device:device);let output=AVCaptureMetadataOutput()
-            guard capture.canAddInput(input),capture.canAddOutput(output) else { throw PTTError.message("无法启动扫码相机。") }
+            guard capture.canAddInput(input),capture.canAddOutput(output) else { throw RemoteError.message("无法启动扫码相机。") }
             capture.beginConfiguration();capture.addInput(input);capture.addOutput(output)
             output.setMetadataObjectsDelegate(self,queue:.main);output.metadataObjectTypes=[.qr];capture.commitConfiguration()
             DispatchQueue.main.async { [weak self] in

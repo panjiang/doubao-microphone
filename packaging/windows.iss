@@ -1,40 +1,46 @@
 #ifndef AppVersion
-#define AppVersion "0.2.5"
+#define AppVersion "0.2.6"
 #endif
 #include "..\artifacts\vendor\vb-cable-45\vbcable.generated.iss"
 [Setup]
 AppId={{BCF882D6-2071-4E38-A957-54E5805439F7}
-AppName=DoubaoPTT
+AppName=豆包远程
 AppVersion={#AppVersion}
-DefaultDirName={localappdata}\Programs\DoubaoPTT
-DefaultGroupName=DoubaoPTT
+DefaultDirName={localappdata}\Programs\DoubaoRemote
+DefaultGroupName=豆包远程
+UsePreviousAppDir=yes
+DisableDirPage=auto
+UsePreviousGroup=no
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.22000
 OutputDir=..\dist
-OutputBaseFilename=DoubaoPTT-Setup-{#AppVersion}-x64
+OutputBaseFilename=DoubaoRemote-Setup-{#AppVersion}-x64
 Compression=lzma2
 SolidCompression=yes
 ; ExtractVerifiedCable opens the vendor's original ZIP. The enhanced modes only support 7z.
 ArchiveExtraction=full
 LicenseFile=..\artifacts\vendor\vb-cable-45\windows-license.txt
-SetupIconFile=..\assets\icons\doubao-ptt.ico
-UninstallDisplayIcon={app}\doubao-ptt.exe
+SetupIconFile=..\assets\icons\doubao-remote.ico
+UninstallDisplayIcon={app}\doubao-remote.exe
 [Files]
 ; Preserve the vendor's complete original archive, including its original EULA.
 Source: "..\artifacts\vendor\vb-cable-45\VBCABLE_Driver_Pack45.zip"; Flags: dontcopy
 Source: "..\artifacts\vendor\vb-cable-45\vbcable-files.sha256"; Flags: dontcopy
-Source: "..\dist\doubao-ptt.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\doubao-remote.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\artifacts\vendor\vb-cable-45\windows-license.txt"; DestDir: "{app}"; DestName: "THIRD-PARTY-LICENSES.txt"; Flags: ignoreversion
 [Icons]
-Name: "{group}\DoubaoPTT"; Filename: "{app}\doubao-ptt.exe"; Parameters: "serve --open"
-Name: "{userdesktop}\DoubaoPTT"; Filename: "{app}\doubao-ptt.exe"; Parameters: "serve --open"; WorkingDir: "{app}"
+Name: "{group}\豆包远程"; Filename: "{app}\doubao-remote.exe"; Parameters: "serve --open"
+Name: "{userdesktop}\豆包远程"; Filename: "{app}\doubao-remote.exe"; Parameters: "serve --open"; WorkingDir: "{app}"
 [Run]
-Filename: "{app}\doubao-ptt.exe"; Parameters: "serve --open"; Description: "Open DoubaoPTT setup"; Flags: nowait postinstall skipifsilent; Check: CanLaunchAfterInstall
+Filename: "{app}\doubao-remote.exe"; Parameters: "serve --open"; Description: "打开豆包远程设置"; Flags: nowait postinstall skipifsilent; Check: CanLaunchAfterInstall
 [UninstallDelete]
+Type: filesandordirs; Name: "{localappdata}\DoubaoRemote\DoubaoRemote\data"
+; Compatibility: remove legacy per-user data only on explicit uninstall.
 Type: filesandordirs; Name: "{localappdata}\DoubaoPTT\DoubaoPTT\data"
 [Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "DoubaoRemote"; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "DoubaoPTT"; Flags: uninsdeletevalue
 
 [Code]
@@ -42,6 +48,84 @@ var
   AudioPage: TOutputMsgWizardPage;
   AudioNeedsRestart: Boolean;
   VendorLocks: array of TFileStream;
+  UpgradePrepared, HadSettings, HadNewExe, HadNewRun, HadOldRun: Boolean;
+  UpgradeData, NewRunValue, OldRunValue, PreparedAppPath, BackupDir: String;
+  HadDesktopLink, HadMenuLink: Boolean;
+
+{ Legacy names below are for covering existing installations, never display names. }
+function HasData(const Directory: String): Boolean;
+begin
+  Result := FileExists(Directory + '\settings.json') or FileExists(Directory + '\devices.json') or
+    FileExists(Directory + '\ca.pem') or FileExists(Directory + '\ca-key.dpapi') or
+    FileExists(Directory + '\mock-ca-key.pem');
+end;
+
+function PrepareUpgrade: String;
+var Locator, Services, Processes, Process: Variant; I, Number: Integer; Path, OldData, BackupBase: String;
+begin
+  Result := '';
+  if UpgradePrepared and (PreparedAppPath = ExpandConstant('{app}')) then Exit;
+  try
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Services := Locator.ConnectServer('', 'root\CIMV2');
+    Processes := Services.ExecQuery('SELECT ExecutablePath FROM Win32_Process WHERE Name = ''doubao-ptt.exe'' OR Name = ''doubao-remote.exe''');
+    for I := 0 to Processes.Count - 1 do begin
+      Process := Processes.ItemIndex(I);
+      if not VarIsNull(Process.ExecutablePath) then begin
+        Path := Process.ExecutablePath;
+        if CompareText(ExtractFileDir(Path), ExpandConstant('{app}')) = 0 then begin
+          Result := '请先从托盘退出正在运行的豆包远程，再重新安装。'; Exit;
+        end;
+      end;
+    end;
+    UpgradeData := ExpandConstant('{localappdata}\DoubaoRemote\DoubaoRemote\data');
+    OldData := ExpandConstant('{localappdata}\DoubaoPTT\DoubaoPTT\data');
+    if not HasData(UpgradeData) and HasData(OldData) then UpgradeData := OldData;
+    BackupBase := ExpandConstant('{localappdata}\DoubaoRemote\upgrade-backup\') + GetDateTimeString('yyyymmdd-hhnnss', '-', ':');
+    BackupDir := BackupBase;
+    Number := 0;
+    while DirExists(BackupDir) do begin Number := Number + 1; BackupDir := BackupBase + '-' + IntToStr(Number); end;
+    if not ForceDirectories(BackupDir) then RaiseException('无法创建升级备份目录。');
+    HadSettings := FileExists(UpgradeData + '\settings.json');
+    if HadSettings and not FileCopy(UpgradeData + '\settings.json', BackupDir + '\settings-before.json', False) then
+      RaiseException('无法备份原有设置，已停止安装。');
+    HadNewExe := FileExists(ExpandConstant('{app}\doubao-remote.exe'));
+    if HadNewExe and not FileCopy(ExpandConstant('{app}\doubao-remote.exe'), BackupDir + '\previous-remote.exe', False) then
+      RaiseException('无法备份原程序，已停止安装。');
+    HadOldRun := RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoPTT', OldRunValue);
+    HadNewRun := RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoRemote', NewRunValue);
+    if not SaveStringToFile(BackupDir + '\startup.txt', 'DoubaoPTT=' + OldRunValue + #13#10 + 'DoubaoRemote=' + NewRunValue, False) then RaiseException('无法备份启动项。');
+    HadDesktopLink := FileExists(ExpandConstant('{userdesktop}\豆包远程.lnk'));
+    HadMenuLink := FileExists(ExpandConstant('{group}\豆包远程.lnk'));
+    PreparedAppPath := ExpandConstant('{app}');
+    UpgradePrepared := True;
+  except
+    Result := '无法准备覆盖升级：' + GetExceptionMessage;
+  end;
+end;
+
+function RestoreUpgrade: Boolean;
+begin
+  Result := True;
+  if HadSettings then begin
+    if not FileCopy(BackupDir + '\settings-before.json', UpgradeData + '\settings.json', False) then Result := False;
+  end else if FileExists(UpgradeData + '\settings.json') then begin
+    if not DeleteFile(UpgradeData + '\settings.json') then Result := False;
+  end;
+  if HadOldRun then begin
+    if not RegWriteStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoPTT', OldRunValue) then Result := False;
+  end else RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoPTT');
+  if HadNewRun then begin
+    if not RegWriteStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoRemote', NewRunValue) then Result := False;
+  end else RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoRemote');
+  if HadNewExe then begin
+    if not FileCopy(BackupDir + '\previous-remote.exe', ExpandConstant('{app}\doubao-remote.exe'), False) then Result := False;
+  end else if FileExists(ExpandConstant('{app}\doubao-remote.exe')) then begin
+    if not DeleteFile(ExpandConstant('{app}\doubao-remote.exe')) then Result := False;
+  end;
+  if not HadDesktopLink then DeleteFile(ExpandConstant('{userdesktop}\豆包远程.lnk'));
+  if not HadMenuLink then DeleteFile(ExpandConstant('{group}\豆包远程.lnk'));
+end;
 
 { 0 missing; 1 present/healthy; 2 reboot requested by Windows; -1 query/device error. }
 function CableState(var Details: String): Integer;
@@ -102,7 +186,7 @@ begin
   LockFileForInstall(ZipPath);
   LockFileForInstall(ManifestPath);
   if CompareText(GetSHA256OfFile(ZipPath), '{#CableZipSHA256}') <> 0 then
-    RaiseException('VB-CABLE 安装包校验失败，请重新获取 DoubaoPTT 安装包。');
+    RaiseException('VB-CABLE 安装包校验失败，请重新获取豆包远程安装包。');
   if CompareText(GetSHA256OfFile(ManifestPath), '{#CableManifestSHA256}') <> 0 then
     RaiseException('VB-CABLE 文件清单校验失败。');
   Directory := ExpandConstant('{tmp}\VB-CABLE');
@@ -134,7 +218,7 @@ begin
     '本安装包已包含 VB-CABLE，无需另行下载或手动安装。' + #13#10#13#10 +
     '如果电脑没有安装，点击安装后将出现 Windows 管理员授权提示；同意后自动安装，并在结束时提示重启。' + #13#10#13#10 +
     'VB-CABLE 来源：www.vb-cable.com。它是 VB-Audio 的 donationware，欢迎捐赠或购买许可证：shop.vb-audio.com。' + #13#10 +
-    'DoubaoPTT 卸载时会保留共享的 VB-CABLE。');
+    '豆包远程卸载时会保留共享的 VB-CABLE。');
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
@@ -155,12 +239,23 @@ begin
   if CurStep = ssPostInstall then begin
     { The installed executable updates its own settings and HKCU Run together.
       This command does not launch the tray, audio or input agent. }
-    if not Exec(ExpandConstant('{app}\doubao-ptt.exe'), 'install-defaults',
-      ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ErrorCode) then
-      RaiseException('无法启用开机自动启动：' + SysErrorMessage(ErrorCode));
-    if ErrorCode <> 0 then
-      RaiseException('无法保存开机自动启动设置，请重新安装。错误码：' + IntToStr(ErrorCode));
-    Log('Current-user login startup enabled by installed executable.');
+    try
+      if not Exec(ExpandConstant('{app}\doubao-remote.exe'), 'install-defaults',
+        ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ErrorCode) then
+        RaiseException('无法应用登录启动设置：' + SysErrorMessage(ErrorCode));
+      if ErrorCode <> 0 then RaiseException('无法保存设置。错误码：' + IntToStr(ErrorCode));
+    except
+      if RestoreUpgrade then RaiseException('安装配置失败，已恢复原程序及设置。备份：' + BackupDir + '。原因：' + GetExceptionMessage)
+      else RaiseException('安装配置失败，回滚未完成。已保留备份，请人工恢复：' + BackupDir + '。原因：' + GetExceptionMessage);
+    end;
+    { Remove only the known old product files after new configuration succeeds. }
+    DeleteFile(ExpandConstant('{app}\doubao-ptt.exe'));
+    DeleteFile(ExpandConstant('{userdesktop}\DoubaoPTT.lnk'));
+    DeleteFile(ExpandConstant('{userprograms}\DoubaoPTT\DoubaoPTT.lnk'));
+    DeleteFile(ExpandConstant('{userprograms}\DoubaoPTT\Uninstall DoubaoPTT.lnk'));
+    RemoveDir(ExpandConstant('{userprograms}\DoubaoPTT'));
+    DelTree(BackupDir, True, True, True);
+    Log('Current-user startup preference preserved; legacy product entries cleaned.');
   end;
 end;
 
@@ -170,7 +265,8 @@ var
   State, ErrorCode, I: Integer;
   Launched: Boolean;
 begin
-  Result := '';
+  Result := PrepareUpgrade;
+  if Result <> '' then Exit;
   State := CableState(Details);
   if State = 1 then begin Log('VB-CABLE already installed; skipping vendor setup.'); Exit; end;
   if State = 2 then begin AudioNeedsRestart := True; Exit; end;
@@ -195,7 +291,7 @@ begin
       end;
       if (State <> 1) and (State <> 2) then begin
         if Details = '' then Details := '安装后未检测到虚拟麦克风。';
-        Result := Details + ' 请重启电脑后重新运行 DoubaoPTT 安装程序。';
+        Result := Details + ' 请重启电脑后重新运行豆包远程安装程序。';
         Exit;
       end;
       { The vendor requires reboot even when endpoints appear immediately. }

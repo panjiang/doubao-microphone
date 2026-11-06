@@ -198,12 +198,12 @@ impl Agent {
             let helper = exe
                 .parent()
                 .and_then(|p| p.parent())
-                .map(|p| p.join("Resources/DoubaoPTTInput.app/Contents/MacOS/doubao-ptt"));
+                .map(|p| p.join("Resources/DoubaoRemoteInput.app/Contents/MacOS/doubao-remote"));
             helper.filter(|p| p.is_file()).unwrap_or(exe)
         };
         let mut cmd = tokio::process::Command::new(exe);
         let voice_owner = uuid::Uuid::new_v4().to_string();
-        cmd.env("DOUBAO_PTT_VOICE_OWNER", &voice_owner);
+        cmd.env("DOUBAO_REMOTE_VOICE_OWNER", &voice_owner);
         cmd.arg("input-agent");
         if mock {
             cmd.arg("--mock");

@@ -34,12 +34,12 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
     var label: NSTextField!
     var progress: NSProgressIndicator!
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let alert = NSAlert(); alert.messageText = "安装语音遥控"
+        let alert = NSAlert(); alert.messageText = "安装豆包远程"
         alert.informativeText = "将安装到“应用程序”，并在首次启动时启用登录自启动。\n\n缺少虚拟麦克风时，会从 BlackHole 官网下载并校验原版安装包（约 101KB），随本次安装完成配置。系统会要求管理员授权；辅助功能权限仍需你在系统设置中允许。"
         alert.addButton(withTitle: "安装"); alert.addButton(withTitle: "取消")
         guard alert.runModal() == .alertFirstButtonReturn else { NSApp.terminate(nil); return }
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 160), styleMask: [.titled], backing: .buffered, defer: false)
-        window.title = "安装语音遥控"; window.center()
+        window.title = "安装豆包远程"; window.center()
         label = NSTextField(labelWithString: "正在准备安装…"); label.frame = NSRect(x: 24, y: 82, width: 392, height: 40)
         label.lineBreakMode = .byWordWrapping
         progress = NSProgressIndicator(frame: NSRect(x: 24, y: 44, width: 392, height: 18))
@@ -49,16 +49,21 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
     }
     func prepare() {
         do {
-            guard let source = Bundle.main.resourceURL?.appendingPathComponent("DoubaoPTT.app"), FileManager.default.fileExists(atPath: source.path) else {
+            guard let source = Bundle.main.resourceURL?.appendingPathComponent("DoubaoRemote.app"), FileManager.default.fileExists(atPath: source.path) else {
                 throw NSError(domain: "Installer", code: 3, userInfo: [NSLocalizedDescriptionKey: "安装器缺少主应用，请重新获取完整安装包。"])
             }
             _ = try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", source.path])
             var package: URL?
             if !FileManager.default.fileExists(atPath: "/Library/Audio/Plug-Ins/HAL/BlackHole2ch.driver") {
                 DispatchQueue.main.async { self.label.stringValue = "正在准备官方 BlackHole 虚拟麦克风…" }
-                let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("DoubaoPTT")
+                let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("DoubaoRemote")
                 try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
                 let cached = cache.appendingPathComponent("BlackHole2ch-0.7.1.pkg")
+                // Reuse an already verified vendor cache from the previous product name.
+                let oldCache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("DoubaoPTT/BlackHole2ch-0.7.1.pkg")
+                if !FileManager.default.fileExists(atPath: cached.path), (try? verifyPackage(oldCache)) != nil {
+                    try FileManager.default.copyItem(at: oldCache, to: cached)
+                }
                 if (try? verifyPackage(cached)) == nil {
                     let temp = cache.appendingPathComponent(UUID().uuidString + ".pkg")
                     defer { try? FileManager.default.removeItem(at: temp) }
@@ -69,22 +74,37 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
                 }
                 package = cached
             }
-            let staged = "/Applications/.DoubaoPTT.install.\(UUID().uuidString).app"
-            let backup = "/Applications/.DoubaoPTT.backup.\(UUID().uuidString).app"
-            var shell = "set -eu\n"
+            let appDirectory = "/Applications"
+            let destination = "\(appDirectory)/DoubaoRemote.app"
+            // Compatibility: old bundle identifiers stay stable, but the visible bundle is renamed.
+            let legacyPath = "\(appDirectory)/DoubaoPTT.app"
+            let staged = "\(appDirectory)/.DoubaoRemote.install.\(UUID().uuidString).app"
+            let backup = "\(appDirectory)/.DoubaoRemote.backup.\(UUID().uuidString).app"
+            let legacyBackup = "\(appDirectory)/.DoubaoRemote.legacy.\(UUID().uuidString).app"
+            for path in [destination, legacyPath] where FileManager.default.fileExists(atPath: path) {
+                guard Bundle(path: path)?.bundleIdentifier == "local.doubao-ptt.app" else {
+                    throw NSError(domain: "Installer", code: 7, userInfo: [NSLocalizedDescriptionKey: "目标路径已有其他应用，未替换：\(path)"])
+                }
+            }
+            var shell = "set -eu\nreplaced=0\n"
             if let package {
                 shell += "test \"$(/usr/bin/shasum -a 256 \(quote(package.path)) | /usr/bin/awk '{print $1}')\" = \(quote(packageSHA))\n"
                 shell += "/usr/sbin/pkgutil --check-signature \(quote(package.path)) | /usr/bin/grep -F 'Developer ID Installer: Existential Audio Inc. (Q5C99V536K)' >/dev/null\n"
                 shell += "/usr/sbin/installer -pkg \(quote(package.path)) -target /\n"
             }
-            shell += "trap 'if [ -d \(quote(backup)) ] && [ ! -e /Applications/DoubaoPTT.app ]; then /bin/mv \(quote(backup)) /Applications/DoubaoPTT.app; fi; /bin/rm -rf \(quote(staged))' EXIT\n"
+            // Install the verified bundle before moving either old application. A failed
+            // replacement restores each prior path. Config, credentials and CA are untouched.
+            shell += "rollback() { rc=$?; trap - EXIT; if [ \"$rc\" -ne 0 ]; then if [ \"$replaced\" = 1 ]; then /bin/rm -rf \(quote(destination)); fi; if [ -d \(quote(backup)) ]; then /bin/mv \(quote(backup)) \(quote(destination)); fi; if [ -d \(quote(legacyBackup)) ]; then /bin/mv \(quote(legacyBackup)) \(quote(legacyPath)); fi; fi; /bin/rm -rf \(quote(staged)); exit \"$rc\"; }; trap rollback EXIT\n"
             shell += "/usr/bin/ditto \(quote(source.path)) \(quote(staged))\n/usr/bin/codesign --verify --deep --strict \(quote(staged))\n"
-            shell += "if [ -e /Applications/DoubaoPTT.app ]; then /bin/mv /Applications/DoubaoPTT.app \(quote(backup)); fi\n/bin/mv \(quote(staged)) /Applications/DoubaoPTT.app\n/bin/rm -rf \(quote(backup))\n"
+            shell += "if [ -e \(quote(destination)) ]; then /bin/mv \(quote(destination)) \(quote(backup)); fi\n"
+            shell += "if [ -e \(quote(legacyPath)) ]; then /bin/mv \(quote(legacyPath)) \(quote(legacyBackup)); fi\n"
+            shell += "/bin/mv \(quote(staged)) \(quote(destination))\nreplaced=1\n/usr/bin/codesign --verify --deep --strict \(quote(destination))\n"
+            shell += "trap - EXIT\n/bin/rm -rf \(quote(backup)) \(quote(legacyBackup))\n"
             DispatchQueue.main.async {
                 self.label.stringValue = "请在系统弹窗中完成管理员授权…"
-                let running = NSRunningApplication.runningApplications(withBundleIdentifier: "local.doubao-ptt.app")
+                let running = ["local.doubao-ptt.app", "local.doubao-ptt.input"].flatMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0) }
                 if !running.isEmpty {
-                    self.finish(error: NSError(domain: "Installer", code: 4, userInfo: [NSLocalizedDescriptionKey: "请先从菜单栏退出正在运行的语音遥控，再重新运行安装器。"])); return
+                    self.finish(error: NSError(domain: "Installer", code: 4, userInfo: [NSLocalizedDescriptionKey: "请先从菜单栏退出豆包远程，等待输入助手结束后重新安装。"])); return
                 }
                 var error: NSDictionary?
                 let script = "do shell script \"" + shell.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\n", with: "\\n") + "\" with administrator privileges"
@@ -93,18 +113,33 @@ final class InstallerDelegate: NSObject, NSApplicationDelegate {
                 }
                 appleScript.executeAndReturnError(&error)
                 if let error { self.finish(error: NSError(domain: "Installer", code: 5, userInfo: [NSLocalizedDescriptionKey: error.description])); return }
-                let desktop = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/语音遥控.app")
-                if !FileManager.default.fileExists(atPath: desktop.path) { try? FileManager.default.createSymbolicLink(atPath: desktop.path, withDestinationPath: "/Applications/DoubaoPTT.app") }
+                let manager = FileManager.default
+                let desktop = manager.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/豆包远程.app")
+                // Only remove product-owned aliases, leaving unrelated files alone.
+                for name in ["语音遥控.app", "豆包语音遥控.app", "DoubaoPTT.app", "豆包远程.app"] {
+                    let link = manager.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/\(name)")
+                    if let target = try? manager.destinationOfSymbolicLink(atPath: link.path), [legacyPath, destination].contains(target) {
+                        try? manager.removeItem(at: link)
+                    }
+                }
+                let label = "local.doubao-ptt" // Legacy LaunchAgent, compatibility only.
+                let oldAgent = manager.homeDirectoryForCurrentUser.appendingPathComponent("Library/LaunchAgents/\(label).plist")
+                if manager.fileExists(atPath: oldAgent.path) {
+                    _ = try? run("/bin/launchctl", ["bootout", "gui/\(getuid())/\(label)"])
+                    // The new process atomically writes its own agent before deleting the old file.
+                }
+                if !manager.fileExists(atPath: desktop.path) { try? manager.createSymbolicLink(atPath: desktop.path, withDestinationPath: destination) }
                 let configuration = NSWorkspace.OpenConfiguration(); configuration.arguments = ["serve", "--open"]
-                NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/Applications/DoubaoPTT.app"), configuration: configuration)
-                self.finish(error: nil)
+                NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: destination), configuration: configuration) { _, launchError in
+                    DispatchQueue.main.async { self.finish(error: launchError) }
+                }
             }
         } catch { DispatchQueue.main.async { self.finish(error: error) } }
     }
     func finish(error: Error?) {
         progress.stopAnimation(nil); window.orderOut(nil)
         let alert = NSAlert(); alert.messageText = error == nil ? "安装完成" : "安装未完成"
-        alert.informativeText = error?.localizedDescription ?? "语音遥控已启动。请在系统设置中允许主应用及输入代理的辅助功能权限，并在豆包中选择 BlackHole 2ch。"
+        alert.informativeText = error?.localizedDescription ?? "豆包远程已启动。请在系统设置中允许主应用及输入代理的辅助功能权限，并在豆包中选择 BlackHole 2ch。"
         alert.addButton(withTitle: "好"); alert.runModal(); NSApp.terminate(nil)
     }
 }

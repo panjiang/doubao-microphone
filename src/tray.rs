@@ -108,7 +108,7 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
                 ).expect("embedded microphone icon");
                 match TrayIconBuilder::new()
                     .with_menu(Box::new(menu.clone()))
-                    .with_tooltip("豆包语音遥控")
+                    .with_tooltip("豆包远程")
                     .with_icon(icon)
                     .build()
                 {
@@ -158,9 +158,9 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
                 });
                 if let Some(t) = &tray {
                     let _ = t.set_tooltip(Some(if s.mock {
-                        "语音遥控 · 模拟模式"
+                        "豆包远程 · 模拟模式"
                     } else {
-                        "豆包语音遥控"
+                        "豆包远程"
                     }));
                 }
             }

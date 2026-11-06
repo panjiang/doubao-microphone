@@ -1,6 +1,6 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>语音遥控 · 配置</title></head>
-<body><main class="admin"><header><span class="brand">语音遥控 · 本机配置</span><span id="badge" class="badge">加载中</span></header>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>豆包远程 · 电脑设置</title></head>
+<body><main class="admin"><header><span class="brand">豆包远程 · 电脑设置</span><span id="badge" class="badge">加载中</span></header>
 <h1>手机说话，电脑输入。</h1><p class="sub">配置一次，日常只需按住手机上的按钮。</p><p id="mock" class="warning" hidden>模拟模式：仅验证通信和状态，不产生原生音频或按键。</p>
 <p id="error" role="alert" class="warning" hidden></p><p id="notice" role="status"></p>
 <section><div class="environment-heading"><h2>1 · 检查电脑</h2><button id="environment-refresh" type="button">重新检测</button></div><ul id="environment-checks" class="environment-checks" aria-label="运行环境检查" aria-live="polite"></ul><p id="environment-note" class="sub">检查已保存的配置，实际语音输入仍需实测。修改设置后，请保存并重新检测。</p><div id="environment-legacy" hidden><p id="platform"></p><p id="permission"></p><p id="audio-setup">Windows 安装包会自动准备虚拟麦克风。安装完成后在豆包中选择 CABLE Output；如果安装向导提示重启，请先重启。macOS 仍需安装 BlackHole 2ch。</p><div class="links"><a href="https://vb-audio.com/Cable/" target="_blank" rel="noreferrer">VB-CABLE 官方来源 / 支持项目</a><a href="https://existential.audio/blackhole/" target="_blank" rel="noreferrer">macOS：BlackHole 2ch</a></div></div></section>
@@ -10,6 +10,6 @@
 <p class="sub">Windows 豆包选择 CABLE Output，程序输出到 CABLE Input；macOS 两边均选择 BlackHole 2ch。语音触发方式自动选择，可在高级诊断中调整；修改后请保存并重新检测。</p>
 <p class="sub" id="codex-compat-help">Codex 空框兼容仅用于 Windows 的豆包兼容模式：当光标在 Codex 的空白编辑器时先写入一个普通空格，再启动语音。已有文字时不补空格，可随时关闭。</p>
 <button type="submit" class="primary">保存设置</button><button id="refresh" type="button">刷新设备</button><button id="test-key" type="button">3 秒后测试触发</button><p class="sub">测试会启动语音并在 3 秒后结束。点击后切换到测试输入框，观察豆包是否启动和结束。</p></form></section>
-<section><h2>3 · 手机配对</h2><button id="ticket" class="primary">生成配对二维码</button><p class="sub">用“豆包遥控”App 或手机相机扫描同一个二维码。App 可直接配对；手机相机扫码进入网页。二维码有效期 5 分钟。</p><div id="qr"></div><p><a id="setup-link" hidden>配对链接（可复制）</a></p><details><summary>网页首次使用说明</summary><p class="sub">请用 Safari 按向导安装本机证书，再在 iPhone「关于本机 → 证书信任设置」开启信任，返回输入页完成配对。App 无需安装系统证书。</p><p><a id="phone-link" hidden></a></p><p class="sub">本机 CA SHA-256：<code id="fingerprint"></code></p></details><div id="devices"></div></section>
+<section><h2>3 · 手机配对</h2><button id="ticket" class="primary">生成配对二维码</button><p class="sub">用“豆包远程”App 或手机相机扫描同一个二维码。App 可直接配对；手机相机扫码进入网页。二维码有效期 5 分钟。</p><div id="qr"></div><p><a id="setup-link" hidden>配对链接（可复制）</a></p><details><summary>网页首次使用说明</summary><p class="sub">请用 Safari 按向导安装本机证书，再在 iPhone「关于本机 → 证书信任设置」开启信任，返回输入页完成配对。App 无需安装系统证书。</p><p><a id="phone-link" hidden></a></p><p class="sub">本机 CA SHA-256：<code id="fingerprint"></code></p></details><div id="devices"></div></section>
 <section><h2>运行状态</h2><p id="runtime"></p><button id="pause">暂停接收</button><p class="sub">听写中锁定配置。暂停或撤销设备会结束当前会话。软件不读取豆包识别结果。开启故障录音诊断后，按住期间录制手机声音和虚拟麦克风回读，每份最多 30 秒，保留最近 3 次正常和 3 次故障样本；保存在本机数据目录的 diagnostics 文件夹，不上传。关闭后停止采集，已有样本可手动删除。</p></section>
 </main><script type="module" src="/src/admin.ts"></script></body></html>

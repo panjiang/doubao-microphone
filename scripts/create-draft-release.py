@@ -20,7 +20,7 @@ def main():
         raise RuntimeError("Release is already public; refusing to replace its assets")
     notes = root / "dist" / "release-notes.md"
     notes.write_text(
-        f"## 豆包语音遥控 {tag} · 开发预览\n\n"
+        f"## 豆包远程 {tag} · 开发预览\n\n"
         f"源码提交：[`{commit[:12]}`](https://github.com/{repo}/commit/{commit})\n\n"
         f"- Windows x64：安装包包含官方 VB-CABLE；便携包需要自行准备。"
         "应用和安装器未做代码签名，**不含实验性 UMDF 键盘组件**；"
@@ -38,7 +38,7 @@ def main():
     if not matches:
         # --target also creates a missing tag at precisely the compiled source commit.
         subprocess.run(["gh", "release", "create", tag, "--repo", repo,
-                        "--target", commit, "--title", f"豆包语音遥控 {tag} · 开发预览",
+                        "--target", commit, "--title", f"豆包远程 {tag} · 开发预览",
                         "--notes-file", str(notes), "--draft", "--prerelease"], check=True)
     else:
         if matches[0]["target_commitish"] != commit:

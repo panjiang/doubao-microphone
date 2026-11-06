@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 import ImageIO
-let output=CommandLine.arguments.dropFirst().first ?? "DoubaoPTT/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+let output=CommandLine.arguments.dropFirst().first ?? "DoubaoRemote/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
 guard let context=CGContext(data:nil,width:1024,height:1024,bitsPerComponent:8,bytesPerRow:4096,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.noneSkipLast.rawValue) else { fatalError("Cannot create icon bitmap") }
 // iOS applies its own corner mask; the blue background must cover the entire asset.
 context.setFillColor(CGColor(red:35/255,green:75/255,blue:198/255,alpha:1));context.fill(CGRect(x:0,y:0,width:1024,height:1024))

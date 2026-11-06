@@ -31,6 +31,7 @@ pub struct App {
     pub admin_token: String,
     pub initial: Settings,
     pub profile: String,
+    pub ca_name: String,
     pub mock: bool,
 }
 type Shared = Arc<App>;
@@ -364,12 +365,13 @@ async fn bootstrap(State(a): State<Shared>, Query(t): Query<Ticket>) -> Api<Resp
         a.initial.lan_ip, a.initial.bootstrap_port, t.token
     );
     let fingerprint = crate::tls::fingerprint(&a.dir)?;
+    let ca_name = a.ca_name.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
     let html = format!(
         r#"<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>连接语音遥控</title>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>连接豆包远程</title>
 <style>body{{font:17px system-ui;max-width:34rem;margin:2rem auto;padding:1rem;line-height:1.8}}a{{color:#1947cf;text-decoration:underline;overflow-wrap:anywhere;-webkit-touch-callout:default}}code{{overflow-wrap:anywhere}}textarea{{display:block;box-sizing:border-box;width:100%;padding:.75rem;font:14px monospace;line-height:1.5;border:1px solid #bcc6d8;border-radius:8px;user-select:text;-webkit-user-select:text}}.hint{{font-size:15px;color:#475569}}</style></head>
 <body><h1>首次连接这台电脑</h1><p>已安装并信任证书可直接进入输入页。</p><p><a href="{phone}">打开输入页</a></p>
-<h2>首次使用</h2><ol><li><a id="download-certificate" href="{certificate}">下载本机证书描述文件</a></li><li>打开 iPhone 设置 → 通用 → VPN 与设备管理，安装“豆包语音遥控 · 本机证书”。</li><li>设置 → 通用 → 关于本机 → 证书信任设置，开启 Doubao PTT Local CA 的完全信任。</li><li>回到此页，打开输入页完成配对，无需电脑确认。</li></ol>
+<h2>首次使用</h2><ol><li><a id="download-certificate" href="{certificate}">下载本机证书描述文件</a></li><li>打开 iPhone 设置 → 通用 → VPN 与设备管理，安装“豆包远程 · 本机证书”。</li><li>设置 → 通用 → 关于本机 → 证书信任设置，开启 {ca_name} 的完全信任。</li><li>回到此页，打开输入页完成配对，无需电脑确认。</li></ol>
 <p class="hint">请用 Safari 下载并安装证书。在 Chrome 中可长按上面的下载链接，复制链接地址后粘贴到 Safari。也可以选择并复制下方完整地址。</p>
 <label for="certificate-url">证书下载地址（可选择复制）</label><textarea id="certificate-url" readonly rows="4" spellcheck="false" autocapitalize="off">{certificate}</textarea>
 <p>证书 SHA-256（应与电脑配置页一致）：<br><code>{fingerprint}</code></p><p>此描述文件只包含本机根证书，卸载软件后可移除它。二维码和下载链接有效期 5 分钟。</p></body></html>"#
@@ -394,7 +396,7 @@ async fn profile(State(a): State<Shared>, Query(t): Query<Ticket>) -> Api<Respon
             (header::CONTENT_TYPE, "application/x-apple-aspen-config"),
             (
                 header::CONTENT_DISPOSITION,
-                "attachment; filename=DoubaoPTT.mobileconfig",
+                "attachment; filename=DoubaoRemote.mobileconfig",
             ),
             (header::CACHE_CONTROL, "no-store"),
         ],

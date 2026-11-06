@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleName</key><string>DoubaoPTTInput</string>
+<key>CFBundleName</key><string>DoubaoRemoteInput</string>
+<key>CFBundleDisplayName</key><string>豆包远程输入助手</string>
 <key>CFBundleIdentifier</key><string>local.doubao-ptt.input</string>
-<key>CFBundleExecutable</key><string>doubao-ptt</string>
-<key>CFBundleIconFile</key><string>DoubaoPTT</string>
-<key>CFBundleVersion</key><string>0.2.5</string>
+<key>CFBundleExecutable</key><string>doubao-remote</string>
+<key>CFBundleIconFile</key><string>DoubaoRemote</string>
+<key>CFBundleVersion</key><string>0.2.6</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>LSUIElement</key><true/>
 <key>LSMinimumSystemVersion</key><string>14.2</string>

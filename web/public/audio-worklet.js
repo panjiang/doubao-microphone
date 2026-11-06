@@ -1,4 +1,4 @@
-class PttCapture extends AudioWorkletProcessor {
+class RemoteCapture extends AudioWorkletProcessor {
   constructor(){super();this.active=null;this.sequence=0;this.buffer=new Float32Array(Math.round(sampleRate/50));this.offset=0;this.meter=0;
     this.port.onmessage=({data})=>{
       if(data.type==='start'){this.active=data.id;this.sequence=0;this.offset=0;}
@@ -17,4 +17,4 @@ class PttCapture extends AudioWorkletProcessor {
     if(++this.meter>=12){this.meter=0;this.port.postMessage({type:'meter',level:Math.sqrt(energy/count)});}return true;
   }
 }
-registerProcessor('ptt-capture',PttCapture);
+registerProcessor('remote-capture',RemoteCapture);

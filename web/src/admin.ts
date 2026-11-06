@@ -31,7 +31,7 @@ async function load(){
   const windows=setup.platform.platform==='windows';
   const mac=currentPlatform==='macos',expectedOutput=mac?'BlackHole 2ch':'CABLE Input';
   const cableOutputs=setup.outputs.filter((d:any)=>d.virtual_candidate&&(mac?d.name==='BlackHole 2ch':/^CABLE Input(?:\s*\(|$)/i.test(d.name.trim())));
-  if(windows)el('audio-setup').textContent=cableOutputs.length?'已检测到虚拟麦克风。程序输出使用 CABLE Input，请在豆包中选择 CABLE Output。':'尚未检测到虚拟麦克风。请重新运行 DoubaoPTT 安装包，向导会自动安装；提示需要重启时，请先重启电脑。';
+  if(windows)el('audio-setup').textContent=cableOutputs.length?'已检测到虚拟麦克风。程序输出使用 CABLE Input，请在豆包中选择 CABLE Output。':'尚未检测到虚拟麦克风。请重新运行 DoubaoRemote 安装包，向导会自动安装；提示需要重启时，请先重启电脑。';
   const available=windows||mac?setup.outputs.filter((d:any)=>cableOutputs.includes(d)||d.id==='mock'):setup.outputs;
   const singleCable=(windows||mac)&&cableOutputs.length===1;
   const outputValue=(d:any)=>singleCable&&d===cableOutputs[0]?expectedOutput:d.id;

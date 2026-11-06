@@ -4,7 +4,7 @@ import Foundation
 private final class AudioRingOwner: @unchecked Sendable {
     let pointer:OpaquePointer
     init(capacity:UInt32) throws {
-        guard let pointer=ptt_ring_create(capacity) else { throw PTTError.message("无法准备音频缓冲。") }
+        guard let pointer=ptt_ring_create(capacity) else { throw RemoteError.message("无法准备音频缓冲。") }
         self.pointer=pointer
     }
     deinit { ptt_ring_destroy(pointer) }
@@ -56,7 +56,7 @@ final class AudioPipeline: @unchecked Sendable {
                   let input=AVAudioPCMBuffer(pcmFormat:mono,frameCapacity:4096),
                   let output=AVAudioPCMBuffer(pcmFormat:wire,frameCapacity:16384),
                   let converter=AVAudioConverter(from:mono,to:wire) else {
-                throw PTTError.message("手机当前音频格式不可用，请断开外接音频设备后重试。")
+                throw RemoteError.message("手机当前音频格式不可用，请断开外接音频设备后重试。")
             }
             let ring=try AudioRingOwner(capacity:UInt32(format.sampleRate/2))
             work.sync {
@@ -141,7 +141,7 @@ final class AudioPipeline: @unchecked Sendable {
         }
     }
     private func convert(ending:Bool) throws {
-        guard let converter,let source,let output else { throw PTTError.message("音频尚未就绪。") }
+        guard let converter,let source,let output else { throw RemoteError.message("音频尚未就绪。") }
         var supplied=false
         for _ in 0..<8 {
             var error:NSError?
@@ -151,7 +151,7 @@ final class AudioPipeline: @unchecked Sendable {
                 state.pointee=ending ? .endOfStream:.noDataNow;return nil
             }
             if let error { throw error }
-            if status == .error { throw PTTError.message("音频转换失败。") }
+            if status == .error { throw RemoteError.message("音频转换失败。") }
             if let data=output.floatChannelData?[0] {
                 for i in 0..<Int(output.frameLength) {
                     let value=data[i].isFinite ? max(-1,min(1,data[i])):0
@@ -161,7 +161,7 @@ final class AudioPipeline: @unchecked Sendable {
             }
             if !ending || status == .endOfStream || status == .inputRanDry { return }
         }
-        throw PTTError.message("音频尾部转换超时。")
+        throw RemoteError.message("音频尾部转换超时。")
     }
     private func flush() {
         guard let id=sessionID,!samples.isEmpty else { return }

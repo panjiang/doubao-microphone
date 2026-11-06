@@ -9,12 +9,13 @@ use time::{Duration, OffsetDateTime};
 pub struct TlsMaterial {
     pub server: Arc<axum_server::tls_rustls::RustlsConfig>,
     pub profile: String,
+    pub ca_name: String,
 }
 
 fn ca_params() -> CertificateParams {
     let mut p = CertificateParams::default();
     let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "Doubao PTT Local CA");
+    dn.push(DnType::CommonName, "Doubao Remote Local CA");
     p.distinguished_name = dn;
     p.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
     p.key_usages = vec![KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::CrlSign];
@@ -25,17 +26,21 @@ fn ca_params() -> CertificateParams {
 
 pub async fn prepare(dir: &Path, ip: std::net::Ipv4Addr, mock: bool) -> Result<TlsMaterial> {
     let key = load_or_create_ca(dir, mock)?;
-    let ca = ca_params().self_signed(&key)?;
     let public = dir.join("ca.pem");
-    if !public.exists() {
-        crate::config::atomic_write(&public, ca.pem().as_bytes())?;
-    }
+    // Recover the original issuer DN and key identifier. Rebranding must never
+    // change the issuer of leaves beneath a root the phone already trusts.
+    let params = if public.exists() {
+        CertificateParams::from_ca_cert_pem(&std::fs::read_to_string(&public)?)
+            .context("现有 CA 证书无法解析，已保留原件，请检查证书文件")?
+    } else { ca_params() };
+    let ca = params.self_signed(&key)?;
+    if !public.exists() { crate::config::atomic_write(&public, ca.pem().as_bytes())?; }
     let mut p =
         CertificateParams::new(vec![ip.to_string(), "127.0.0.1".into(), "localhost".into()])?;
     p.not_before = OffsetDateTime::now_utc() - Duration::days(1);
     p.not_after = OffsetDateTime::now_utc() + Duration::days(90);
     p.distinguished_name
-        .push(DnType::CommonName, "Doubao PTT Local Bridge");
+        .push(DnType::CommonName, "Doubao Remote Local Bridge");
     p.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::ServerAuth];
     // Preserve the existing CA while issuing interoperable server certificates,
     // including clients which enforce RFC 5280 Authority Key Identifier checks.
@@ -53,14 +58,24 @@ pub async fn prepare(dir: &Path, ip: std::net::Ipv4Addr, mock: bool) -> Result<T
         .lines()
         .filter(|s| !s.starts_with("---"))
         .collect::<String>();
+    let root_der = STANDARD.decode(saved_ca.lines().filter(|line| !line.starts_with("---")).collect::<String>())?;
+    let (_, parsed_root) = x509_parser::parse_x509_certificate(&root_der)
+        .map_err(|error| anyhow::anyhow!("现有 CA 无法解析：{error}"))?;
+    ensure!(parsed_root.public_key().raw == key.public_key_der(), "CA 证书与私钥不匹配，已保留原件");
+    let root_params = CertificateParams::from_ca_cert_pem(&saved_ca)?;
+    let ca_name = root_params.distinguished_name.get(&DnType::CommonName)
+        .and_then(|name| match name { rcgen::DnValue::Utf8String(value) => Some(value.clone()), _ => None })
+        .unwrap_or_else(|| "本机 CA（请按指纹核对）".into());
+    let profile_ca_name = ca_name.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
     let id = uuid::Uuid::new_v4();
     let cert_id = uuid::Uuid::new_v4();
     let profile = format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>PayloadContent</key><array><dict><key>PayloadType</key><string>com.apple.security.root</string><key>PayloadVersion</key><integer>1</integer><key>PayloadIdentifier</key><string>local.doubao-ptt.ca</string><key>PayloadUUID</key><string>{cert_id}</string><key>PayloadDisplayName</key><string>Doubao PTT Local CA</string><key>PayloadContent</key><data>{der}</data></dict></array><key>PayloadType</key><string>Configuration</string><key>PayloadVersion</key><integer>1</integer><key>PayloadIdentifier</key><string>local.doubao-ptt.profile</string><key>PayloadUUID</key><string>{id}</string><key>PayloadDisplayName</key><string>豆包语音遥控 · 本机证书</string><key>PayloadDescription</key><string>仅用于信任这台电脑提供的局域网语音遥控网页。卸载时可在设置中移除此描述文件。</string></dict></plist>"#
+        r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>PayloadContent</key><array><dict><key>PayloadType</key><string>com.apple.security.root</string><key>PayloadVersion</key><integer>1</integer><key>PayloadIdentifier</key><string>local.doubao-ptt.ca</string><key>PayloadUUID</key><string>{cert_id}</string><key>PayloadDisplayName</key><string>{profile_ca_name}</string><key>PayloadContent</key><data>{der}</data></dict></array><key>PayloadType</key><string>Configuration</string><key>PayloadVersion</key><integer>1</integer><key>PayloadIdentifier</key><string>local.doubao-ptt.profile</string><key>PayloadUUID</key><string>{id}</string><key>PayloadDisplayName</key><string>豆包远程 · 本机证书</string><key>PayloadDescription</key><string>仅用于信任这台电脑提供的局域网语音输入网页。卸载时可在设置中移除此描述文件。</string></dict></plist>"#
     );
     Ok(TlsMaterial {
         server: Arc::new(server),
         profile,
+        ca_name,
     })
 }
 
@@ -78,7 +93,19 @@ fn load_or_create_ca(dir: &Path, mock: bool) -> Result<KeyPair> {
     #[cfg(target_os = "macos")]
     {
         let account = format!("ca-{}", crate::identity::digest(&dir.to_string_lossy()));
-        let entry = keyring::Entry::new("local.doubao-ptt", &account)?;
+        let entry = keyring::Entry::new("local.doubao-remote", &account)?;
+        // Compatibility lookup only; keep the original item and its access rules.
+        let legacy = keyring::Entry::new("local.doubao-ptt", &account)?;
+        match entry.get_password() {
+            Ok(pem) => return Ok(KeyPair::from_pem(&pem)?),
+            Err(keyring::Error::NoEntry) => {},
+            Err(error) => return Err(error.into()),
+        }
+        match legacy.get_password() {
+            Ok(pem) => return Ok(KeyPair::from_pem(&pem)?),
+            Err(keyring::Error::NoEntry) => {},
+            Err(error) => return Err(error.into()),
+        }
         match entry.get_password() {
             Ok(pem) => Ok(KeyPair::from_pem(&pem)?),
             Err(keyring::Error::NoEntry) => {

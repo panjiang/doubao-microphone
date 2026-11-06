@@ -10,7 +10,7 @@
 - `packaging/`、`scripts/`：安装器、原生资源和构建工具。
 - `research/`：实验性 Windows 输入组件及验证资料，不等同于正式分发方案。
 
-仓库名为 `doubao-voice-remote`，现有 Rust 包、命令和部分安装资源沿用 `doubao-ptt` / `DoubaoPTT`。这些名称与已安装应用、配对和证书的兼容有关。
+仓库、Rust 包和桌面命令统一为 `doubao-remote`，Rust crate 为 `doubao_remote`，原生工程及应用产物为 `DoubaoRemote`。覆盖安装需要保留的旧标识见[统一命名与升级说明](renaming.md)。
 
 ## 依赖
 
@@ -29,8 +29,8 @@ Cargo 的镜像配置位于工程 `.cargo/config.toml`。锁文件随源码提�
 ## 本地桌面构建
 
 ```sh
-git clone https://github.com/panjiang/doubao-voice-remote.git
-cd doubao-voice-remote
+git clone https://github.com/panjiang/doubao-remote.git
+cd doubao-remote
 cd web
 npm ci --ignore-scripts
 npm run build
@@ -108,7 +108,7 @@ npm test
 
 ```sh
 mkdir -p artifacts
-swiftc ios/DoubaoPTT/Connection.swift ios/tests/PairingLinkTests.swift -o artifacts/pairing-link-tests
+swiftc ios/DoubaoRemote/Connection.swift ios/tests/PairingLinkTests.swift -o artifacts/pairing-link-tests
 artifacts/pairing-link-tests /path/to/public-ca.pem
 ```
 
@@ -121,7 +121,7 @@ artifacts/pairing-link-tests /path/to/public-ca.pem
 只读枚举音频设备与平台状态：
 
 ```sh
-doubao-ptt probe devices
+doubao-remote probe devices
 ```
 
 `probe key`、`probe audio` 和配置页的快捷键测试会产生真实系统输入，应只在专用测试文档中使用。示例命令的快捷键必须与当前豆包配置一致，API 返回成功不代表豆包已经识别出文字。

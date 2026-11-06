@@ -1,14 +1,14 @@
-# 豆包遥控 · Android
+# 豆包远程 · Android
 
-原生 Kotlin Android App，Android 10（API 29）及以上。版本 **0.1.7（8）**。使用系统 View、AudioRecord、Camera2，网络使用 OkHttp 4.12.0，扫码使用 ZXing Core 3.5.4；无需 Google Play 服务，不是网页套壳。
+原生 Kotlin Android App，Android 10（API 29）及以上。版本 **0.1.9（10）**。使用系统 View、AudioRecord、Camera2，网络使用 OkHttp 4.12.0，扫码使用 ZXing Core 3.5.4；无需 Google Play 服务，不是网页套壳。
 
 首版提供开发测试签名 APK，未上架应用商店。编译、签名检查不代表已经通过安卓真机语音链路验收。
 
-公开安装包见 [v0.2.5 Release](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.5)。Actions 生成未签名 APK，维护者在本机用稳定密钥签名后再公开；签名私钥不上传构建机。文件名中的 Android 版本独立于桌面版本。
+公开安装包见 [v0.2.6 Release](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.6)。Actions 生成未签名 APK，维护者在本机用稳定密钥签名后再公开；签名私钥不上传构建机。文件名中的 Android 版本独立于桌面版本。
 
 ## 安装与使用
 
-1. 将 `DoubaoRemote-0.1.7-android-debug.apk` 传到手机，按 Android 提示允许本次安装来源，再安装。
+1. 将 `DoubaoRemote-Android-0.1.9-build10-debug.apk` 传到手机，按 Android 提示允许本次安装来源，再安装。
 2. 手机与电脑连接可互相访问的局域网；桌面端配置见[首次配置](../docs/getting-started.md)。
 3. 在电脑生成现有的统一配对二维码，在 App 点击「扫码」。也可在扫码页面粘贴该二维码中的完整链接。
 4. 扫码只建立本台电脑的专用 TLS 信任，不安装系统根证书，不访问二维码中的明文 HTTP 地址。配对成功后显示「已配对」。
@@ -47,8 +47,10 @@ macOS/Linux 安装相应 SDK，设置 `JAVA_HOME` 与 `ANDROID_HOME` 后：
 bash android/build.sh --offline
 ```
 
-产物位于 `dist/android/DoubaoRemote-0.1.7-android-debug.apk`。`assembleDebug` 和 Lint 不启动 App、录音或按键；本项目没有自动安装步骤。
+产物位于 `dist/android/DoubaoRemote-Android-0.1.9-build10-debug.apk`。`assembleDebug` 和 Lint 不启动 App、录音或按键；本项目没有自动安装步骤。
 
 Debug 签名仅用于测试。后续更新需使用相同 application ID `local.doubao.voiceremote` 和签名密钥才能覆盖安装并保留配对；正式分发应自行配置稳定的发行密钥，密钥不得提交到 Git。本次不修改现有桌面或 iOS 安装包，也不自动公开 GitHub Release。
 
 当前版本以 iPhone 0.1.0 构建 30 为界面基准：顶栏二维码图标、配对状态、两行回车说明、0.3 秒过渡及待命停麦行为保持一致。版本号按平台独立递增。网页也采用相同固定圆手势；配对证书及常亮仍受浏览器限制。
+
+手机主界面使用与 iPhone 构建 32 相同的 `#161823` 深灰背景；浅色文字、中性配对标签及状态栏适配深色，蓝色圆、波纹和操作保持原设计。

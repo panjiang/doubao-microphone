@@ -41,7 +41,7 @@ try {
     & cargo build --release @cargoFlags
     if ($LASTEXITCODE) { throw 'release build failed' }
     New-Item -ItemType Directory -Force dist | Out-Null
-    Copy-Item target/release/doubao-ptt.exe dist/ -Force
+    Copy-Item target/release/doubao-remote.exe dist/ -Force
     if (!$PortableOnly) {
         $version=[regex]::Match((Get-Content Cargo.toml -Raw),'(?m)^version = "([^"]+)"').Groups[1].Value
         if (!$version) { throw 'Cannot read application version' }

@@ -88,14 +88,14 @@ Windows 工具栏兼容模式提供默认关闭的「Codex 空框兼容（先补
 
 安装默认启用，可在配置页关闭；Mac 升级保留已保存的选择。启动后只在后台提供托盘或菜单栏，不自动打开配置页。
 
-Windows 使用当前用户的 Run 启动项；Mac 使用 `~/Library/LaunchAgents/local.doubao-ptt.plist`，在登录时运行，不安装系统服务。开发环境使用自定义数据目录时，不建议启用登录启动。
+Windows 使用当前用户的 Run 启动项；Mac 使用 `~/Library/LaunchAgents/local.doubao-remote.plist`，在登录时运行，不安装系统服务。开发环境使用自定义数据目录时，不建议启用登录启动。
 
 ## 卸载
 
 先在配置页关闭登录自启动，并从托盘或菜单栏退出。
 
 - **Windows 安装版**：通过系统卸载，安装器移除本软件程序、配置和启动项。便携版需自行删除应用及对应数据目录。
-- **macOS**：删除应用和本软件 LaunchAgent；需要清除配对及证书时，删除 `~/Library/Application Support/local.DoubaoPTT.DoubaoPTT`，并在「钥匙串访问」移除对应 `local.doubao-ptt` CA 项。系统中的辅助功能授权可同时撤销。
+- **macOS**：删除应用和本软件 LaunchAgent；需要清除配对及证书时，删除 `~/Library/Application Support/local.DoubaoRemote.DoubaoRemote`，覆盖升级可能继续使用原数据目录；以配置页诊断中显示的实际位置为准。在「钥匙串访问」移除该电脑对应的 `local.doubao-remote` CA 项，旧安装可能保留兼容名称。系统中的辅助功能授权可同时撤销。
 - **iPhone App**：可先在电脑配置页撤销该设备凭据，再删除 App。
 - **iPhone 网页**：移除主屏幕网页及站点数据；如安装过本机证书描述文件，在「设置 → 通用 → VPN 与设备管理」手动移除。
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleDisplayName</key><string>豆包遥控</string>
+<key>CFBundleDisplayName</key><string>豆包远程</string>
 <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
 <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
@@ -11,7 +11,7 @@
 <key>LSRequiresIPhoneOS</key><true/>
 <key>UILaunchScreen</key><dict/>
 <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
-<key>UIUserInterfaceStyle</key><string>Light</string>
+<key>UIUserInterfaceStyle</key><string>Dark</string>
 <key>NSMicrophoneUsageDescription</key><string>按住说话时采集声音并传给你配对的电脑，用于语音输入；松手处理完尾音后停止采音。</string>
 <key>NSCameraUsageDescription</key><string>扫描你电脑上的配对二维码，建立与这台电脑的可信连接。</string>
 <key>NSLocalNetworkUsageDescription</key><string>连接你配对的局域网电脑，传送按住说话状态和声音。</string>

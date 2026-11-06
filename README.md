@@ -1,10 +1,12 @@
-<img src="assets/icons/doubao-ptt.svg" alt="豆包语音遥控" width="72" height="72">
+<img src="assets/icons/doubao-remote.svg" alt="豆包远程" width="72" height="72">
 
-# 豆包语音遥控
+# 豆包远程
 
-用 iPhone 或 Android 手机遥控电脑端豆包输入法：按住说话，松手完成输入。
+**豆包输入法远程控制（Doubao Input Method Remote Control）**，简称“豆包远程 / Doubao Remote”。
 
-手机同时充当无线麦克风和遥控器，电脑上的豆包输入法负责识别，将文字写入当前输入框。桌面端面向 Windows 和 macOS，手机可使用 iPhone / Android 原生 App「豆包遥控」或 iPhone Safari 网页。
+用手机作为无线麦克风，远程控制电脑上的豆包输入法完成语音输入。
+
+手机同时提供无线麦克风和远程按住说话控制，电脑上的豆包输入法负责识别，将文字写入当前输入框。桌面端面向 Windows 和 macOS，手机可使用 iPhone / Android 原生 App「豆包远程」或 iPhone Safari 网页。
 
 **电脑光标放入输入框 → 手机按住说话 → 豆包识别输入 → 松手结束**
 
@@ -18,7 +20,7 @@
 
 ## 支持状态
 
-当前为**开发预览版**。[下载 v0.2.5 安装包及构建产物](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.5)，也可从源码构建。使用前请先阅读平台限制。
+当前为 **0.2.6 开发预览版**，统一使用“豆包远程”名称及手机深灰主题。[下载 v0.2.6 安装包及构建产物](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.6)，也可从源码构建。使用前请先阅读平台限制。
 
 | 平台 | 要求 | 当前状态 |
 | --- | --- | --- |
@@ -42,7 +44,7 @@ Linux 仅提供开发模拟模式。已验证的版本、场景和剩余项目�
 
 | 手机入口 | 按住区域 | 松手后按 Enter | 仅完成听写 |
 | --- | --- | --- | --- |
-| 豆包遥控 App | 顶栏以下的区域 | 在按下位置出现的固定圆内松手 | 滑出圆外后松手；滑回圆内可恢复回车 |
+| 豆包远程 App | 顶栏以下的区域 | 在按下位置出现的固定圆内松手 | 滑出圆外后松手；滑回圆内可恢复回车 |
 | Safari 网页 | 顶栏以下任意位置 | 在固定圆内松手 | 任意方向滑出圆外松手；滑回圆内可恢复回车 |
 
 Enter 由当前电脑应用决定是发送消息还是换行。等待时间可在配置页调整；固定等待不代表已经确认豆包写完文字。等待期间再次按住会取消上一次待发的 Enter。
@@ -88,10 +90,11 @@ Windows 完整安装器会准备 VB-CABLE；Mac 安装向导在缺少设备时�
 - [iPhone App 构建与安装](ios/README.md)
 - [Android APK 构建与安装](android/README.md)
 - [手机三端交互基准与差异](docs/mobile-parity.md)
+- [统一命名与覆盖升级](docs/renaming.md)
 - [故障排查与卸载](docs/troubleshooting.md)
 - [双平台架构](docs/cross-platform.md) · [通信协议](docs/protocol.md) · [统一配对二维码](docs/native-ios-protocol.md)
 
-反馈问题可提交 [Issue](https://github.com/panjiang/doubao-voice-remote/issues)，请说明系统、豆包版本、手机入口和具体表现。
+反馈问题可提交 [Issue](https://github.com/panjiang/doubao-remote/issues)，请说明系统、豆包版本、手机入口和具体表现。
 
 ## 许可
 

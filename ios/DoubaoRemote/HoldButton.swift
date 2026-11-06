@@ -61,7 +61,7 @@ final class HoldSurfaceView:UIView {
     override init(frame:CGRect) {
         super.init(frame:frame)
         backgroundColor = .clear;isMultipleTouchEnabled=true;clipsToBounds=true
-        computerLabel.font = .systemFont(ofSize:27,weight:.semibold);computerLabel.numberOfLines=2
+        computerLabel.font = .systemFont(ofSize:27,weight:.semibold);computerLabel.textColor = .label;computerLabel.numberOfLines=2
         statusLabel.font = .systemFont(ofSize:14);statusLabel.textColor = .secondaryLabel;statusLabel.numberOfLines=0
         statusGroup.axis = .vertical;statusGroup.alignment = .fill;statusGroup.spacing=10;statusGroup.isUserInteractionEnabled=false
         actionList.axis = .vertical;actionList.alignment = .fill;actionList.spacing=8;actionList.isUserInteractionEnabled=false
@@ -75,9 +75,9 @@ final class HoldSurfaceView:UIView {
         }
         statusGroup.addArrangedSubview(statusLabel);statusGroup.addArrangedSubview(actionList)
         hintLabel.text="按住任意位置说话";hintLabel.font = .systemFont(ofSize:17,weight:.medium)
-        hintLabel.textColor=blue.withAlphaComponent(0.35);hintLabel.textAlignment = .center
+        hintLabel.textColor = .secondaryLabel;hintLabel.textAlignment = .center
         let hintIcon=UIImageView(image:UIImage(systemName:"mic.fill",withConfiguration:UIImage.SymbolConfiguration(pointSize:42,weight:.regular)))
-        hintIcon.tintColor=blue.withAlphaComponent(0.6);hintIcon.contentMode = .scaleAspectFit;hintIcon.isAccessibilityElement=false
+        hintIcon.tintColor=blue;hintIcon.contentMode = .scaleAspectFit;hintIcon.isAccessibilityElement=false
         hintGroup.axis = .vertical;hintGroup.alignment = .center;hintGroup.spacing=14;hintGroup.isUserInteractionEnabled=false
         hintGroup.addArrangedSubview(hintIcon);hintGroup.addArrangedSubview(hintLabel)
         hintIcon.translatesAutoresizingMaskIntoConstraints=false

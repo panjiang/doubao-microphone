@@ -24,17 +24,18 @@
 @media(prefers-reduced-motion:reduce){.environment-icon.is-loading{animation:none}}
 
 /* Mobile view only: the admin page keeps its existing layout and controls. */
-.phone-page{height:100vh;height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+html.phone-document{color-scheme:dark;background:#161823;color:#fff}
+.phone-page{background:#161823;color:#fff;height:100vh;height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .phone{width:100%;max-width:none;height:100vh;height:100dvh;padding:max(0px,env(safe-area-inset-top)) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);display:flex;flex-direction:column}
 .phone-symbols{position:absolute;width:0;height:0;overflow:hidden}
-.phone-header{flex:none;min-height:58px;margin:0;padding:10px 16px;border-bottom:1px solid #d7dfeb}
-.phone-header .brand{font-size:15px;letter-spacing:0}.phone-header-actions{display:flex;align-items:center;gap:10px}.phone .badge{font-size:12px;padding:6px 10px}
+.phone-header{flex:none;min-height:58px;margin:0;padding:10px 16px;border-bottom:1px solid #ffffff1f}
+.phone-header .brand{font-size:15px;letter-spacing:0}.phone-header-actions{display:flex;align-items:center;gap:10px}.phone .badge{font-size:12px;padding:6px 10px;background:#ffffff1a;color:#9697a1}
 .phone .phone-qr{margin:0;min-height:36px;width:36px;padding:6px;background:transparent;color:#234bc6}.phone-qr svg{width:24px;height:24px;display:block}
 .phone-surface{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;isolation:isolate;outline-offset:-3px}
 .phone-info{position:relative;padding:16px;pointer-events:none}.phone-info h1{font-size:27px;line-height:1.2;font-weight:600;letter-spacing:0;margin:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.phone-info p{font-size:14px;line-height:1.5;color:#697282;margin:14px 0 0;min-height:0;overflow-wrap:anywhere}.phone-info button{pointer-events:auto}.phone-info section{margin:14px 0 0}.phone-info .warning{color:#863b13}
-.phone-actions{display:grid;gap:8px;margin-top:10px;opacity:0;transition:opacity .3s ease-in-out}.phone-actions.is-visible{opacity:1}.phone-actions>div{display:flex;align-items:center;gap:10px;font-size:14px;line-height:1.5;color:#697282}.phone-actions svg{width:24px;height:24px;flex:none;color:#778293}
-.phone-idle{position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:14px;color:#234bc659;font-size:17px;font-weight:500;pointer-events:none;transition:opacity .3s ease-in-out}.phone-idle>svg{width:44px;height:48px;color:#234bc699}.phone-idle.is-hidden{opacity:0}
+.phone-info p{font-size:14px;line-height:1.5;color:#9697a1;margin:14px 0 0;min-height:0;overflow-wrap:anywhere}.phone-info button{pointer-events:auto}.phone-info section{margin:14px 0 0}.phone-info .warning{color:#863b13}
+.phone-actions{display:grid;gap:8px;margin-top:10px;opacity:0;transition:opacity .3s ease-in-out}.phone-actions.is-visible{opacity:1}.phone-actions>div{display:flex;align-items:center;gap:10px;font-size:14px;line-height:1.5;color:#9697a1}.phone-actions svg{width:24px;height:24px;flex:none;color:#778293}
+.phone-idle{position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:14px;color:#9697a1;font-size:17px;font-weight:500;pointer-events:none;transition:opacity .3s ease-in-out}.phone-idle>svg{width:44px;height:48px;color:#234bc6}.phone-idle.is-hidden{opacity:0}
 #ripples{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #operation-circle{position:absolute;width:180px;height:180px;border:3px solid #234bc6;background:#234bc6cc;border-radius:50%;transform:translate(-50%,-50%);display:flex;justify-content:center;align-items:center;opacity:0;pointer-events:none}
 #operation-circle svg{width:60px;height:66px;color:#fff;opacity:.8}

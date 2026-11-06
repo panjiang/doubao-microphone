@@ -1,8 +1,8 @@
-# DoubaoPTT 图标
+# DoubaoRemote 图标
 
 原创圆形蓝底白色麦克风，遵循本项目 MIT 许可。背景色为页面使用的 `#234bc6`，圆形之外透明，无第三方图案或字体。
 
-`doubao-ptt.svg` 是矢量图形；`doubao-ptt.png` 为 256px 预览；`doubao-ptt.ico` 包含 16、24、32、48、64、128、256px PNG 帧。`tray.svg` 与 `tray-32.png` 为托盘图预览。圆形直径占满画布，麦克风四周保留约 12%–16% 的画布宽度作为内边距，避免贴边。
+`doubao-remote.svg` 是矢量图形；`doubao-remote.png` 为 256px 预览；`doubao-remote.ico` 包含 16、24、32、48、64、128、256px PNG 帧。`tray.svg` 与 `tray-32.png` 为托盘图预览。圆形直径占满画布，麦克风四周保留约 12%–16% 的画布宽度作为内边距，避免贴边。
 
 `tray-{size}.rgba` 是 16/20/24/28/32/40/48/64/128px、从左上逐行排列的 RGBA8 非预乘透明像素。托盘按主任务栏 DPI 和 `SM_CXSMICON`/`SM_CYSMICON` 选择图像，DPI 变化后在后续事件循环更新；不常见尺寸由系统从 128px 源图缩放。Windows 固定托盘显示尺寸，单个程序无法突破该格子大小；大图源文件本身不意味着屏幕上会显示得更大。
 
@@ -16,4 +16,4 @@ SVG 和 GDI+ 绘图坐标均保存在生成脚本中；修改图形时同步两�
 
 Windows SDK 的资源编译器 `rc.exe` 在构建时将 ICO 嵌入主程序；支持通过 `RC` 环境变量指定编译器。安装包读取同一 ICO。
 
-macOS 主应用、输入代理及安装器使用 `DoubaoPTT.icns`，包括 16–1024px 的标准图像表示。可在 Mac 运行 `swift scripts/generate-macos-icons.swift`，使用相同矢量坐标和系统 CoreGraphics/ImageIO/iconutil 重新生成，无需下载工具。菜单栏嵌入同一套 `tray-64.rgba` 麦克风图；最终显示尺寸由 macOS 菜单栏控制。
+macOS 主应用、输入代理及安装器使用 `DoubaoRemote.icns`，包括 16–1024px 的标准图像表示。可在 Mac 运行 `swift scripts/generate-macos-icons.swift`，使用相同矢量坐标和系统 CoreGraphics/ImageIO/iconutil 重新生成，无需下载工具。菜单栏嵌入同一套 `tray-64.rgba` 麦克风图；最终显示尺寸由 macOS 菜单栏控制。

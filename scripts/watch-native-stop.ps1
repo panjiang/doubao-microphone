@@ -5,12 +5,21 @@ param(
 # Temporary developer diagnostics. No service, startup entry, or app changes.
 # Idle: no debugger attached. Recording: a bounded trace, detached at end.
 $ErrorActionPreference='Stop'
-$dataRoot="$env:LOCALAPPDATA\DoubaoPTT\DoubaoPTT\data"
+$dataRoot="$env:LOCALAPPDATA\DoubaoRemote\DoubaoRemote\data"
+# Compatibility: the default application keeps existing user data in place.
+$legacyDataRoot="$env:LOCALAPPDATA\DoubaoPTT\DoubaoPTT\data"
+function Has-AppData([string]$directory) {
+    foreach ($name in @('settings.json','devices.json','ca.pem','ca-key.dpapi','mock-ca-key.pem')) {
+        if (Test-Path -LiteralPath (Join-Path $directory $name)) { return $true }
+    }
+    return $false
+}
+if (!(Has-AppData $dataRoot) -and (Has-AppData $legacyDataRoot)) { $dataRoot=$legacyDataRoot }
 $nativeRoot=Join-Path $dataRoot 'diagnostics\native-traces'
 $null=New-Item -ItemType Directory -Force $nativeRoot
 $stopFile=Join-Path $nativeRoot 'watch.stop'
 $stateFile=Join-Path $nativeRoot 'watch-state.json'
-$mutex=New-Object System.Threading.Mutex($false,'Local\DoubaoPTT.NativeTraceWatch')
+$mutex=New-Object System.Threading.Mutex($false,'Local\DoubaoRemote.NativeTraceWatch')
 if (-not $mutex.WaitOne(0)) {throw 'A native trace watcher is already running.'}
 $traceProcess=$null
 $childStop=$null

@@ -152,19 +152,19 @@ class HoldSurface(context: Context) : View(context) {
         val left = dp(16f)
         val available = (width - left * 2).toInt().coerceAtLeast(1)
         text.textSize = 27f * resources.displayMetrics.scaledDensity; text.isFakeBoldText = true
-        text.color = Color.rgb(28, 35, 48); text.alpha = 255
+        text.color = Color.WHITE; text.alpha = 255
         val nameLayout = StaticLayout.Builder.obtain(name, 0, name.length, text, available)
             .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
         canvas.save(); canvas.translate(left, dp(16f)); nameLayout.draw(canvas); canvas.restore()
         val statusY = dp(30f) + nameLayout.height
-        text.textSize = 14f * resources.displayMetrics.scaledDensity; text.color = Color.rgb(105, 114, 130); text.alpha = 255; text.isFakeBoldText = false
+        text.textSize = 14f * resources.displayMetrics.scaledDensity; text.color = Color.rgb(150, 151, 161); text.alpha = 255; text.isFakeBoldText = false
         val layout = StaticLayout.Builder.obtain(status, 0, status.length, text, available).setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(false).build()
         canvas.save(); canvas.translate(left, statusY); layout.draw(canvas); canvas.restore()
         val actionAlpha = actionsOpacity(now)
         if (actionAlpha > 0) {
             var y = statusY + layout.height + dp(10f)
             for ((i, message) in listOf("圆内松手，会自动按 Enter 键。", "圈外松手，不触发任何按键。").withIndex()) {
-                text.textSize = 14f * resources.displayMetrics.scaledDensity; text.color = Color.rgb(105, 114, 130); text.alpha = (255 * actionAlpha).toInt()
+                text.textSize = 14f * resources.displayMetrics.scaledDensity; text.color = Color.rgb(150, 151, 161); text.alpha = (255 * actionAlpha).toInt()
                 val row = StaticLayout.Builder.obtain(message, 0, message.length, text, (available - dp(34f)).toInt().coerceAtLeast(1)).setIncludePad(false).build()
                 val rowHeight = max(dp(24f), row.height.toFloat())
                 actionIcon(canvas, left + dp(2f), y + rowHeight / 2 - dp(2f), i == 1, actionAlpha)
@@ -174,10 +174,10 @@ class HoldSurface(context: Context) : View(context) {
         }
         val hintAlpha = hintOpacity(now)
         if (paired && hintAlpha > 0) {
-            mic(canvas, width / 2f, height * 0.5f - dp(27f), dp(0.9f), blue, hintAlpha * 0.6f)
+            mic(canvas, width / 2f, height * 0.5f - dp(27f), dp(0.9f), blue, hintAlpha)
             val value = "按住任意位置说话"
             text.textSize = 17f * resources.displayMetrics.scaledDensity
-            label(canvas, value, (width - text.measureText(value)) / 2, height * 0.5f + dp(40f), 17f, blue, alpha = hintAlpha * 0.35f)
+            label(canvas, value, (width - text.measureText(value)) / 2, height * 0.5f + dp(40f), 17f, Color.rgb(150, 151, 161), alpha = hintAlpha)
         }
         if (!paired) {
             scanRect.set(left, statusY + layout.height + dp(14f), left + dp(160f), statusY + layout.height + dp(60f))

@@ -1,6 +1,6 @@
 # Actions 版本构建
 
-[Version build 工作流](https://github.com/panjiang/doubao-voice-remote/actions/workflows/version-build.yml)负责版本校验、编译、打包及创建草稿 Release。不执行录音、按键或实机测试，也不会公开发布 Release。
+[Version build 工作流](https://github.com/panjiang/doubao-remote/actions/workflows/version-build.yml)负责版本校验、编译、打包及创建草稿 Release。不执行录音、按键或实机测试，也不会公开发布 Release。
 
 ## 手动构建当前版本
 
@@ -26,7 +26,7 @@ gh workflow run version-build.yml --ref main -f version=0.2.3 -F draft_release=t
 - `packaging/Info.plist`、`AgentInfo.plist`、`MacInstallerInfo.plist` 的版本。
 - `packaging/windows.iss` 中的默认 `AppVersion`。
 
-iOS 保持自己的版本和构建号，在 `ios/DoubaoPTT.xcodeproj/project.pbxproj` 中维护，Debug / Release 必须一致。Android 在 `android/app/build.gradle` 中维护 `versionName` / `versionCode`。手机版本与桌面版本不要求相同。
+iOS 保持自己的版本和构建号，在 `ios/DoubaoRemote.xcodeproj/project.pbxproj` 中维护，Debug / Release 必须一致。Android 在 `android/app/build.gradle` 中维护 `versionName` / `versionCode`。手机版本与桌面版本不要求相同。
 
 可先做只读版本核对：
 
@@ -47,10 +47,10 @@ git push origin v0.2.4
 
 | 产物 | 说明 |
 | --- | --- |
-| `DoubaoPTT-Setup-<版本>-x64.exe` | Windows 完整安装器，包含经哈希及签名验证的原版 VB-CABLE；不含研究用 UMDF 键盘组件 |
-| `DoubaoPTT-<版本>-windows-x64-portable.zip` | Windows 便携程序，需要另行准备虚拟音频设备 |
-| `DoubaoPTT-<版本>-macos-aarch64-test.dmg` | Apple Silicon 开发测试包，ad-hoc 签名，未公证 |
-| `DoubaoPTT-<版本>-macos-x86_64-test.dmg` | Intel 开发测试包，ad-hoc 签名，未公证；不代表已实机验证 |
+| `DoubaoRemote-Setup-<版本>-x64.exe` | Windows 完整安装器，包含经哈希及签名验证的原版 VB-CABLE；不含研究用 UMDF 键盘组件 |
+| `DoubaoRemote-<版本>-windows-x64-portable.zip` | Windows 便携程序，需要另行准备虚拟音频设备 |
+| `DoubaoRemote-<版本>-macos-aarch64-test.dmg` | Apple Silicon 开发测试包，ad-hoc 签名，未公证 |
+| `DoubaoRemote-<版本>-macos-x86_64-test.dmg` | Intel 开发测试包，ad-hoc 签名，未公证；不代表已实机验证 |
 | `DoubaoRemote-iOS-<版本>-build<构建号>-device-unsigned.zip` | 未签名 iPhone `.app`，需自行开发签名，不能直接安装 |
 | `DoubaoRemote-iOS-<版本>-build<构建号>-simulator.zip` | Apple Silicon Mac 上的 iOS 模拟器产物 |
 | `DoubaoRemote-Android-<版本>-build<构建号>-unsigned.apk` | Android CI 未签名产物，维护者签名后才可安装 |

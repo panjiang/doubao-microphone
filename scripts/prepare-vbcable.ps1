@@ -82,7 +82,7 @@ Distribution terms: https://vb-audio.com/Services/licensing.htm
 This installer includes the original, unmodified Driver Pack 45 archive.
 When needed it invokes the original signed installer with administrator approval.
 A Windows restart is required after a new driver installation.
-VB-CABLE remains installed when DoubaoPTT is uninstalled because it can be shared.
+VB-CABLE remains installed when DoubaoRemote is uninstalled because it can be shared.
 Professional/organizational deployments must comply with VB-Audio's licensing terms.
 
 The packaged readme predates the current published distribution permission.

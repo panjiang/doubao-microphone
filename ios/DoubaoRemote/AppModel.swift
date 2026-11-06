@@ -68,12 +68,12 @@ import AVFoundation
                     try Task.checkCancellation();try PairStore.save(saved)
                     guard let self else { return };computer=saved;status="配对成功，按住说话即可连接。"
                 } catch {
-                    if !Task.isCancelled { self?.status=(error as? PTTError)?.localizedDescription ?? "配对失败，请允许局域网访问并检查电脑地址、证书和网络。" }
+                    if !Task.isCancelled { self?.status=(error as? RemoteError)?.localizedDescription ?? "配对失败，请允许局域网访问并检查电脑地址、证书和网络。" }
                 }
                 pairingClient.close()
                 if !Task.isCancelled { self?.pairing=false;self?.pairClient=nil;self?.pairTask=nil }
             }
-        } catch { status=(error as? PTTError)?.localizedDescription ?? "请扫描电脑配置页中的配对二维码。" }
+        } catch { status=(error as? RemoteError)?.localizedDescription ?? "请扫描电脑配置页中的配对二维码。" }
     }
     func press() {
         guard computer != nil,!pairing,foreground,!holding else { return }
@@ -99,11 +99,11 @@ import AVFoundation
             do {
                 let permitted=await AVAudioApplication.requestRecordPermission()
                 try Task.checkCancellation()
-                guard permitted else { throw PTTError.message("请在 iPhone 设置中允许本 App 使用麦克风。") }
+                guard permitted else { throw RemoteError.message("请在 iPhone 设置中允许本 App 使用麦克风。") }
                 guard holding,foreground,attempt==generation else { return }
                 try audio.start()
                 if !connected {
-                    guard let computer else { throw PTTError.message("请重新扫码配对电脑。") }
+                    guard let computer else { throw RemoteError.message("请重新扫码配对电脑。") }
                     let next=SocketClient(computer);client=next
                     next.onMessage={ [weak self,weak next] event in
                         guard let self,let next,self.client === next else { return };receive(event)
@@ -117,7 +117,7 @@ import AVFoundation
                 connected=true;connectionTask=nil;begin()
             } catch {
                 if attempt==generation && !Task.isCancelled {
-                    stop((error as? PTTError)?.localizedDescription ?? "连接失败，请检查权限、电脑程序和局域网。")
+                    stop((error as? RemoteError)?.localizedDescription ?? "连接失败，请检查权限、电脑程序和局域网。")
                 }
             }
             if attempt==generation { connectionTask=nil }

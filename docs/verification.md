@@ -466,3 +466,31 @@ iPhone 原生 App 保持 0.1.0 构建 30 及既有已确认外观，本轮未改
 TypeScript/Vite 构建、Windows Release 离线构建及 Inno Setup 编译、Android 离线 assembleDebug 和 Lint 均通过，APK 保持既有测试签名证书。静态核对新版 HTML/JS 已嵌入 Windows 二进制；电脑连续空闲后覆盖安装本地 0.2.4 对齐包，并校验安装文件 SHA-256、版本、输入代理就绪及原配置／配对／CA 保留。Mac mini 使用离线缓存构建 Apple Silicon 开发测试 DMG，codesign 校验通过；没有覆盖 Mac 当前安装，也未构建 Intel 版本。iOS 本轮没有重新构建。
 
 桌面交付 Android `DoubaoRemote-0.1.7-android-debug.apk`、Windows `DoubaoPTT-Setup-0.2.4-x64-mobile-parity.exe`、Mac `DoubaoPTT-0.2.4-macos-aarch64-mobile-parity-test.dmg`，以及对应校验和源码归档。本轮没有运行自动测试、自动启动手机 App、录音或触发测试按键。三端手势、首尾字、异常中断、待命停麦及实际耗电仍由用户实测；构建成功不计作真机功能通过。未创建提交、标签或发布新 Release。
+
+### 2026-11-06 桌面 0.2.6 / iOS 构建 31 / Android 0.1.8（9）：统一为“豆包远程”
+
+中文简称“豆包远程”、全称“豆包输入法远程控制”，英文简称 Doubao Remote、全称 Doubao Input Method Remote Control。源码、Rust 包及命令、iOS 工程、图标资源、两端标题、安装器、托盘及新产物名称统一调整。GitHub 仓库已改为 `panjiang/doubao-remote`，本地目录为 `/home/jiang/ksf/repositories/doubao-remote`，origin 及 KSF 工程链接已同步；未提交、推送源码或公开新版本。
+
+覆盖兼容：保留 Windows AppId、Apple Bundle ID、Android applicationId 与原凭据；按新旧目录优先级读取现有数据，不搬移配置或 CA。读取已有 CA 参数及 Subject Key Identifier 继续签发服务器证书，检查证书与私钥匹配；旧根证书不重写，证书向导显示实际 CA 名称。macOS 新旧 Keychain service 兼容读取，旧目录派生账户保持不变。新装使用新名称；升级保留自启动开关，替换旧入口，失败时保留／恢复备份。UMDF 描述符、驱动文件、音频帧头及旧二维码协议保持原样。具体范围见 `docs/renaming.md`。
+
+实际执行：TypeScript/Vite、Rust all-targets 静态编译、Windows Release 及 Inno Setup 6.7.4 安装器编译、Android 离线 assembleDebug 与 Lint、Mac Apple Silicon／Intel Release 与 DMG、iOS 模拟器及未签名 iPhone 构建均通过。Android Lint 为 0 error、0 fatal、7 项非阻断 warning。检查 Android APK 与 iOS Info.plist 的显示名、版本和原 application／Bundle ID；Windows 二进制已嵌入最终网页标题和资源。
+
+Mac 两种架构的主应用、内置输入助手和安装器已使用与本机现有程序相同的 Apple Development 身份签名，codesign --verify --deep --strict 通过；没有做 Developer ID 公证。Android APK 保留原测试签名，证书 SHA-256 为 `03ed87aa95e352ee7e585facbac0d12c55deb8d3a36fbc8d16a155f5c5c1bb79`。iOS 交付未签名真机和模拟器 ZIP，没有覆盖手机上的旧安装。新增 Rust 证书解析依赖经锁文件校验后复用缓存；Intel 标准库镜像校验与官方 Rust checksum 一致。
+
+交付目录为 `dist/rename-0.2.6/`，同步保存到 Windows 桌面的 `DoubaoRemote-0.2.6` 文件夹，附源码归档、平台构建清单和 SHA256SUMS.txt。命名扫描剩余旧品牌仅在兼容定义及真实历史中；驱动研究目录和已有发布说明未改写。本次没有自动安装、启动手机 App、录音、触发按键或运行测试。新装、覆盖升级、配对、辅助功能权限及回滚的真实操作仍待用户验收；构建和签名检查不计为功能通过。
+
+### 2026-11-06 iOS 构建 32：深灰背景预览
+
+按用户选择，仅将原生 iPhone 主页面改为接近抖音首页的深灰背景 `#161823`，标题和状态使用深色模式下的系统前景色；配对标签改为低透明度中性背景，待命提示及麦克风提高可读性。蓝色操作圆、填充、波纹、0.3 秒动画及手势／音频／Enter 流程保持原设计；Android 和网页不跟随本次预览改色。
+
+版本保持 0.1.0，构建号 32。Mac mini 使用原开发团队签名构建成功，codesign 校验通过，核对 Info.plist 的原 Bundle ID、构建号及 Dark 样式。只读确认电脑连续空闲超过 5.5 秒后，已覆盖安装到原指定 iPhone「X」，保持原应用身份。未自动启动 App、录音或触发按键；视觉效果由用户打开 App 确认。没有提交、推送或公开发布。
+
+### 2026-11-06 手机网页 / Android 0.1.9（10）：同步 iPhone 深灰主题
+
+用户确认 iPhone 构建 32 的深灰效果后，手机网页和 Android 主界面同步使用 `#161823` 背景，标题改为浅色，状态和待命提示使用灰白文字，配对标签使用白色 10% 不透明度背景。Android 状态栏、导航栏和启动窗口适配深色；网页增加仅手机页面生效的深色文档类、color-scheme 及浏览器主题色。蓝色圆、波纹、手势及录音／Enter 逻辑不变，电脑管理页保留浅色。
+
+前端 TypeScript/Vite、Android 离线 assembleDebug／Lint、Windows Release／安装包、Mac Apple Silicon／Intel 签名 DMG 均构建通过。Android 保留原测试证书；Lint 为 0 error、0 fatal、7 项非阻断 warning。Mac 更新包沿用现有 Apple Development 身份，codesign 校验通过，未覆盖 Mac 当前安装。
+
+电脑连续空闲超过 5.5 秒后，已将当前 Windows 从旧名称程序覆盖升级为本地 0.2.6，旧输入代理退出后再安装并启动新程序；输入代理 ready。逐字节核对 settings.json、devices.json、ca.pem 和 ca-key.dpapi 保留，登录启动目标迁移为新程序且保留原开关。只读访问手机 HTTPS 页面及 CSS，使用原 ca.pem 正常完成证书校验，确认返回深灰文档及样式；管理页未启用深色类。没有触发录音或测试按键。
+
+新版 Android APK、Windows 安装及便携包、Mac 双架构 DMG、当前源码归档及校验文件保存在 `dist/mobile-dark/`，同步至桌面 `DoubaoRemote-mobile-dark`。iPhone 继续使用已安装的构建 32，无需重装。未运行自动测试、未安装 Android 或 Mac 更新、未提交／推送或公开发布；手机网页和安卓视觉效果由用户实测。

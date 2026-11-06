@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 mode="${1:-all}"
 bundle="${IOS_BUNDLE_ID:-local.doubao-ptt.ios}"
 xcrun swift scripts/GenerateAppIcon.swift
-common=(-project DoubaoPTT.xcodeproj -scheme DoubaoPTT -configuration Release "PRODUCT_BUNDLE_IDENTIFIER=$bundle")
+common=(-project DoubaoRemote.xcodeproj -scheme DoubaoRemote -configuration Release "PRODUCT_BUNDLE_IDENTIFIER=$bundle")
 if [[ "$mode" == all || "$mode" == simulator ]]; then
   xcodebuild "${common[@]}" -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/simulator CODE_SIGNING_ALLOWED=NO build
 fi
