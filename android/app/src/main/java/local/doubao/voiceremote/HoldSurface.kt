@@ -13,21 +13,21 @@ import android.text.TextPaint
 import android.text.TextUtils
 import android.view.MotionEvent
 import android.view.View
-import android.view.animation.AnimationUtils
 import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sqrt
 
-/** A fixed 60dp hit radius. Decorative wave radii never change the gesture boundary. */
+/** A fixed 90dp hit radius. Decorative wave radii never change the gesture boundary. */
 class HoldSurface(context: Context) : View(context) {
+    private companion object { const val OPERATION_RADIUS_DP = 90f }
     var onDown: (() -> Boolean)? = null
     var onUp: ((Boolean) -> Unit)? = null
     var onCancel: (() -> Unit)? = null
     var onScan: (() -> Unit)? = null
     private val density = resources.displayMetrics.density
     private fun dp(v: Float) = v * density
+    private val operationRadius = dp(OPERATION_RADIUS_DP)
     private val blue = Color.rgb(35, 75, 198)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val text = TextPaint(Paint.ANTI_ALIAS_FLAG)
@@ -48,26 +48,40 @@ class HoldSurface(context: Context) : View(context) {
     private var target = 0.0
     private var smoothed = 0.0
     private var lastDraw = 0L
+    private var voiceStarted = 0L
     private var hintFrom = 1f
     private var hintTo = 1f
     private var hintTime = 0L
+    private var actionsFrom = 0f
+    private var actionsTo = 0f
+    private var actionsTime = 0L
 
     init { isClickable = true; isFocusable = true; contentDescription = "顶栏以下按住说话；圆内松手自动按 Enter，圆外松手仅完成输入。" }
 
     fun update(name: String, status: String, paired: Boolean, pairing: Boolean, holding: Boolean, phase: RemoteController.Phase, level: Double) {
+        val voiceBefore = this.phase == RemoteController.Phase.PRIMING || this.phase == RemoteController.Phase.STREAMING
+        val voiceNow = phase == RemoteController.Phase.PRIMING || phase == RemoteController.Phase.STREAMING
+        if (voiceNow && !voiceBefore) voiceStarted = SystemClock.uptimeMillis()
         this.name = name; this.status = status; this.paired = paired; this.pairing = pairing; this.phase = phase
         target = if (level.isFinite()) sqrt(((level - 0.008).coerceAtLeast(0.0) * 4).coerceAtMost(1.0)) else 0.0
         if (gesture && !holding) finish(false)
+        actions(gesture && phase == RemoteController.Phase.STREAMING)
         invalidate()
     }
     private fun opacity(now: Long): Float = if (gesture) ((now - pressTime) / 300f).coerceIn(0f, 1f)
         else if (releaseTime > 0) fadeFrom * (1f - (now - releaseTime) / 300f).coerceIn(0f, 1f) else 0f
     private fun hintOpacity(now: Long) = hintFrom + (hintTo - hintFrom) * ((now - hintTime) / 300f).coerceIn(0f, 1f)
     private fun hint(show: Boolean) { val now = SystemClock.uptimeMillis(); hintFrom = hintOpacity(now); hintTo = if (show) 1f else 0f; hintTime = now }
+    private fun actionsOpacity(now: Long) = actionsFrom + (actionsTo - actionsFrom) * ((now - actionsTime) / 300f).coerceIn(0f, 1f)
+    private fun actions(show: Boolean) {
+        val next = if (show) 1f else 0f
+        if (next == actionsTo) return
+        val now = SystemClock.uptimeMillis(); actionsFrom = actionsOpacity(now); actionsTo = next; actionsTime = now
+    }
     private fun finish(animated: Boolean) {
         val now = SystemClock.uptimeMillis()
         fadeFrom = opacity(now); gesture = false; releaseTime = if (animated) now else 0
-        target = 0.0; smoothed = 0.0; hint(true); invalidate()
+        target = 0.0; smoothed = 0.0; hint(true); actions(false); invalidate()
     }
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -88,7 +102,7 @@ class HoldSurface(context: Context) : View(context) {
                 if (scanTouch) { scanTouch = false; if (scanRect.contains(event.x, event.y)) { performClick(); onScan?.invoke() }; return true }
                 if (gesture) {
                     val x = event.getX(event.actionIndex); val y = event.getY(event.actionIndex)
-                    val outside = x < 0 || y < 0 || x >= width || y >= height || hypot(x - anchorX, y - anchorY) > dp(60f)
+                    val outside = x < 0 || y < 0 || x >= width || y >= height || hypot(x - anchorX, y - anchorY) > operationRadius
                     finish(true); onUp?.invoke(outside)
                 }
                 return true
@@ -119,8 +133,8 @@ class HoldSurface(context: Context) : View(context) {
         val path = Path().apply { moveTo(-15f, 3f); lineTo(-15f, 9f); cubicTo(-15f, 28f, 15f, 28f, 15f, 9f); lineTo(15f, 3f); moveTo(0f, 23f); lineTo(0f, 32f); moveTo(-9f, 32f); lineTo(9f, 32f) }
         canvas.drawPath(path, paint); canvas.restore()
     }
-    private fun actionIcon(canvas: Canvas, x: Float, y: Float, slash: Boolean) {
-        paint.style = Paint.Style.STROKE; paint.strokeWidth = dp(1.5f); paint.color = Color.rgb(119, 130, 147); paint.alpha = 255; paint.strokeCap = Paint.Cap.ROUND
+    private fun actionIcon(canvas: Canvas, x: Float, y: Float, slash: Boolean, alpha: Float) {
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = dp(1.5f); paint.color = Color.rgb(119, 130, 147); paint.alpha = (255 * alpha).toInt(); paint.strokeCap = Paint.Cap.ROUND
         val path = Path().apply {
             moveTo(x + dp(18f), y - dp(9f)); lineTo(x + dp(18f), y + dp(1f)); quadTo(x + dp(18f), y + dp(8f), x + dp(11f), y + dp(8f))
             lineTo(x, y + dp(8f)); moveTo(x + dp(5f), y + dp(3f)); lineTo(x, y + dp(8f)); lineTo(x + dp(5f), y + dp(13f))
@@ -135,59 +149,68 @@ class HoldSurface(context: Context) : View(context) {
         val dt = ((now - lastDraw) / 1000.0).coerceIn(0.0, 0.1); lastDraw = now
         val goal = if (voice && gesture) target else 0.0
         smoothed += (goal - smoothed) * (1 - exp(-dt / if (goal > smoothed) 0.06 else 0.22))
-        val left = dp(24f)
+        val left = dp(16f)
+        val available = (width - left * 2).toInt().coerceAtLeast(1)
         text.textSize = 27f * resources.displayMetrics.scaledDensity; text.isFakeBoldText = true
-        val shownName = TextUtils.ellipsize(name, text, (width - left * 2).coerceAtLeast(1f), TextUtils.TruncateAt.END).toString()
-        label(canvas, shownName, left, dp(48f), 27f, Color.rgb(28, 35, 48), true)
+        text.color = Color.rgb(28, 35, 48); text.alpha = 255
+        val nameLayout = StaticLayout.Builder.obtain(name, 0, name.length, text, available)
+            .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
+        canvas.save(); canvas.translate(left, dp(16f)); nameLayout.draw(canvas); canvas.restore()
+        val statusY = dp(30f) + nameLayout.height
         text.textSize = 14f * resources.displayMetrics.scaledDensity; text.color = Color.rgb(105, 114, 130); text.alpha = 255; text.isFakeBoldText = false
-        val layout = StaticLayout.Builder.obtain(status, 0, status.length, text, (width - left * 2).toInt().coerceAtLeast(1)).setAlignment(Layout.Alignment.ALIGN_NORMAL).build()
-        canvas.save(); canvas.translate(left, dp(72f)); layout.draw(canvas); canvas.restore()
-        if (phase == RemoteController.Phase.STREAMING && gesture) {
-            val y = dp(80f) + layout.height
+        val layout = StaticLayout.Builder.obtain(status, 0, status.length, text, available).setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(false).build()
+        canvas.save(); canvas.translate(left, statusY); layout.draw(canvas); canvas.restore()
+        val actionAlpha = actionsOpacity(now)
+        if (actionAlpha > 0) {
+            var y = statusY + layout.height + dp(10f)
             for ((i, message) in listOf("圆内松手，会自动按 Enter 键。", "圈外松手，不触发任何按键。").withIndex()) {
-                actionIcon(canvas, left, y + dp(9f + i * 32f), i == 1)
-                label(canvas, message, left + dp(31f), y + dp(16f + i * 32f), 13f, Color.rgb(105, 114, 130))
+                text.textSize = 14f * resources.displayMetrics.scaledDensity; text.color = Color.rgb(105, 114, 130); text.alpha = (255 * actionAlpha).toInt()
+                val row = StaticLayout.Builder.obtain(message, 0, message.length, text, (available - dp(34f)).toInt().coerceAtLeast(1)).setIncludePad(false).build()
+                val rowHeight = max(dp(24f), row.height.toFloat())
+                actionIcon(canvas, left + dp(2f), y + rowHeight / 2 - dp(2f), i == 1, actionAlpha)
+                canvas.save(); canvas.translate(left + dp(34f), y + (rowHeight - row.height) / 2); row.draw(canvas); canvas.restore()
+                y += rowHeight + dp(8f)
             }
         }
         val hintAlpha = hintOpacity(now)
         if (paired && hintAlpha > 0) {
-            mic(canvas, width / 2f, height * 0.53f - dp(38f), dp(1f), blue, hintAlpha)
+            mic(canvas, width / 2f, height * 0.5f - dp(27f), dp(0.9f), blue, hintAlpha * 0.6f)
             val value = "按住任意位置说话"
-            text.textSize = 19f * resources.displayMetrics.scaledDensity
-            label(canvas, value, (width - text.measureText(value)) / 2, height * 0.53f + dp(38f), 19f, Color.rgb(105, 114, 130), alpha = hintAlpha)
+            text.textSize = 17f * resources.displayMetrics.scaledDensity
+            label(canvas, value, (width - text.measureText(value)) / 2, height * 0.5f + dp(40f), 17f, blue, alpha = hintAlpha * 0.35f)
         }
         if (!paired) {
-            scanRect.set(width / 2 - dp(110f), height * 0.53f - dp(24f), width / 2 + dp(110f), height * 0.53f + dp(32f))
+            scanRect.set(left, statusY + layout.height + dp(14f), left + dp(160f), statusY + layout.height + dp(60f))
             paint.style = Paint.Style.FILL; paint.color = blue; paint.alpha = if (pairing) 110 else 255
-            canvas.drawRoundRect(scanRect, dp(14f), dp(14f), paint)
-            val value = if (pairing) "正在配对…" else "扫码连接电脑"
-            text.textSize = 17f * resources.displayMetrics.scaledDensity
-            label(canvas, value, width / 2 - text.measureText(value) / 2, scanRect.centerY() + dp(6f), 17f, Color.WHITE)
+            canvas.drawRoundRect(scanRect, dp(12f), dp(12f), paint)
+            val value = "扫码连接电脑"
+            text.textSize = 16f * resources.displayMetrics.scaledDensity; text.isFakeBoldText = true
+            label(canvas, value, scanRect.centerX() - text.measureText(value) / 2, scanRect.centerY() + dp(6f), 16f, Color.WHITE, true)
         }
         val opacity = opacity(now)
         if (opacity > 0) {
             val reduce = !android.animation.ValueAnimator.areAnimatorsEnabled()
             if (voice && !reduce) {
-                val t = (now - pressTime) / 1000f
+                val t = (now - voiceStarted) / 1000f
                 paint.style = Paint.Style.STROKE; paint.strokeWidth = dp(4f); paint.color = blue
                 for (i in 0..2) {
+                    if (t < i * 0.4f) continue
                     val progress = ((t - i * 0.4f) / 1.2f).let { it - kotlin.math.floor(it) }
                     paint.alpha = (255 * opacity * smoothed * 0.6 * (1 - progress)).toInt().coerceIn(0, 255)
-                    canvas.drawCircle(anchorX, anchorY, dp(60 + 90 * progress), paint)
+                    canvas.drawCircle(anchorX, anchorY, dp(OPERATION_RADIUS_DP + 90 * progress), paint)
                 }
                 val quiet = (t % 2f) / 1.6f
                 if (quiet <= 1f) {
                     paint.alpha = (255 * opacity * 0.14 * max(0.0, 1 - smoothed * 3) * (1 - quiet)).toInt().coerceIn(0, 255)
-                    canvas.drawCircle(anchorX, anchorY, dp(60 + quiet * 22), paint)
+                    canvas.drawCircle(anchorX, anchorY, dp(OPERATION_RADIUS_DP + quiet * 22), paint)
                 }
             }
-            val s = smoothed.coerceIn(0.0, 1.0)
-            paint.style = Paint.Style.FILL; paint.color = Color.rgb((104 - 83 * s).toInt(), (139 - 91 * s).toInt(), (227 - 94 * s).toInt()); paint.alpha = (255 * opacity).toInt()
-            canvas.drawCircle(anchorX, anchorY, dp(60f), paint)
-            paint.style = Paint.Style.STROKE; paint.color = blue; paint.alpha = (178 * opacity).toInt(); paint.strokeWidth = dp(1.5f)
-            canvas.drawCircle(anchorX, anchorY, dp(60f), paint)
-            mic(canvas, anchorX, anchorY - dp(3f), dp(0.7f), Color.WHITE, opacity)
+            paint.style = Paint.Style.FILL; paint.color = blue; paint.alpha = (255 * opacity * 0.8f).toInt()
+            canvas.drawCircle(anchorX, anchorY, operationRadius, paint)
+            paint.style = Paint.Style.STROKE; paint.color = blue; paint.alpha = (255 * opacity).toInt(); paint.strokeWidth = dp(3f)
+            canvas.drawCircle(anchorX, anchorY, operationRadius - paint.strokeWidth / 2, paint)
+            mic(canvas, anchorX, anchorY - dp(4.5f), dp(1.05f), Color.WHITE, opacity * 0.8f)
         }
-        if (gesture || opacity > 0 || now - hintTime < 300) postInvalidateOnAnimation()
+        if (gesture || opacity > 0 || now - hintTime < 300 || now - actionsTime < 300) postInvalidateOnAnimation()
     }
 }

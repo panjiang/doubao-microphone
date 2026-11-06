@@ -18,7 +18,7 @@
 
 ## 支持状态
 
-当前为**开发预览版**。[下载 v0.2.4 安装包及构建产物](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.4)，也可从源码构建。使用前请先阅读平台限制。
+当前为**开发预览版**。[下载 v0.2.5 安装包及构建产物](https://github.com/panjiang/doubao-voice-remote/releases/tag/v0.2.5)，也可从源码构建。使用前请先阅读平台限制。
 
 | 平台 | 要求 | 当前状态 |
 | --- | --- | --- |
@@ -43,9 +43,11 @@ Linux 仅提供开发模拟模式。已验证的版本、场景和剩余项目�
 | 手机入口 | 按住区域 | 松手后按 Enter | 仅完成听写 |
 | --- | --- | --- | --- |
 | 豆包遥控 App | 顶栏以下的区域 | 在按下位置出现的固定圆内松手 | 滑出圆外后松手；滑回圆内可恢复回车 |
-| Safari 网页 | 「按住说话」按钮 | 在按钮内正常松手 | 向上滑出按钮后松手；滑回按钮可恢复回车 |
+| Safari 网页 | 顶栏以下任意位置 | 在固定圆内松手 | 任意方向滑出圆外松手；滑回圆内可恢复回车 |
 
 Enter 由当前电脑应用决定是发送消息还是换行。等待时间可在配置页调整；固定等待不代表已经确认豆包写完文字。等待期间再次按住会取消上一次待发的 Enter。
+
+三端沿用同一套 180 操作圆、蓝色半透明填充、麦克风图标、扩散波纹及 0.3 秒过渡。松手传完尾音后停止采音，保留连接和心跳；再次按住重新启动麦克风。App 前台保持亮屏，网页通过浏览器 Wake Lock 请求常亮，是否生效受浏览器及系统限制。
 
 手机需保持前台使用。锁屏、切后台、来电或断线会结束本次输入，恢复后重新按住；不支持后台或锁屏录音。
 
@@ -85,6 +87,7 @@ Windows 完整安装器会准备 VB-CABLE；Mac 安装向导在缺少设备时�
 - [Actions 版本构建与草稿 Release](docs/releases.md)
 - [iPhone App 构建与安装](ios/README.md)
 - [Android APK 构建与安装](android/README.md)
+- [手机三端交互基准与差异](docs/mobile-parity.md)
 - [故障排查与卸载](docs/troubleshooting.md)
 - [双平台架构](docs/cross-platform.md) · [通信协议](docs/protocol.md) · [统一配对二维码](docs/native-ios-protocol.md)
 

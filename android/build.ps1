@@ -27,7 +27,9 @@ try {
         if ($process.ExitCode -ne 0) { throw 'Android build failed' }
         $dest=Join-Path (Split-Path -Parent $root) 'dist\android'
         New-Item -ItemType Directory -Force $dest | Out-Null
-        $apk=Join-Path $dest 'DoubaoRemote-0.1.0-android-debug.apk'
+        $version=[regex]::Match((Get-Content 'app\build.gradle' -Raw),"versionName '([^']+)'").Groups[1].Value
+        if (!$version) { throw 'Cannot read Android versionName' }
+        $apk=Join-Path $dest ('DoubaoRemote-'+$version+'-android-debug.apk')
         Copy-Item 'app\build\outputs\apk\debug\app-debug.apk' $apk -Force
         Get-FileHash $apk -Algorithm SHA256
     } finally { Pop-Location }

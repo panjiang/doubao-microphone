@@ -31,7 +31,8 @@ final class HoldSurfaceView:UIView {
     var onUp:((Bool)->Void)?
     var onCancel:(()->Void)?
     var onScan:(()->Void)?
-    private static let radius:CGFloat=60
+    private static let radius:CGFloat=90
+    private static let rippleRadius:CGFloat=radius+90
     private static let transitionDuration:CFTimeInterval=0.3
     private let blue=UIColor(red:35/255,green:75/255,blue:198/255,alpha:1)
     private let computerLabel=UILabel(),statusLabel=UILabel(),hintLabel=UILabel()
@@ -103,21 +104,22 @@ final class HoldSurfaceView:UIView {
             hintGroup.leadingAnchor.constraint(greaterThanOrEqualTo:leadingAnchor,constant:16),
             hintGroup.trailingAnchor.constraint(lessThanOrEqualTo:trailingAnchor,constant:-16)
         ])
-        visual.bounds=CGRect(x:0,y:0,width:300,height:300);visual.opacity=0
+        visual.bounds=CGRect(x:0,y:0,width:Self.rippleRadius*2,height:Self.rippleRadius*2);visual.opacity=0
         for container in [quietRippleContainer,rippleContainer] { container.frame=visual.bounds;visual.addSublayer(container) }
-        let circle=CGRect(x:90,y:90,width:120,height:120)
+        let circle=visual.bounds.insetBy(dx:Self.rippleRadius-Self.radius,dy:Self.rippleRadius-Self.radius)
         for shape in [fill,outline] { shape.frame=circle;shape.path=CGPath(ellipseIn:CGRect(origin:.zero,size:circle.size),transform:nil);visual.addSublayer(shape) }
-        outline.fillColor=UIColor.clear.cgColor;outline.strokeColor=blue.withAlphaComponent(0.7).cgColor;outline.lineWidth=1.5
-        let iconBounds=CGRect(x:0,y:0,width:40,height:44)
+        outline.fillColor=UIColor.clear.cgColor;outline.strokeColor=blue.cgColor;outline.lineWidth=3
+        outline.path=CGPath(ellipseIn:CGRect(origin:.zero,size:circle.size).insetBy(dx:outline.lineWidth/2,dy:outline.lineWidth/2),transform:nil)
+        let iconBounds=CGRect(x:0,y:0,width:60,height:66)
         let icon=UIGraphicsImageRenderer(size:iconBounds.size).image { _ in
-            if let image=UIImage(systemName:"mic.fill",withConfiguration:UIImage.SymbolConfiguration(pointSize:32,weight:.semibold))?.withTintColor(.white,renderingMode:.alwaysOriginal) {
+            if let image=UIImage(systemName:"mic.fill",withConfiguration:UIImage.SymbolConfiguration(pointSize:48,weight:.semibold))?.withTintColor(.white,renderingMode:.alwaysOriginal) {
                 let scale=min(iconBounds.width/image.size.width,iconBounds.height/image.size.height)
                 let size=CGSize(width:image.size.width*scale,height:image.size.height*scale)
                 image.draw(in:CGRect(x:(iconBounds.width-size.width)/2,y:(iconBounds.height-size.height)/2,width:size.width,height:size.height))
             }
         }
-        let iconLayer=CALayer();iconLayer.frame=CGRect(x:130,y:128,width:40,height:44)
-        iconLayer.contents=icon.cgImage;iconLayer.contentsScale=icon.scale;visual.addSublayer(iconLayer)
+        let iconLayer=CALayer();iconLayer.frame=CGRect(x:visual.bounds.midX-iconBounds.width/2,y:visual.bounds.midY-iconBounds.height/2,width:iconBounds.width,height:iconBounds.height)
+        iconLayer.contents=icon.cgImage;iconLayer.contentsScale=icon.scale;iconLayer.opacity=0.8;visual.addSublayer(iconLayer)
         for container in [quietRippleContainer,rippleContainer] {
             let count=container === rippleContainer ? 3:1
             for _ in 0..<count {
@@ -257,13 +259,9 @@ final class HoldSurfaceView:UIView {
     }
     private func drawLevel() {
         let amplitude=voiceActive ? smoothedLevel:0
-        // Keep the operation circle opaque; volume changes its tint, never its size or alpha.
-        let strength=CGFloat(amplitude)
-        let lighten:CGFloat=voiceActive ? 0:0.15
-        let red=(104-83*strength)/255,green=(139-91*strength)/255,blueComponent=(227-94*strength)/255
+        // Fixed translucent fill; only the outer ripples respond to volume.
         CATransaction.begin();CATransaction.setDisableActions(true)
-        fill.fillColor=UIColor(red:red+(1-red)*lighten,green:green+(1-green)*lighten,
-                              blue:blueComponent+(1-blueComponent)*lighten,alpha:1).cgColor
+        fill.fillColor=blue.withAlphaComponent(0.8).cgColor
         rippleContainer.opacity=reduceMotion ? 0:Float(amplitude*0.6)
         // A small, slow ambient wave crossfades out as speech becomes stronger.
         quietRippleContainer.opacity=reduceMotion || !voiceActive ? 0:Float(0.14*max(0,1-amplitude*3))
@@ -271,12 +269,13 @@ final class HoldSurfaceView:UIView {
     }
     private func startRings() {
         guard !ringsRunning else { return };ringsRunning=true
-        animateRings(rings,radius:150,duration:1.2)
-        animateRings(quietRings,radius:82,duration:1.6,pause:0.4)
+        animateRings(rings,radius:Self.rippleRadius,duration:1.2)
+        animateRings(quietRings,radius:Self.radius+22,duration:1.6,pause:0.4)
     }
     private func animateRings(_ layers:[CAShapeLayer],radius:CGFloat,duration:CFTimeInterval,pause:CFTimeInterval=0) {
-        let start=CGPath(ellipseIn:CGRect(x:90,y:90,width:120,height:120),transform:nil)
-        let end=CGPath(ellipseIn:CGRect(x:150-radius,y:150-radius,width:radius*2,height:radius*2),transform:nil)
+        let center=visual.bounds.midX
+        let start=CGPath(ellipseIn:CGRect(x:center-Self.radius,y:center-Self.radius,width:Self.radius*2,height:Self.radius*2),transform:nil)
+        let end=CGPath(ellipseIn:CGRect(x:center-radius,y:center-radius,width:radius*2,height:radius*2),transform:nil)
         let now=CACurrentMediaTime()
         for (index,ring) in layers.enumerated() {
             let path=CABasicAnimation(keyPath:"path");path.fromValue=start;path.toValue=end;path.duration=duration
