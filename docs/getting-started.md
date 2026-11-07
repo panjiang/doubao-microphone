@@ -1,10 +1,10 @@
 # 安装与首次配置
 
-本指南适用于桌面端 0.2.6、iPhone App 0.1.0（构建 32）和 Android App 0.1.9（构建 10）。
+本指南适用于桌面端 0.2.7、iPhone App 0.1.0（构建 32）和 Android App 0.1.9（构建 10）。
 
 Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.md)；电脑环境和虚拟音频配置仍使用本指南。
 
-可从 [v0.2.6 Release](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.6) 获取开发预览产物，也可以[从源码构建](development.md)。iOS 真机产物仍需自行签名；下文安装步骤不代表已经完成面向所有用户的正式分发。
+可从 [v0.2.7 Release](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.7) 获取开发预览产物，也可以[从源码构建](development.md)。iOS 真机产物仍需自行签名；下文安装步骤不代表已经完成面向所有用户的正式分发。
 
 ## 准备电脑
 
@@ -37,7 +37,7 @@ Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.
   /Applications/DoubaoRemote.app/Contents/Resources/DoubaoRemoteInput.app
   ```
 
-- 默认快捷键为 **Fn / 地球仪**。切换到豆包输入法，或在豆包中启用全局语音；把豆包的长按快捷键与程序设置保持一致。
+- 豆包远程固定使用 **Fn / 地球仪**。在豆包中将长按快捷键设为 Fn，并切换到豆包输入法，或在豆包中启用全局语音。
 
 现有 Mac 产物使用开发签名，尚未完成 Developer ID 公证。正式发行条件与具体实测范围见 [macOS 验证记录](macos-validation.md)。
 

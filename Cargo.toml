@@ -1,10 +1,13 @@
 [package]
 name = "doubao-remote"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2024"
 rust-version = "1.94"
 license = "MIT"
 description = "Doubao Input Method Remote Control"
+
+[features]
+windows-umdf-trial = []
 
 [dependencies]
 anyhow = "1"

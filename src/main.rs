@@ -40,13 +40,16 @@ enum Command {
     #[cfg(target_os = "windows")]
     #[command(hide = true)]
     InstallDefaults,
+    #[cfg(target_os = "windows")]
+    #[command(hide = true)]
+    CheckTrialKeyboard,
 }
 #[derive(Subcommand)]
 enum Probe {
     Devices,
     Key {
-        #[arg(long, default_value = "left_alt")]
-        key: String,
+        #[arg(long)]
+        key: Option<String>,
         #[arg(long, default_value_t = 3)]
         seconds: u64,
     },
@@ -66,13 +69,16 @@ fn main() -> Result<()> {
         return agent::run(args.mock);
     }
     #[cfg(target_os = "windows")]
+    if matches!(args.command, Some(Command::CheckTrialKeyboard)) {
+        ensure!(platform::trial_keyboard_available(), "无法访问试用版 UMDF 虚拟键盘");
+        return Ok(());
+    }
+    #[cfg(target_os = "windows")]
     if matches!(args.command, Some(Command::InstallDefaults)) {
         ensure!(!args.mock, "安装配置不支持模拟模式");
         let dir = config::data_dir(args.data_dir)?;
         let mut settings = config::Settings::load(&dir)?;
-        if !settings.shortcut_manual {
-            settings.shortcut = platform::automatic_shortcut();
-        }
+        settings.resolve_shortcut();
         let previous = settings.autostart;
         if !dir.join("settings.json").exists() { settings.autostart = true; }
         platform::set_autostart(settings.autostart)?;
@@ -106,8 +112,8 @@ fn main() -> Result<()> {
             let dir = config::data_dir(args.data_dir)?;
             // Per-user single instance: keep this TCP listener for the process lifetime.
             let mut settings = config::Settings::load(&dir)?;
-            if cfg!(any(target_os = "windows", target_os = "macos")) && !args.mock && !settings.shortcut_manual {
-                settings.shortcut = platform::automatic_shortcut();
+            if cfg!(any(target_os = "windows", target_os = "macos")) && !args.mock {
+                settings.resolve_shortcut();
             }
             #[cfg(target_os = "macos")]
             if !args.mock && !dir.join("settings.json").exists() {
@@ -207,10 +213,16 @@ async fn probe_run(probe: Probe, mock: bool) -> Result<()> {
                 (1..=10).contains(&seconds),
                 "probe duration must be 1..10 seconds"
             );
+            let key = key
+                .as_deref()
+                .map(parse_key)
+                .transpose()?
+                .unwrap_or(platform::locked_shortcut().unwrap_or(platform::Shortcut::LeftAlt));
+            ensure!(mock || platform::supported(key), "此快捷键不受当前平台支持");
             let mut a = agent::Agent::spawn(mock).await?;
-            eprintln!("3 秒后模拟按住 {key}；请将光标放到测试输入框。此操作可能触发豆包听写。");
+            eprintln!("3 秒后模拟按住 {key:?}；请将光标放到测试输入框。此操作可能触发豆包听写。");
             tokio::time::sleep(Duration::from_secs(3)).await;
-            a.press(parse_key(&key)?).await?;
+            a.press(key).await?;
             let end = tokio::time::Instant::now() + Duration::from_secs(seconds);
             while tokio::time::Instant::now() < end {
                 a.renew().await?;

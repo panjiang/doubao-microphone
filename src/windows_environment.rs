@@ -181,6 +181,11 @@ fn microphone(config: &Result<Value>, inputs: &Result<Vec<Capture>>) -> Result<O
 }
 
 fn trigger(shortcut: Shortcut, config: &Result<Value>) -> Result<Outcome> {
+    if crate::platform::windows_umdf_trial() && !crate::windows_umdf::available() {
+        return Ok(Outcome::fail(
+            "当前账户无法访问 UMDF 虚拟键盘。请按安装提示重启，仍失败时重新运行试用安装包。",
+        ));
+    }
     let config = borrowed(config)?;
     if shortcut == Shortcut::DoubaoVoice {
         return match config
@@ -221,7 +226,10 @@ fn trigger(shortcut: Shortcut, config: &Result<Value>) -> Result<Outcome> {
             "无法识别当前长按快捷键编码，请在豆包中确认长按快捷键设为右 Alt 后重新检测。",
         ));
     }
-    if shortcut == Shortcut::HidRightAlt && !crate::windows_umdf::available() {
+    if shortcut == Shortcut::HidRightAlt
+        && !crate::platform::windows_umdf_trial()
+        && !crate::windows_umdf::available()
+    {
         return Ok(Outcome::fail(
             "豆包右 Alt 配置一致，但程序无法访问 UMDF 组件，请检查组件安装及访问权限。",
         ));

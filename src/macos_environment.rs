@@ -3,7 +3,6 @@ use crate::{
     audio,
     config::Settings,
     environment::{Check, CheckState, Report},
-    platform::Shortcut,
 };
 use anyhow::{Context, Result, ensure};
 use cpal::traits::{DeviceTrait, HostTrait};
@@ -62,7 +61,7 @@ pub(crate) fn inspect(settings: &Settings, input_accessibility: Option<bool>) ->
             item(
                 "doubao_trigger",
                 "长按快捷键配置",
-                trigger(settings.shortcut, &config),
+                trigger(&config),
             ),
             item(
                 "doubao_voice_switch",
@@ -154,7 +153,7 @@ fn microphone(saved: &Result<Value>) -> Result<(CheckState, String)> {
         ),
     }
 }
-fn trigger(shortcut: Shortcut, saved: &Result<Value>) -> Result<(CheckState, String)> {
+fn trigger(saved: &Result<Value>) -> Result<(CheckState, String)> {
     let saved = config(saved)?;
     let code = saved
         .get("asrLongPressShortcutKeyCode")
@@ -164,13 +163,6 @@ fn trigger(shortcut: Shortcut, saved: &Result<Value>) -> Result<(CheckState, Str
         .get("asrLongPressShortcutModifierFlags")
         .and_then(Value::as_u64)
         .context("缺少可识别的长按修饰键配置，请手动核对豆包设置")?;
-    // Only the Fn encoding has been confirmed on the actual Mac; do not guess others.
-    if shortcut != Shortcut::Fn {
-        return result(
-            CheckState::Unknown,
-            "当前使用诊断快捷键，请手动确认豆包长按键与此键一致；本次检测不发送按键。",
-        );
-    }
     if code == 63 && flags == 0 {
         result(
             CheckState::Pass,
@@ -179,7 +171,7 @@ fn trigger(shortcut: Shortcut, saved: &Result<Value>) -> Result<(CheckState, Str
     } else {
         result(
             CheckState::Fail,
-            "豆包长按快捷键与程序的 Fn 不一致，请在豆包中选择 Fn 或在高级诊断中匹配设置。",
+            "豆包长按快捷键与程序固定使用的 Fn 不一致，请在豆包中将长按键设为 Fn / 地球仪。",
         )
     }
 }

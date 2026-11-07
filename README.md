@@ -6,7 +6,7 @@
 
 ## 下载与安装
 
-从发布页下载对应平台的文件。电脑需要安装并启用豆包输入法。[下载 v0.2.6](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.6)
+从发布页下载对应平台的文件。电脑需要安装并启用豆包输入法。[下载 v0.2.7](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.7)
 
 | 平台 | 安装方式 |
 | --- | --- |

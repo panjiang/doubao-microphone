@@ -52,11 +52,8 @@ impl Default for Settings {
                 "CABLE Input"
             }
             .into(),
-            shortcut: if cfg!(target_os = "macos") {
-                crate::platform::Shortcut::Fn
-            } else {
-                crate::platform::Shortcut::DoubaoVoice
-            },
+            shortcut: crate::platform::locked_shortcut()
+                .unwrap_or(crate::platform::Shortcut::DoubaoVoice),
             warmup_ms: 350,
             shortcut_manual: false,
             enter_delay_ms: default_enter_delay(),
@@ -68,6 +65,15 @@ impl Default for Settings {
 }
 
 impl Settings {
+    pub fn resolve_shortcut(&mut self) {
+        if let Some(locked) = crate::platform::locked_shortcut() {
+            self.shortcut = locked;
+            self.shortcut_manual = false;
+        } else if !self.shortcut_manual {
+            self.shortcut = crate::platform::automatic_shortcut();
+        }
+    }
+
     pub fn validate(&self) -> Result<()> {
         ensure!(
             (100..=450).contains(&self.warmup_ms),

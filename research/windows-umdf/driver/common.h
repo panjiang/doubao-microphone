@@ -38,7 +38,11 @@ Environment:
 
 #define MAXIMUM_STRING_LENGTH           (126 * sizeof(WCHAR))
 #define VHIDMINI_MANUFACTURER_STRING    L"DoubaoPTT Research"  
-#define VHIDMINI_PRODUCT_STRING         L"DoubaoPTT UMDF P0 Keyboard"  
+#ifdef DOUBAO_UMDF_TRIAL
+#define VHIDMINI_PRODUCT_STRING         L"DoubaoRemote UMDF Trial Keyboard"
+#else
+#define VHIDMINI_PRODUCT_STRING         L"DoubaoPTT UMDF P0 Keyboard"
+#endif
 #define VHIDMINI_SERIAL_NUMBER_STRING   L"DoubaoPTT-UMDF-P0"  
 #define VHIDMINI_DEVICE_STRING          L"UMDF Virtual hidmini device"  
 #define VHIDMINI_DEVICE_STRING_INDEX    5

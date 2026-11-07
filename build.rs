@@ -9,7 +9,11 @@ fn main() {
     println!("cargo:rerun-if-changed=src/umdf_native.c");
     println!("cargo:rerun-if-changed=src/windows_network.c");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
-        cc::Build::new()
+        let mut native = cc::Build::new();
+        if std::env::var_os("CARGO_FEATURE_WINDOWS_UMDF_TRIAL").is_some() {
+            native.define("DOUBAO_UMDF_TRIAL", None);
+        }
+        native
             .file("src/umdf_native.c")
             .file("src/windows_network.c")
             .compile("ptt_umdf");

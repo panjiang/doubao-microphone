@@ -5,6 +5,7 @@ let token=new URLSearchParams(location.hash.slice(1)).get('token')||sessionStora
 history.replaceState(null,'',location.pathname);if(token)sessionStorage.setItem('ptt-admin-token',token);
 let config:Record<string,any>,paused=false,active=false,busy=false;
 let automaticShortcut:string|undefined;
+let shortcutLocked=false;
 let currentPlatform='';
 let qrTicket:string|undefined,qrGeneration=0;
 function clearPairCode(){qrTicket=undefined;el('qr').replaceChildren();el('setup-link').hidden=true;el('phone-link').hidden=true;}
@@ -15,11 +16,11 @@ const names:Record<string,string>={doubao_voice:'豆包兼容模式（Windows 1.
 function options(id:string,items:{value:string;label:string}[],value:string){const s=el<HTMLSelectElement>(id);s.replaceChildren(...items.map(i=>{const o=document.createElement('option');o.value=i.value;o.textContent=i.label;return o}));s.value=value;}
 function syncShortcut(){
   if(!automaticShortcut)return;
-  const manual=el<HTMLInputElement>('shortcut_manual').checked,select=el<HTMLSelectElement>('shortcut');
+  const manual=!shortcutLocked&&el<HTMLInputElement>('shortcut_manual').checked,select=el<HTMLSelectElement>('shortcut');
   if(!manual)select.value=automaticShortcut;
   select.disabled=active||!manual;
   const label=select.value==='hid_right_alt'?'右 Alt（UMDF）':names[select.value]||select.value;
-  el<HTMLInputElement>('trigger-summary').value=(manual?'手动：':'自动：')+label;
+  el<HTMLInputElement>('trigger-summary').value=shortcutLocked?'固定：'+label:(manual?'手动：':'自动：')+label;
   el('trigger-help').textContent=manual?'手动方式仅用于诊断，请与豆包的长按快捷键保持一致。修改后需保存设置。':currentPlatform==='macos'?'默认使用 Fn / 地球仪，需允许主应用及输入代理的辅助功能权限。检测不会发送按键。':automaticShortcut==='hid_right_alt'?'已检测到可访问的 UMDF 组件，使用右 Alt。检测不会发送按键。':'未检测到可访问的 UMDF 组件，使用豆包兼容模式；需要开启豆包悬浮工具栏，当前仅适配默认位置安装的 Windows 1.0.0.23。';
   el('codex-compat-row').hidden=select.value!=='doubao_voice';
   el('codex-compat-help').hidden=select.value!=='doubao_voice';
@@ -44,7 +45,8 @@ async function load(){
   const shortcutNames=setup.platform.platform==='macos'?{...names,left_alt:'左 Option',right_alt:'右 Option'}:names;
   const shortcuts=setup.platform.shortcuts.length?setup.platform.shortcuts:Object.keys(shortcutNames);options('shortcut',shortcuts.map((k:string)=>({value:k,label:shortcutNames[k]||k})),s.shortcut);
   automaticShortcut=setup.platform.automatic_shortcut??undefined;
-  el('trigger-summary-row').hidden=!automaticShortcut;el('trigger-diagnostics').hidden=!automaticShortcut;
+  shortcutLocked=setup.platform.shortcut_locked===true;
+  el('trigger-summary-row').hidden=!automaticShortcut;el('trigger-diagnostics').hidden=!automaticShortcut||shortcutLocked;
   if(automaticShortcut){el('shortcut-advanced-host').append(el('shortcut-row'));el<HTMLInputElement>('shortcut_manual').checked=!!s.shortcut_manual;syncShortcut();}
   const ips=setup.interfaces.map((i:any)=>({value:i.ip,label:`${i.name}${i.ethernet?'（以太网优先）':''} · ${i.ip}`}));if(!ips.some((i:any)=>i.value===s.lan_ip))ips.unshift({value:s.lan_ip,label:s.lan_ip});options('lan_ip',ips,s.lan_ip);
   el('platform').textContent=`系统：${setup.platform.platform}。${setup.platform.native_supported?'原生端可用，仍需豆包实测。':'当前仅可进行模拟测试。'}`;

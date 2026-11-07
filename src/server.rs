@@ -204,8 +204,12 @@ async fn write_config(
     Json(mut s): Json<Settings>,
 ) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
-    if cfg!(any(target_os = "windows", target_os = "macos")) && !a.mock && !s.shortcut_manual {
-        s.shortcut = tokio::task::spawn_blocking(crate::platform::automatic_shortcut).await?;
+    if cfg!(any(target_os = "windows", target_os = "macos")) && !a.mock
+        && (!s.shortcut_manual || crate::platform::locked_shortcut().is_some()) {
+        s = tokio::task::spawn_blocking(move || {
+            s.resolve_shortcut();
+            s
+        }).await?;
     }
     s.validate()?;
     check(

@@ -9,6 +9,11 @@
 #include <stdint.h>
 #include <wchar.h>
 
+#ifdef DOUBAO_UMDF_TRIAL
+#define CONTROL_PRODUCT L"DoubaoRemote UMDF Trial Keyboard"
+#else
+#define CONTROL_PRODUCT L"DoubaoPTT UMDF P0 Keyboard"
+#endif
 
 static HANDLE OpenControl(void) {
     GUID guid;
@@ -37,7 +42,7 @@ static HANDLE OpenControl(void) {
         handle = CreateFileW(detail->DevicePath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
         if (handle != INVALID_HANDLE_VALUE) {
             if (HidD_GetProductString(handle, product, sizeof(product)) &&
-                wcscmp(product, L"DoubaoPTT UMDF P0 Keyboard") == 0 && HidD_GetPreparsedData(handle, &preparsed)) {
+                wcscmp(product, CONTROL_PRODUCT) == 0 && HidD_GetPreparsedData(handle, &preparsed)) {
                 if (HidP_GetCaps(preparsed, &caps) == HIDP_STATUS_SUCCESS && caps.UsagePage == 0xff00 && caps.Usage == 1) {
                     result = CreateFileW(detail->DevicePath, GENERIC_READ | GENERIC_WRITE,
                         FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);

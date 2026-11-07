@@ -184,6 +184,10 @@ ReadDescriptorFromRegistry(
 // These are the device attributes returned by the mini driver in response
 // to IOCTL_HID_GET_DEVICE_ATTRIBUTES.
 //
+#ifdef DOUBAO_UMDF_TRIAL
+#define HIDMINI_PID             0xFEEE
+#else
 #define HIDMINI_PID             0xFEED
+#endif
 #define HIDMINI_VID             0xDEED
 #define HIDMINI_VERSION         0x0101

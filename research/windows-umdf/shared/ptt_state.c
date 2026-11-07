@@ -40,7 +40,11 @@ PTT_RESULT PttApply(PTT_STATE *state, const PTT_COMMAND *command,
     if (command->version != PTT_PROTOCOL_VERSION || command->reserved != 0)
         return PttInvalid;
     if (command->operation == PTT_OP_BEGIN) {
+#ifdef DOUBAO_UMDF_TRIAL
+        if (command->key != PTT_KEY_RIGHT_ALT)
+#else
         if (command->key != PTT_KEY_RIGHT_ALT && command->key != PTT_KEY_RIGHT_CTRL)
+#endif
             return PttInvalid;
     } else if (command->operation == PTT_OP_RENEW || command->operation == PTT_OP_RELEASE) {
         if (command->key != PTT_KEY_NONE) return PttInvalid;

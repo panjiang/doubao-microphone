@@ -6,7 +6,7 @@
 <key>CFBundleIdentifier</key><string>local.doubao-ptt.input</string>
 <key>CFBundleExecutable</key><string>doubao-remote</string>
 <key>CFBundleIconFile</key><string>DoubaoRemote</string>
-<key>CFBundleVersion</key><string>0.2.6</string>
+<key>CFBundleVersion</key><string>0.2.7</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>LSUIElement</key><true/>
 <key>LSMinimumSystemVersion</key><string>14.2</string>

@@ -1,4 +1,6 @@
-use anyhow::{Result, bail, ensure};
+#[cfg(not(target_os = "macos"))]
+use anyhow::bail;
+use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -17,18 +19,14 @@ pub enum Shortcut {
 }
 
 pub fn supported(key: Shortcut) -> bool {
-    if cfg!(target_os = "windows") {
-        !matches!(
+    if let Some(locked) = locked_shortcut() {
+        return key == locked;
+    }
+    cfg!(target_os = "windows")
+        && !matches!(
             key,
             Shortcut::Fn | Shortcut::LeftCommand | Shortcut::RightCommand
         )
-    } else {
-        cfg!(target_os = "macos")
-            && !matches!(
-                key,
-                Shortcut::DoubaoVoice | Shortcut::HidRightAlt | Shortcut::HidRightControl
-            )
-    }
 }
 
 #[derive(Serialize)]
@@ -38,14 +36,34 @@ pub struct SetupStatus {
     pub accessibility: bool,
     pub shortcuts: Vec<Shortcut>,
     pub automatic_shortcut: Option<Shortcut>,
+    pub shortcut_locked: bool,
     pub release_enter: bool,
 }
+pub const fn windows_umdf_trial() -> bool {
+    cfg!(all(target_os = "windows", feature = "windows-umdf-trial"))
+}
+pub const fn locked_shortcut() -> Option<Shortcut> {
+    if cfg!(target_os = "macos") {
+        Some(Shortcut::Fn)
+    } else if windows_umdf_trial() {
+        Some(Shortcut::HidRightAlt)
+    } else {
+        None
+    }
+}
+#[cfg(target_os = "windows")]
+pub fn trial_keyboard_available() -> bool {
+    windows_umdf_trial() && crate::windows_umdf::available()
+}
 pub fn automatic_shortcut() -> Shortcut {
+    if let Some(locked) = locked_shortcut() {
+        return locked;
+    }
     #[cfg(target_os = "windows")]
     if crate::windows_umdf::available() {
         return Shortcut::HidRightAlt;
     }
-    if cfg!(target_os = "macos") { Shortcut::Fn } else { Shortcut::DoubaoVoice }
+    Shortcut::DoubaoVoice
 }
 pub fn setup_status() -> SetupStatus {
     SetupStatus {
@@ -54,6 +72,7 @@ pub fn setup_status() -> SetupStatus {
         accessibility: accessibility(),
         release_enter: crate::enter::supported(),
         automatic_shortcut: if cfg!(any(target_os = "windows", target_os = "macos")) { Some(automatic_shortcut()) } else { None },
+        shortcut_locked: locked_shortcut().is_some(),
         shortcuts: [
             Shortcut::DoubaoVoice,
             Shortcut::HidRightAlt,
@@ -274,30 +293,21 @@ unsafe extern "C" {
 }
 #[cfg(target_os = "macos")]
 fn native_key(key: Shortcut, down: bool) -> Result<()> {
-    let (code, mask) = match key {
-        Shortcut::DoubaoVoice | Shortcut::HidRightAlt | Shortcut::HidRightControl => {
-            bail!("此输入方式仅支持 Windows")
-        }
-        Shortcut::Fn => (63, 1 << 23),
-        Shortcut::LeftAlt => (58, 1 << 19),
-        Shortcut::RightAlt => (61, 1 << 19),
-        Shortcut::LeftControl => (59, 1 << 18),
-        Shortcut::RightControl => (62, 1 << 18),
-        Shortcut::LeftCommand => (55, 1 << 20),
-        Shortcut::RightCommand => (54, 1 << 20),
-    };
+    ensure!(key == Shortcut::Fn, "macOS 语音触发固定使用 Fn / 地球仪键");
+    const FN_KEY_CODE: u16 = 63;
+    const FN_FLAG: u64 = 1 << 23;
     unsafe {
         let flags = CGEventSourceFlagsState(0);
         if down {
             ensure!(
-                flags & ((1 << 17) | (1 << 18) | (1 << 19) | (1 << 20) | (1 << 23)) == 0,
+                flags & ((1 << 17) | (1 << 18) | (1 << 19) | (1 << 20) | FN_FLAG) == 0,
                 "请先松开电脑上的修饰键"
             );
         }
-        let e = CGEventCreateKeyboardEvent(std::ptr::null(), code, down);
+        let e = CGEventCreateKeyboardEvent(std::ptr::null(), FN_KEY_CODE, down);
         ensure!(!e.is_null(), "无法创建系统按键事件");
         CGEventSetType(e, 12);
-        CGEventSetFlags(e, if down { flags | mask } else { flags & !mask });
+        CGEventSetFlags(e, if down { flags | FN_FLAG } else { flags & !FN_FLAG });
         CGEventPost(0, e);
         CFRelease(e);
     }

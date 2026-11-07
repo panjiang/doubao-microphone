@@ -10,7 +10,7 @@
 | 听写 | 同一 Session/Controller 状态机、缓冲上限、超时、尾帧与排空 | UMDF 右 Alt 或兼容模式 | CoreGraphics Fn |
 | 延迟 Enter | 同一等待、取消、会话编号、重复消息和结果事件逻辑 | SendInput 与前台窗口/控件检查 | CoreGraphics Return 与前台应用/窗口/控件检查 |
 | 音频 | CPAL、Rubato、有界队列及采样率转换 | VB-CABLE | BlackHole 2ch |
-| 配置页 | 同一 TypeScript 页面、环境列表、二维码、回车等待及高级诊断 | 自动右 Alt，只显示 CABLE Input | 自动 Fn，只显示 BlackHole 2ch |
+| 配置页 | 同一 TypeScript 页面、环境列表、二维码和回车等待 | 按安装版本选择触发方式，只显示 CABLE Input | 固定 Fn，只显示 BlackHole 2ch |
 | 环境检测 | 同一管理鉴权、Report 状态、loading、超时及重试 | Windows 设备/安装记录/JSON 设置 | CoreAudio、进程路径、只读设置归档、辅助功能与当前输入法 |
 | 登录启动 | 同一配置开关；新安装默认开启 | 当前用户 Run 项 | 当前用户 LaunchAgent |
 | 图标 | 同一原创圆形蓝底白色麦克风 | ICO、托盘 DPI 图像 | ICNS、菜单栏麦克风 |

@@ -59,7 +59,8 @@ fn windows() -> Result<Vec<Window>> {
 }
 fn trusted_process(pid: u32) -> Result<()> {
     unsafe {
-        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)?;
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+            .context("无法打开豆包输入法进程")?;
         let mut buffer = [0u16; 1024];
         let mut size = buffer.len() as u32;
         let result = QueryFullProcessImageNameW(
@@ -69,7 +70,7 @@ fn trusted_process(pid: u32) -> Result<()> {
             &mut size,
         );
         let _ = CloseHandle(process);
-        result?;
+        result.context("无法读取豆包输入法进程路径")?;
         let path = String::from_utf16_lossy(&buffer[..size as usize]).to_lowercase();
         let expected = format!(
             "{}\\doubaoime\\versions\\v1.0.0.23\\imeservice.exe",
@@ -115,7 +116,8 @@ fn microphone_click(bar: &Window) -> Result<()> {
             let _ = ShowWindow(bar.hwnd, SW_SHOWNOACTIVATE);
         }
         for (message, key) in [(WM_MOUSEMOVE, 0), (WM_LBUTTONDOWN, 1), (WM_LBUTTONUP, 0)] {
-            PostMessageW(Some(bar.hwnd), message, WPARAM(key), point)?;
+            PostMessageW(Some(bar.hwnd), message, WPARAM(key), point)
+                .context("无法向豆包悬浮工具栏发送点击消息")?;
         }
     }
     Ok(())
@@ -151,7 +153,7 @@ fn capture_state(pid: u32) -> Result<(bool, u32)> {
         if initialized.is_ok() {
             CoUninitialize();
         }
-        result
+        result.context("无法查询豆包录音会话")
     }
 }
 fn recording(pid: u32) -> Result<bool> {
@@ -166,7 +168,8 @@ pub(crate) fn start_configured(owner: &str, codex_empty_compatibility: bool) -> 
     let snapshot = windows()?;
     let bar = bar_for(&snapshot, None)?;
     ensure!(!recording(bar.pid)?, "豆包已经在录音，请先结束当前语音输入");
-    let primed = codex_empty_compatibility && crate::codex_input::prime_if_empty()?;
+    let primed = codex_empty_compatibility
+        && crate::codex_input::prime_if_empty().context("Codex 空框兼容处理失败")?;
     let panels: Vec<_> = snapshot
         .iter()
         .filter(|w| w.pid == bar.pid && w.class == WAVE)
@@ -186,12 +189,14 @@ pub(crate) fn start_configured(owner: &str, codex_empty_compatibility: bool) -> 
             bar.hwnd,
             PCWSTR(property.as_ptr()),
             Some(HANDLE(shown as *mut _)),
-        )?;
+        )
+        .context("无法标记豆包悬浮工具栏的语音会话")?;
         SetPropW(
             panel.hwnd,
             PCWSTR(property.as_ptr()),
             Some(HANDLE(1usize as *mut _)),
-        )?;
+        )
+        .context("无法标记豆包语音面板的语音会话")?;
     }
     microphone_click(&bar)?;
     let deadline = Instant::now() + Duration::from_millis(300);
