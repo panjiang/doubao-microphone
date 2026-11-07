@@ -4,11 +4,11 @@
 
 首版提供开发测试签名 APK，未上架应用商店。编译、签名检查不代表已经通过安卓真机语音链路验收。
 
-公开安装包见 [v0.2.6 Release](https://github.com/panjiang/doubao-microphone/releases/tag/v0.2.6)。Actions 保存未签名 APK 和内部构建记录，维护者在本机用稳定密钥签名后，只向 Release 上传可安装的 debug.apk；签名私钥不上传构建机。文件名中的 Android 版本独立于桌面版本。
+公开安装包见 [GitHub Releases](https://github.com/panjiang/doubao-microphone/releases)。Actions 保存未签名 APK 和内部构建记录，维护者在本机用稳定密钥签名后，只向 Release 上传可安装的签名 APK；签名私钥不上传构建机。文件名中的 Android 版本独立于桌面版本。
 
 ## 安装与使用
 
-1. 将 `DoubaoMicrophone-Android-0.1.0-build1-debug.apk` 传到手机，按 Android 提示允许本次安装来源，再安装。
+1. 将 `DoubaoMicrophone-0.1.0-android.apk` 传到手机，按 Android 提示允许本次安装来源，再安装。
 2. 手机与电脑连接可互相访问的局域网；桌面端配置见[首次配置](../docs/getting-started.md)。
 3. 在电脑生成现有的统一配对二维码，在 App 点击「扫码」。也可在扫码页面粘贴该二维码中的完整链接。
 4. 扫码只建立本台电脑的专用 TLS 信任，不安装系统根证书，不访问二维码中的明文 HTTP 地址。配对成功后显示「已配对」。
@@ -47,7 +47,7 @@ macOS/Linux 安装相应 SDK，设置 `JAVA_HOME` 与 `ANDROID_HOME` 后：
 bash android/build.sh --offline
 ```
 
-产物位于 `dist/android/DoubaoMicrophone-Android-0.1.0-build1-debug.apk`。`assembleDebug` 和 Lint 不启动 App、录音或按键；本项目没有自动安装步骤。
+产物位于 `dist/android/DoubaoMicrophone-0.1.0-android.apk`。`assembleDebug` 和 Lint 不启动 App、录音或按键；本项目没有自动安装步骤。
 
 Debug 签名仅用于测试。后续更新需使用相同 application ID `local.doubao.microphone` 和签名密钥才能覆盖安装并保留配对；正式分发应自行配置稳定的发行密钥，密钥不得提交到 Git。本次不修改现有桌面或 iOS 安装包，也不自动公开 GitHub Release。
 

@@ -7,4 +7,4 @@ version=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle)
 [[ -n "$version" ]] || { printf '%s\n' 'Cannot read Android versionName' >&2; exit 1; }
 build=$(sed -n "s/.*versionCode \([0-9]*\).*/\1/p" app/build.gradle)
 [[ -n "$build" ]] || { printf '%s\n' 'Cannot read Android versionCode' >&2; exit 1; }
-cp app/build/outputs/apk/debug/app-debug.apk "../dist/android/DoubaoMicrophone-Android-${version}-build${build}-debug.apk"
+cp app/build/outputs/apk/debug/app-debug.apk "../dist/android/DoubaoMicrophone-${version}-android.apk"

@@ -47,12 +47,14 @@ git push origin v0.1.0
 
 每次发版仅编译和提供以下四类下载文件，版本号由源码读取：
 
+文件名统一使用 `DoubaoMicrophone-<版本>-<平台>[-<架构>]`，平台使用小写，Windows 和 macOS 标明架构。构建号、构建类型和签名状态保存在应用元数据及发布说明。安装后的应用显示名统一为「豆包麦克风」，版本由系统版本字段单独展示。
+
 | 附件 | 说明 |
 | --- | --- |
-| `DoubaoMicrophone-<版本>-macos-aarch64-test.dmg` | Apple Silicon 测试包，ad-hoc 签名、未公证 |
-| `DoubaoMicrophone-Android-<版本>-build<构建号>-debug.apk` | 本机使用原测试证书签名后的 Android APK |
-| `DoubaoMicrophone-iOS-<版本>-build<构建号>-device-unsigned.zip` | 未签名 iPhone 真机产物，需自行开发签名 |
-| `DoubaoMicrophone-Setup-<版本>-x64-umdf-trial.exe` | Windows 简化安装器，包含 VB-CABLE 和 100 年自签名 UMDF 虚拟键盘，一页确认、一次管理员授权，固定右 Alt |
+| `DoubaoMicrophone-<版本>-macos-arm64.dmg` | Apple Silicon 测试包，ad-hoc 签名、未公证 |
+| `DoubaoMicrophone-<版本>-android.apk` | 本机使用原测试证书签名后的 Android APK |
+| `DoubaoMicrophone-<版本>-ios.zip` | 未签名 iPhone 真机产物，需自行开发签名 |
+| `DoubaoMicrophone-<版本>-windows-x64.exe` | Windows 简化安装器，包含 VB-CABLE 和 100 年自签名 UMDF 虚拟键盘，一页确认、一次管理员授权，固定右 Alt |
 
 Release 不上传 JSON、TXT 校验清单、Intel Mac 包、iOS 模拟器包或未签名 Android APK。Intel 和模拟器仍可按开发说明在本地手动构建，不参加每次版本发布。
 
@@ -68,7 +70,7 @@ Windows、Mac Apple Silicon、iPhone 真机和 Android 构建成功后，汇总�
 
 ## 本机签名并准备发布附件
 
-Windows 默认构建统一使用 UMDF 简化安装包，运行 `scripts/build-windows.ps1 -Offline -SkipTests`。驱动发生变化时，按 [Windows 试用包构建说明](windows-installer.md#umdf-受控试用包)在本机重新签名并同步 `packaging/umdf-trial`。Actions 候选目录已包含 `DoubaoMicrophone-Setup-<版本>-x64-umdf-trial.exe`。
+Windows 默认构建统一使用 UMDF 简化安装包，运行 `scripts/build-windows.ps1 -Offline -SkipTests`。驱动发生变化时，按 [Windows 试用包构建说明](windows-installer.md#umdf-受控试用包)在本机重新签名并同步 `packaging/umdf-trial`。Actions 候选目录已包含 `DoubaoMicrophone-<版本>-windows-x64.exe`。
 
 从同一次构建下载完整内部候选包，避免从只有三个附件的 Release 草稿取签名输入：
 
@@ -96,4 +98,4 @@ python3 scripts/ci-release.py public-assets dist/candidate-v0.1.0 \
   --output dist/public-v0.1.0
 ```
 
-检查空目录生成的四个附件后，上传该目录到对应草稿。确认 Windows 文件名以 `-x64-umdf-trial.exe` 结尾、四个文件的哈希正确，发布说明包含「一页确认、一次管理员授权、100 年自签名证书、固定右 Alt」及实际签名状态后再公开。构建和哈希校验不能替代实机验收。
+检查空目录生成的四个附件后，上传该目录到对应草稿。确认 Windows 文件名为 `DoubaoMicrophone-<版本>-windows-x64.exe`、四个文件的哈希正确，发布说明包含「一页确认、一次管理员授权、100 年自签名证书、固定右 Alt」及实际签名状态后再公开。构建和哈希校验不能替代实机验收。

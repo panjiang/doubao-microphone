@@ -13,7 +13,7 @@ Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.
 ### Windows
 
 - 系统要求：Windows 11 x64。
-- 下载 `DoubaoMicrophone-Setup-0.1.0-x64-umdf-trial.exe`，在同一页确认许可和试用证书信任，点击「安装」，完成一次管理员授权。安装器准备 UMDF 虚拟键盘，并在缺少音频设备时一并安装官方 VB-CABLE；结束后按提示重启。
+- 下载 `DoubaoMicrophone-0.1.0-windows-x64.exe`，在同一页确认许可和试用证书信任，点击「安装」，完成一次管理员授权。安装器准备 UMDF 虚拟键盘，并在缺少音频设备时一并安装官方 VB-CABLE；结束后按提示重启。
 - 在豆包中把录音设备明确设为 **CABLE Output**；本程序输出选择 **CABLE Input**。
 - 默认从桌面快捷方式启动，也可在托盘菜单中打开配置页。
 

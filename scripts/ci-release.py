@@ -81,20 +81,21 @@ def package(kind):
     ASSETS.mkdir(parents=True, exist_ok=True)
     version = values["version"]
     if kind == "windows-x64":
-        installer = ROOT / "dist" / f"DoubaoMicrophone-Setup-{version}-x64-umdf-trial.exe"
+        installer = ROOT / "dist" / f"DoubaoMicrophone-{version}-windows-x64.exe"
         shutil.copy2(installer, ASSETS / installer.name)
     elif kind.startswith("macos-"):
         arch = kind.removeprefix("macos-")
-        dmg = ROOT / "dist" / f"DoubaoMicrophone-{version}-macos-{arch}-test.dmg"
+        package_arch = arch.replace("aarch64", "arm64")
+        dmg = ROOT / "dist" / f"DoubaoMicrophone-{version}-macos-{package_arch}.dmg"
         shutil.copy2(dmg, ASSETS / dmg.name)
     elif kind == "ios":
-        prefix = f"DoubaoMicrophone-iOS-{values['ios_version']}-build{values['ios_build']}"
+        prefix = f"DoubaoMicrophone-{values['ios_version']}-ios"
         app = ROOT / "ios/build/device/Build/Products/Release-iphoneos/DoubaoMicrophone.app"
         subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",
-                        str(app), str(ASSETS / f"{prefix}-device-unsigned.zip")], check=True)
+                        str(app), str(ASSETS / f"{prefix}.zip")], check=True)
     elif kind == "android":
         apk = ROOT / "android/app/build/outputs/apk/debug/app-debug-unsigned.apk"
-        shutil.copy2(apk, ASSETS / f"DoubaoMicrophone-Android-{values['android_version']}-build{values['android_build']}-unsigned.apk")
+        shutil.copy2(apk, ASSETS / f"DoubaoMicrophone-{values['android_version']}-android-unsigned.apk")
     else:
         raise ValueError(f"Unsupported package kind: {kind}")
     values.update(platform=kind, commit=os.environ.get("GITHUB_SHA", "local"),
@@ -129,17 +130,17 @@ def public_asset_names(values=None):
     values = values or versions()
     version = values["version"]
     return [
-        f"DoubaoMicrophone-{version}-macos-aarch64-test.dmg",
-        f"DoubaoMicrophone-Android-{values['android_version']}-build{values['android_build']}-debug.apk",
-        f"DoubaoMicrophone-iOS-{values['ios_version']}-build{values['ios_build']}-device-unsigned.zip",
-        f"DoubaoMicrophone-Setup-{version}-x64-umdf-trial.exe",
+        f"DoubaoMicrophone-{version}-macos-arm64.dmg",
+        f"DoubaoMicrophone-{values['android_version']}-android.apk",
+        f"DoubaoMicrophone-{values['ios_version']}-ios.zip",
+        f"DoubaoMicrophone-{version}-windows-x64.exe",
     ]
 
 
 def public_assets(folder, values=None, include_android=True):
     names = public_asset_names(values)
     if not include_android:
-        names = [name for name in names if not name.endswith("-debug.apk")]
+        names = [name for name in names if not name.endswith(".apk")]
     paths = [folder / name for name in names]
     missing = [path.name for path in paths if not path.is_file()]
     if missing:

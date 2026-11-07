@@ -39,7 +39,7 @@ Windows 只有一个 CABLE Input 时，配置页保存稳定的 `CABLE Input` �
 
 `packaging/vbcable.lock.json` 固定原厂归档 SHA-256，以及 x64 安装器、Windows 10/11 驱动和目录文件的哈希及签名证书身份。准备脚本核对 Authenticode 状态后产生安装用文件清单、许可页和 Inno 常量；它不执行驱动安装、不导入证书，也不改变系统设备。缺少本地输入时明确失败，不偷偷下载或切换镜像源。
 
-VB-CABLE 二进制及自动生成内容位于忽略的 `artifacts/vendor/vb-cable-45/`，不提交到 Git。完整安装包输出 `dist/DoubaoMicrophone-Setup-<版本>-x64-umdf-trial.exe`。设备安装操作仅通过完整安装向导触发。
+VB-CABLE 二进制及自动生成内容位于忽略的 `artifacts/vendor/vb-cable-45/`，不提交到 Git。完整安装包输出 `dist/DoubaoMicrophone-<版本>-windows-x64.exe`。设备安装操作仅通过完整安装向导触发。
 
 安装脚本必须使用 `ArchiveExtraction=full`：原厂包是 ZIP，Inno Setup 的 `enhanced/nopassword` 和 `enhanced` 仅支持 7z，会在首次安装驱动时报告 `Extraction failed: The archive format is unsupported`。该问题的历史修复与构建证据见 [验证记录](verification.md)。
 
@@ -57,7 +57,7 @@ Pack 45 原始 readme 的集成条款要求作者同意；当前官方网站明�
 
 ## UMDF 受控试用包
 
-`DoubaoMicrophone-Setup-<版本>-x64-umdf-trial.exe` 适用于 Windows 11 x64。先退出托盘里正在运行的豆包麦克风，再以日常使用的 Windows 账户启动安装器。在同一页确认软件许可和试用证书信任，点击「安装」，按提示完成一次管理员授权。试用包内含 VB-CABLE，以及用 100 年自签名证书签署的 UMDF 虚拟键盘驱动。缺少 VB-CABLE 时在同一次授权里安装。驱动与原研究设备使用不同硬件 ID。安装器导入的是公开证书，构建账户的签名私钥留在其个人证书库。
+`DoubaoMicrophone-<版本>-windows-x64.exe` 适用于 Windows 11 x64。先退出托盘里正在运行的豆包麦克风，再以日常使用的 Windows 账户启动安装器。在同一页确认软件许可和试用证书信任，点击「安装」，按提示完成一次管理员授权。试用包内含 VB-CABLE，以及用 100 年自签名证书签署的 UMDF 虚拟键盘驱动。缺少 VB-CABLE 时在同一次授权里安装。驱动与原研究设备使用不同硬件 ID。安装器导入的是公开证书，构建账户的签名私钥留在其个人证书库。
 
 安装后按向导提示重启。豆包输入法中打开「语音快捷键」，将长按键设为右 Alt，麦克风设为 `CABLE Output`；豆包麦克风输出用 `CABLE Input`。配置页应显示「固定：右 Alt（UMDF）」。虚拟键盘缺失或访问失败时，配置页和手机会提示组件问题。可先在普通权限的记事本确认实体右 Alt 能触发，再用手机按住、说话和松手。
 

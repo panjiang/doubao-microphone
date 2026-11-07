@@ -8,7 +8,10 @@
 [Setup]
 AppId={{88f8d6f7-3dca-4018-9bf0-d6f4ea807bea}
 AppName=豆包麦克风
+AppVerName=豆包麦克风
+UninstallDisplayName=豆包麦克风
 AppVersion={#AppVersion}
+OutputBaseFilename=DoubaoMicrophone-{#AppVersion}-windows-x64
 DefaultDirName={localappdata}\Programs\DoubaoMicrophone
 DefaultGroupName=豆包麦克风
 UsePreviousAppDir=yes
@@ -21,12 +24,10 @@ DisableProgramGroupPage=yes
 DisableReadyPage=yes
 ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os
-OutputBaseFilename=DoubaoMicrophone-Setup-{#AppVersion}-x64-umdf-trial
 #else
 DisableDirPage=auto
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=DoubaoMicrophone-Setup-{#AppVersion}-x64
 #endif
 MinVersion=10.0.22000
 OutputDir=..\dist
@@ -233,7 +234,7 @@ begin
   WizardForm.LicenseAcceptedRadio.Caption := '我同意许可、信任证书并安装';
   WizardForm.LicenseNotAcceptedRadio.Caption := '我不同意';
   WizardForm.LicenseMemo.Text :=
-    '豆包麦克风 · 右 Alt 虚拟键盘试用版' + #13#10#13#10 +
+    '豆包麦克风' + #13#10#13#10 +
     '安装需要一次 Windows 管理员授权。安装器会安装 UMDF 虚拟键盘，并将其 100 年自签名证书加入本机的受信任根和受信任发布者。缺少 VB-CABLE 时一并安装。' + #13#10#13#10 +
     '证书 SHA-1 指纹：{#UmThumbprint}' + #13#10 +
     '证书有效期至（UTC）：{#UmNotAfter}' + #13#10#13#10 +

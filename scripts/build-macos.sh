@@ -52,13 +52,10 @@ for arch in ${MACOS_ARCHS:-aarch64 x86_64}; do
   swiftc -target "${swift_arch}-apple-macos14.2" -O packaging/MacInstaller.swift -o "$installer/Contents/MacOS/DoubaoMicrophoneInstaller"
   sign_app "$installer"
   printf '%s\n' '双击“安装豆包麦克风”。缺少 BlackHole 时，安装器从官方来源下载并校验原版安装包，系统会请求管理员授权。已有虚拟麦克风会复用。首次启动默认启用登录自启动，可在配置页关闭。卸载本应用不会自动卸载共享的 BlackHole。辅助功能权限及豆包麦克风选择仍需在系统与豆包设置中完成。' > "$stage/安装说明.txt"
-  suffix=-test
-  if [[ -n "${NOTARY_PROFILE:-}" ]]; then
-    suffix=''
-  else
+  if [[ -z "${NOTARY_PROFILE:-}" ]]; then
     printf '%s\n' '这是开发测试包，未进行 Developer ID 公证，不作为正式分发版本。具体实测范围见源码 docs/macos-validation.md；仅构建成功不代表所有架构和手机链路已通过。' >> "$stage/安装说明.txt"
   fi
-  dmg="dist/DoubaoMicrophone-${version}-macos-${arch}${suffix}.dmg"
+  dmg="dist/DoubaoMicrophone-${version}-macos-${arch/aarch64/arm64}.dmg"
   hdiutil create -volname DoubaoMicrophone -srcfolder "$stage" -ov -format UDZO "$dmg"
   if [[ -n "${NOTARY_PROFILE:-}" ]]; then
     [[ "${APPLE_SIGNING_IDENTITY:-}" == "Developer ID Application:"* ]] || { printf '%s\n' 'Notarization requires Developer ID signing' >&2; exit 1; }

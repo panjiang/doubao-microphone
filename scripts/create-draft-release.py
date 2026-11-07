@@ -37,7 +37,7 @@ def main():
         f"- iOS {os.environ['IOS_VERSION']}（构建 {os.environ['IOS_BUILD']}）："
         "**未签名** iPhone 真机产物；使用需自行开发签名，不能直接安装。\n"
         f"- Android {os.environ['ANDROID_VERSION']}（构建 {os.environ['ANDROID_BUILD']}）："
-        "Android 10+ 原生客户端。未签名构建仅保存在 Actions，须维护者使用原密钥在本机签名，上传 debug.apk 后再公开；安卓真机链路尚未验收。\n\n"
+        "Android 10+ 原生客户端。未签名构建仅保存在 Actions，须维护者使用原密钥在本机签名，上传签名 APK 后再公开；安卓真机链路尚未验收。\n\n"
         f"[安装与平台限制](https://github.com/{repo}/blob/{commit}/docs/getting-started.md) · "
         f"[验证范围](https://github.com/{repo}/blob/{commit}/docs/verification.md)\n\n"
         "公开 Release 附件仅保留四个下载文件。公开前用 public-assets 整理并核对附件，补齐签名 Android APK。JSON 和校验记录保存在 Actions／本地。CI 未运行录音、按键或实机验收。\n",
