@@ -1,0 +1,81 @@
+; Derived from the Microsoft vhidmini2 sample under MS-PL.
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=HIDClass
+ClassGuid={745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Provider=%ProviderString%
+DriverVer=11/07/2026,0.1.0.0
+CatalogFile=DoubaoMicrophoneUm.cat
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1=%Disk_Description%,,,
+
+[SourceDisksFiles]
+DoubaoMicrophoneUm.dll=1
+
+; ================= Device section =====================
+
+[Manufacturer]
+%ManufacturerString%=Microsoft, NTamd64.10.0...22000
+
+[Microsoft.NTamd64.10.0...22000]
+%DeviceDesc%=DoubaoMicrophoneUm, root\DOUBAOMICROPHONE_UMDF_TRIAL
+
+[DoubaoMicrophoneUm.NT]
+CopyFiles=UMDriverCopy
+Include=MsHidUmdf.inf
+Needs=MsHidUmdf.NT
+Include=WUDFRD.inf
+Needs=WUDFRD_LowerFilter.NT
+
+[DoubaoMicrophoneUm.NT.hw]
+Include=MsHidUmdf.inf
+Needs=MsHidUmdf.NT.hw
+AddReg=DeviceSecurity
+Include=WUDFRD.inf
+Needs=WUDFRD_LowerFilter.NT.hw
+
+[DoubaoMicrophoneUm.NT.Services]
+Include=MsHidUmdf.inf
+Needs=MsHidUmdf.NT.Services
+Include=WUDFRD.inf
+Needs=WUDFRD_LowerFilter.NT.Services
+
+[DoubaoMicrophoneUm.NT.Filters]
+Include=WUDFRD.inf
+Needs=WUDFRD_LowerFilter.NT.Filters
+
+[DoubaoMicrophoneUm.NT.Wdf]
+UmdfService="DoubaoMicrophoneUm", DoubaoMicrophoneUm_Install
+UmdfServiceOrder=DoubaoMicrophoneUm
+UmdfKernelModeClientPolicy=AllowKernelModeClients
+UmdfFileObjectPolicy=AllowNullAndUnknownFileObjects
+UmdfMethodNeitherAction=Copy
+UmdfFsContextUsePolicy=CanUseFsContext2
+
+[DoubaoMicrophoneUm_Install]
+UmdfLibraryVersion=2.33
+ServiceBinary="%13%\DoubaoMicrophoneUm.dll"
+
+; ================= copy files =====================
+
+[UMDriverCopy]
+DoubaoMicrophoneUm.dll
+
+;---------------------------------------------------------------;
+
+[Strings]
+ProviderString     ="Doubao Microphone Trial"
+ManufacturerString ="Doubao Microphone Trial"
+ClassName          ="Sample Device"
+Disk_Description   ="HID minidriver (UMDF v2) Installation Disk"
+DeviceDesc         ="Doubao Microphone UMDF Trial Keyboard"
+WudfRdDisplayName  ="Windows Driver Foundation - User-mode Driver Framework Reflector"
+
+[DeviceSecurity]
+HKR,,Security,0x00000000,"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;IU)"

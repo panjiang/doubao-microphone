@@ -1,10 +1,16 @@
 # Windows 安装交付
 
+Release 的 Windows 下载统一使用 [UMDF 受控试用包](#umdf-受控试用包)，一页确认、一次管理员授权，听写固定使用右 Alt。
+
+本地与 Actions 默认构建均生成这套安装包，复用 `packaging/umdf-trial` 中已签名的驱动和公开证书。签名身份有效期至 2126-11-07，私钥保存在本机。`-UmdfTrial` 参数继续兼容现有构建命令，默认已启用。
+
+## 音频安装与应用配置
+
 构建前检查原版 VB-CABLE ZIP、文件哈希及固定签名者。目录签名的 `.sys` 通过 Windows SDK 的 `signtool verify /kp /c <catalog> <driver>` 校验，不依赖构建机已经安装驱动或注册目录文件；因此完整安装包构建还需要 SDK 中的 `signtool.exe`。只读验证不会安装驱动或更改系统信任。参见 [Microsoft SignTool 文档](https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool)。
 
 Windows 11 x64 完整安装包内含原版 VB-CABLE Driver Pack 45，最终用户无需另行下载安装驱动。安装器首先通过 Windows WMI 按 `VBAudioVACMME` 服务查找在场的音频设备，健康则复用；设备需要重启则在安装结束时提示；设备异常或查询失败时报告原因，不盲目覆盖或卸载驱动。
 
-设备缺少时，安装器校验归档及完整文件清单，解压全部原版文件，保持原厂名称和内容，并仅对原厂签名的 `VBCABLE_Setup_x64.exe -i -h` 请求管理员授权。校验到执行结束期间持有只读、拒绝写入的文件句柄。用户拒绝授权或安装后检测失败时，在安装准备页提示重试；不会报告为安装成功。原厂要求新装驱动后重启，即使设备已经出现也会在结束页提供重启选项，并在重启前跳过自动启动主程序。
+设备缺少时，安装器校验归档及完整文件清单，解压全部原版文件，保持原厂名称和内容。UMDF 安装助手在同一次管理员授权中运行原厂签名的 `VBCABLE_Setup_x64.exe -i -h`。校验到执行结束期间持有只读、拒绝写入的文件句柄。用户拒绝授权或安装后检测失败时，在安装准备页提示重试；不会报告为安装成功。原厂要求新装驱动后重启，即使设备已经出现也会在结束页提供重启选项，并在重启前跳过自动启动主程序。
 
 主应用沿用当前用户安装，不要求托盘程序始终以管理员身份运行。软件卸载只移除自己的程序、启动项及原有配置，不自动卸载共享的 VB-CABLE。不修改 BIOS、Secure Boot、系统代理或驱动签名策略，也不调用系统默认音频设备切换接口。用户仍需在豆包中选择 CABLE Output，程序输出选择 CABLE Input。
 
@@ -12,7 +18,7 @@ Windows 11 x64 完整安装包内含原版 VB-CABLE Driver Pack 45，最终用�
 
 Windows 主程序、安装器、桌面／开始菜单快捷方式和卸载列表统一采用原创蓝底白色麦克风图标，托盘使用按任务栏 DPI 选择的内嵌 RGBA 图像。生成方式见 `assets/icons/README.md`；常规构建直接使用已生成资源，需要本机 Windows SDK 提供 `rc.exe`，不增加运行时解码依赖。macOS 的图标及安装方式见 [双平台说明](cross-platform.md)。
 
-Windows 默认自动选择语音触发方式：能打开现有 UMDF 控制接口时使用右 Alt，否则使用既有豆包兼容方式（仍受豆包版本及工具栏条件限制）。检测仅打开、关闭接口，不发送 HID 命令。普通设置只显示自动方式；其他选项在高级诊断中，启用“手动选择”并保存后生效。安装包仍不安装 UMDF 研究组件。
+Windows 听写固定使用右 Alt（UMDF）。组件缺失或无法访问时，配置页和手机显示组件问题，安装包会准备虚拟键盘。
 
 首次生成配置时，网络地址优先使用已连接的物理以太网 IPv4，其次是物理 Wi-Fi，再次是虚拟接口；依据 Windows 网卡类型和状态识别，不按网卡名称猜测。已保存的局域网地址不因排序变化而自动覆盖，手动修改地址后仍需重启、重新扫码。
 
@@ -33,7 +39,7 @@ Windows 只有一个 CABLE Input 时，配置页保存稳定的 `CABLE Input` �
 
 `packaging/vbcable.lock.json` 固定原厂归档 SHA-256，以及 x64 安装器、Windows 10/11 驱动和目录文件的哈希及签名证书身份。准备脚本核对 Authenticode 状态后产生安装用文件清单、许可页和 Inno 常量；它不执行驱动安装、不导入证书，也不改变系统设备。缺少本地输入时明确失败，不偷偷下载或切换镜像源。
 
-VB-CABLE 二进制及自动生成内容位于忽略的 `artifacts/vendor/vb-cable-45/`，不提交到 Git。完整安装包输出 `dist/DoubaoMicrophone-Setup-<版本>-x64.exe`。设备安装操作仅通过完整安装向导触发。
+VB-CABLE 二进制及自动生成内容位于忽略的 `artifacts/vendor/vb-cable-45/`，不提交到 Git。完整安装包输出 `dist/DoubaoMicrophone-Setup-<版本>-x64-umdf-trial.exe`。设备安装操作仅通过完整安装向导触发。
 
 安装脚本必须使用 `ArchiveExtraction=full`：原厂包是 ZIP，Inno Setup 的 `enhanced/nopassword` 和 `enhanced` 仅支持 7z，会在首次安装驱动时报告 `Extraction failed: The archive format is unsupported`。该问题的历史修复与构建证据见 [验证记录](verification.md)。
 
@@ -47,7 +53,7 @@ Pack 45 原始 readme 的集成条款要求作者同意；当前官方网站明�
 
 本机已存在 VB-CABLE，设备在场且 ConfigManagerErrorCode=0。已校验原版 ZIP、安装器及驱动签名，完成前端、Windows Release 和 Inno 安装包编译。首次自动安装、UAC 拒绝后重试、重启后可用性以及设备异常路径仍需干净 Windows 环境实测；没有为了验证而卸载、重装当前可用的共享驱动。
 
-普通安装包集成音频依赖。内置 UMDF 键盘的安装包供受控试用，见下一节。
+安装包集成音频依赖和 UMDF 键盘，供受控试用，见下一节。
 
 ## UMDF 受控试用包
 
@@ -57,6 +63,6 @@ Pack 45 原始 readme 的集成条款要求作者同意；当前官方网站明�
 
 试用包的每用户卸载保留机器级驱动和证书。确认同一电脑没有其他账户使用它后，可用管理员权限在设备管理器卸载 **Doubao Microphone UMDF Trial Keyboard**，硬件 ID 为 `ROOT\DOUBAOMICROPHONE_UMDF_TRIAL`。如需清理驱动存储，先用 `pnputil /enum-drivers` 确认原名为 `DoubaoMicrophoneUm.inf`、提供者为 `Doubao Microphone Trial` 的包，再用 `pnputil /delete-driver oemNN.inf` 删除对应发布名。最后在 `certlm.msc` 的「受信任的根证书颁发机构」及「受信任的发布者」中，按安装向导显示的同一指纹移除证书。
 
-构建时用 `research/windows-umdf/build.py --trial-dir <Windows 暂存路径>` 在已有 WDK/SDK 的构建机编译驱动和安装辅助程序。用 `scripts/prepare-umdf-trial.ps1` 指向暂存目录的 `out`、SignTool 和 Inf2Cat，首次创建签名身份用 `-CreateSigner`，后续用同一证书的 `-SignerThumbprint`。准备好签名文件后使用 `scripts/build-windows.ps1 -UmdfTrial -Offline -SkipTests` 生成试用包。
+驱动更新时用 `research/windows-umdf/build.py --trial-dir <Windows 暂存路径>` 在已有 WDK/SDK 的构建机编译驱动和安装辅助程序。用 `scripts/prepare-umdf-trial.ps1` 指向暂存目录的 `out`、SignTool 和 Inf2Cat，首次创建签名身份用 `-CreateSigner`，后续用同一证书的 `-SignerThumbprint`。将准备好的五个驱动文件和 `umdf.generated.iss` 同步到 `packaging/umdf-trial`，再使用 `scripts/build-windows.ps1 -Offline -SkipTests` 生成试用包。默认构建从该目录复制签名组件，统一各构建环境的驱动和证书。
 
 驱动 DLL、INF 或签名证书发生变化时，提高 `DoubaoMicrophoneUm.inf` 的 `DriverVer` 再生成目录签名，让 Windows 能识别驱动升级。安装助手或应用单独更新时沿用已签名的驱动包。

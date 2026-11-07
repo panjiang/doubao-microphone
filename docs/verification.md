@@ -494,3 +494,11 @@ Mac 两种架构的主应用、内置输入助手和安装器已使用与本机�
 电脑连续空闲超过 5.5 秒后，已将当前 Windows 从旧名称程序覆盖升级为本地 0.2.6，旧输入代理退出后再安装并启动新程序；输入代理 ready。逐字节核对 settings.json、devices.json、ca.pem 和 ca-key.dpapi 保留，登录启动目标迁移为新程序且保留原开关。只读访问手机 HTTPS 页面及 CSS，使用原 ca.pem 正常完成证书校验，确认返回深灰文档及样式；管理页未启用深色类。没有触发录音或测试按键。
 
 新版 Android APK、Windows 安装及便携包、Mac 双架构 DMG、当前源码归档及校验文件保存在 `dist/mobile-dark/`，同步至桌面 `DoubaoRemote-mobile-dark`。iPhone 继续使用已安装的构建 32，无需重装。未运行自动测试、未安装 Android 或 Mac 更新、未提交／推送或公开发布；手机网页和安卓视觉效果由用户实测。
+
+### 2026-11-07 Windows 发布统一使用 UMDF 简化安装包
+
+修正 v0.1.0 的 Windows 下载，改为已构建的 `DoubaoMicrophone-Setup-0.1.0-x64-umdf-trial.exe`，SHA-256 为 `7e6b0ac4de8bc59c2f060ccc53de2bbc88c984a0bd4f1f344df91cbfea98d1fa`。GitHub 附件 digest 与本地记录一致，四个平台附件齐全。应用产物仍对应原首版源码 0aabcd7，标签保留该提交。
+
+Windows 本地默认构建、Actions、候选打包和公开附件选择统一使用 UMDF 安装包，一页确认、一次管理员授权、固定右 Alt。仓库保存已签名的五个组件文件和公开证书，私钥保存在本机；Git 属性保留签名文件的原始字节。证书指纹为 `A1001768E45E880B77137E52ACBB00AFAEDC1894`，有效期至 2126-11-07。
+
+本机使用 Rust、VB-CABLE 和 Inno 缓存，未指定 `-UmdfTrial` 运行默认 Windows 构建入口，跳过前端重建和测试，离线编译及安装器打包成功；候选打包入口成功选择 UMDF 文件。证书核对无私钥、有效期与指纹一致，CAT 离线密码学签名校验通过，DLL 签名者与固定哈希核对一致。Python 语法检查和 Git 差异检查通过。未重跑云端 Actions，未安装程序、录音、触发按键或运行自动测试。

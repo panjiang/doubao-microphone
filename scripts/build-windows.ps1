@@ -4,22 +4,21 @@ param(
     [switch]$SkipTests,
     [switch]$Offline,
     [switch]$PortableOnly,
-    [switch]$UmdfTrial,
+    [switch]$UmdfTrial = $true,
     [string]$VbCablePackage
 )
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 Push-Location $root
 try {
-    if ($UmdfTrial -and $PortableOnly) { throw 'The UMDF trial requires the installer.' }
+    if (!$UmdfTrial) { throw 'Windows builds require the 100-year UMDF trial keyboard.' }
     if (!$CheckOnly -and !$PortableOnly) {
         $compiler=(Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
         if (!$compiler) { $candidate='C:\Program Files (x86)\Inno Setup 6\ISCC.exe'; if (Test-Path $candidate) { $compiler=$candidate } }
         if (!$compiler) { throw 'Inno Setup 6.7+ missing. Install it to build the full installer, or explicitly use -PortableOnly.' }
         & (Join-Path $PSScriptRoot 'prepare-vbcable.ps1') -PackagePath $VbCablePackage
-        if ($UmdfTrial -and !(Test-Path 'artifacts/umdf-trial/umdf.generated.iss')) {
-            throw 'Prepare the signed trial payload with scripts/prepare-umdf-trial.ps1 first.'
-        }
+        New-Item -ItemType Directory -Force artifacts/umdf-trial | Out-Null
+        Copy-Item (Join-Path $root 'packaging/umdf-trial/*') artifacts/umdf-trial -Recurse -Force
     }
     if (!$SkipFrontend) {
         Push-Location web
@@ -34,7 +33,7 @@ try {
     }
     $cargoFlags=@('--locked')
     if ($Offline) { $cargoFlags+='--offline' }
-    if ($UmdfTrial) { $cargoFlags+=@('--features','windows-umdf-trial','--target-dir','target/umdf-trial') }
+    $cargoFlags+=@('--features','windows-umdf-trial','--target-dir','target/umdf-trial')
     if ($CheckOnly) {
         & cargo check @cargoFlags --all-targets
         if ($LASTEXITCODE) { throw 'cargo check failed' }
@@ -47,16 +46,13 @@ try {
     & cargo build --release @cargoFlags
     if ($LASTEXITCODE) { throw 'release build failed' }
     New-Item -ItemType Directory -Force dist | Out-Null
-    if ($UmdfTrial) {
-        Copy-Item target/umdf-trial/release/doubao-microphone.exe artifacts/umdf-trial/ -Force
-    } else {
-        Copy-Item target/release/doubao-microphone.exe dist/ -Force
-    }
+    New-Item -ItemType Directory -Force artifacts/umdf-trial | Out-Null
+    Copy-Item target/umdf-trial/release/doubao-microphone.exe dist/ -Force
+    Copy-Item target/umdf-trial/release/doubao-microphone.exe artifacts/umdf-trial/ -Force
     if (!$PortableOnly) {
         $version=[regex]::Match((Get-Content Cargo.toml -Raw),'(?m)^version = "([^"]+)"').Groups[1].Value
         if (!$version) { throw 'Cannot read application version' }
-        $innoFlags=@('/DAppVersion='+$version)
-        if ($UmdfTrial) { $innoFlags+='/DUmdfTrial=1' }
+        $innoFlags=@("/DAppVersion=$version", '/DUmdfTrial=1')
         & $compiler @innoFlags packaging/windows.iss
         if ($LASTEXITCODE) { throw 'Inno Setup failed' }
     }

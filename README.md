@@ -8,11 +8,11 @@
 
 ## 下载与安装
 
-电脑需要安装并启用豆包输入法。首版安装包通过内部试用交付，后续公开版本见 [GitHub Releases](https://github.com/panjiang/doubao-microphone/releases)。
+电脑需要安装并启用豆包输入法。首版安装包见 [GitHub Releases](https://github.com/panjiang/doubao-microphone/releases)，供内部试用。
 
 | 平台 | 安装方式 |
 | --- | --- |
-| Windows 11 x64 | 运行 `.exe` 安装包。安装器会准备 VB-CABLE。Windows 语音触发对豆包输入法的版本和设置有要求，详见安装指南。 |
+| Windows 11 x64 | 运行 `-x64-umdf-trial.exe`。同一页确认许可和证书信任，点击安装，完成一次管理员授权。安装器自动准备虚拟键盘和 VB-CABLE，听写固定使用右 Alt。 |
 | macOS 14.2+（Apple Silicon） | 打开 `.dmg` 运行安装器，按提示准备 BlackHole 2ch，并在系统设置中授权辅助功能。 |
 | Android 10+ | 安装 APK，按手机提示允许安装并授予麦克风权限。 |
 | iPhone（iOS 18+） | 可以直接使用 Safari。原生 App 的真机包需要自行签名后安装。 |

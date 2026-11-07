@@ -30,9 +30,9 @@ def main():
     notes = root / "dist" / "release-notes.md"
     notes.write_text(
         f"源码提交：[`{commit[:12]}`](https://github.com/{repo}/commit/{commit})\n\n"
-        f"- Windows x64：安装包包含官方 VB-CABLE。"
-        "应用和安装器未做代码签名，**不含实验性 UMDF 键盘组件**；"
-        "备用工具栏模式受豆包版本限制。\n"
+        f"- Windows x64：安装包包含官方 VB-CABLE 和 UMDF 虚拟键盘。"
+        "驱动使用 100 年自签名证书，固定右 Alt，一页确认、一次管理员授权。"
+        "应用和安装器未做代码签名。\n"
         "- macOS：Apple Silicon 测试 DMG，ad-hoc 签名，**未公证**。\n"
         f"- iOS {os.environ['IOS_VERSION']}（构建 {os.environ['IOS_BUILD']}）："
         "**未签名** iPhone 真机产物；使用需自行开发签名，不能直接安装。\n"
@@ -40,7 +40,7 @@ def main():
         "Android 10+ 原生客户端。未签名构建仅保存在 Actions，须维护者使用原密钥在本机签名，上传 debug.apk 后再公开；安卓真机链路尚未验收。\n\n"
         f"[安装与平台限制](https://github.com/{repo}/blob/{commit}/docs/getting-started.md) · "
         f"[验证范围](https://github.com/{repo}/blob/{commit}/docs/verification.md)\n\n"
-        "Release 附件仅保留四个下载文件；JSON 和校验记录仅保存在 Actions。草稿中的 Android APK 签名上传完成前不得公开。CI 未运行录音、按键或实机验收。\n",
+        "公开 Release 附件仅保留四个下载文件。公开前用 public-assets 整理并核对附件，补齐签名 Android APK。JSON 和校验记录保存在 Actions／本地。CI 未运行录音、按键或实机验收。\n",
         encoding="utf-8")
     if not matches:
         # --target also creates a missing tag at precisely the compiled source commit.

@@ -81,7 +81,7 @@ def package(kind):
     ASSETS.mkdir(parents=True, exist_ok=True)
     version = values["version"]
     if kind == "windows-x64":
-        installer = ROOT / "dist" / f"DoubaoMicrophone-Setup-{version}-x64.exe"
+        installer = ROOT / "dist" / f"DoubaoMicrophone-Setup-{version}-x64-umdf-trial.exe"
         shutil.copy2(installer, ASSETS / installer.name)
     elif kind.startswith("macos-"):
         arch = kind.removeprefix("macos-")
@@ -101,7 +101,7 @@ def package(kind):
                   run_url=(f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
                            f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
                            f"{os.environ.get('GITHUB_RUN_ID', '')}"),
-                  signing={"windows-x64": "unsigned application/installer; vendor driver retains original signature",
+                  signing={"windows-x64": "unsigned application/installer; UMDF driver uses the 100-year trial certificate; VB-CABLE retains vendor signature",
                            "ios": "unsigned; device product requires your own development signing",
                            "android": "unsigned CI debug APK; sign locally with the existing key before distribution"}.get(
                                kind, "ad-hoc development signature; not notarized"))
@@ -132,7 +132,7 @@ def public_asset_names(values=None):
         f"DoubaoMicrophone-{version}-macos-aarch64-test.dmg",
         f"DoubaoMicrophone-Android-{values['android_version']}-build{values['android_build']}-debug.apk",
         f"DoubaoMicrophone-iOS-{values['ios_version']}-build{values['ios_build']}-device-unsigned.zip",
-        f"DoubaoMicrophone-Setup-{version}-x64.exe",
+        f"DoubaoMicrophone-Setup-{version}-x64-umdf-trial.exe",
     ]
 
 
@@ -176,7 +176,7 @@ def main():
     sums = sub.add_parser("checksums")
     sums.add_argument("folder", type=Path)
     public = sub.add_parser("public-assets")
-    public.add_argument("folder", type=Path, help="Merged Actions candidate after local Android signing")
+    public.add_argument("folder", type=Path, help="Candidate with locally signed Android APK and UMDF trial installer")
     public.add_argument("--output", type=Path, required=True, help="Empty directory for the four attachments")
     args = parser.parse_args()
     if args.command == "version":

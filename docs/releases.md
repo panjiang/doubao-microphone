@@ -52,7 +52,7 @@ git push origin v0.1.0
 | `DoubaoMicrophone-<版本>-macos-aarch64-test.dmg` | Apple Silicon 测试包，ad-hoc 签名、未公证 |
 | `DoubaoMicrophone-Android-<版本>-build<构建号>-debug.apk` | 本机使用原测试证书签名后的 Android APK |
 | `DoubaoMicrophone-iOS-<版本>-build<构建号>-device-unsigned.zip` | 未签名 iPhone 真机产物，需自行开发签名 |
-| `DoubaoMicrophone-Setup-<版本>-x64.exe` | Windows 完整安装器，包含原版 VB-CABLE，不含 UMDF 研究键盘驱动 |
+| `DoubaoMicrophone-Setup-<版本>-x64-umdf-trial.exe` | Windows 简化安装器，包含 VB-CABLE 和 100 年自签名 UMDF 虚拟键盘，一页确认、一次管理员授权，固定右 Alt |
 
 Release 不上传 JSON、TXT 校验清单、Intel Mac 包、iOS 模拟器包或未签名 Android APK。Intel 和模拟器仍可按开发说明在本地手动构建，不参加每次版本发布。
 
@@ -62,11 +62,13 @@ Release 不上传 JSON、TXT 校验清单、Intel Mac 包、iOS 模拟器包或�
 
 Windows、Mac Apple Silicon、iPhone 真机和 Android 构建成功后，汇总内部产物并上传为 Actions Artifact：`release-candidate-v<版本>`，保留 30 天。Android 同时执行 Lint；所有作业不运行测试、安装、录音或按键。
 
-CI 不接触本机私钥，所以草稿先上传三个可用文件；Android 未签名 APK 只留在 Actions，签名后再补齐第四个。草稿没有签名 APK 前不要公开。仅使用精确文件名白名单上传，已有草稿重跑时清理非白名单附件；已公开 Release 不由构建工作流覆盖。
+本地和 CI 的 Windows 构建统一使用 UMDF 简化安装包。仓库的 `packaging/umdf-trial` 保存已签名驱动、安装助手和公开证书，沿用同一个有效期至 2126-11-07 的 100 年签名身份。CI 复用这些文件，签名私钥保存在本机。草稿先上传 Windows、macOS 和 iOS 文件，Android 未签名 APK 留在 Actions。本机完成 Android 签名后，使用 `public-assets` 整理四个平台附件，补齐草稿并更新实际签名说明。已公开 Release 不由构建工作流覆盖。
 
 所有作业优先复用 npm、Cargo 和 VB-CABLE 缓存，保持锁文件及校验；不修改系统级镜像或代理，不向 CI 上传签名私钥。
 
-## Android 本机签名并准备公开附件
+## 本机签名并准备发布附件
+
+Windows 默认构建统一使用 UMDF 简化安装包，运行 `scripts/build-windows.ps1 -Offline -SkipTests`。驱动发生变化时，按 [Windows 试用包构建说明](windows-installer.md#umdf-受控试用包)在本机重新签名并同步 `packaging/umdf-trial`。Actions 候选目录已包含 `DoubaoMicrophone-Setup-<版本>-x64-umdf-trial.exe`。
 
 从同一次构建下载完整内部候选包，避免从只有三个附件的 Release 草稿取签名输入：
 
@@ -85,7 +87,7 @@ python3 scripts/sign-android-release.py \
   --public-dir dist/public-v0.1.0
 ```
 
-签名脚本先核对 CI 校验值，再核对原签名证书，更新内部记录，最后向空的 `--public-dir` 复制四个附件。该目录不含 JSON、校验清单或未签名 APK；文件缺失或哈希不匹配会报错。密码由环境变量提供，私钥不上传。
+签名脚本先核对 CI 校验值，再核对原签名证书，更新内部记录，最后向空的 `--public-dir` 复制四个附件。Windows 附件必须为 UMDF 简化包，缺少时直接报错。该目录不含 JSON、校验清单或未签名 APK；文件缺失或哈希不匹配会报错。密码由环境变量提供，私钥不上传。
 
 已有签名产物时，也可单独准备公开目录，不重复签名：
 
@@ -94,4 +96,4 @@ python3 scripts/ci-release.py public-assets dist/candidate-v0.1.0 \
   --output dist/public-v0.1.0
 ```
 
-检查空目录生成的四个附件后，上传该目录到对应草稿；不要上传内部 candidate 目录。确认 Release 的四个文件名和哈希正确，更新说明中的实际签名状态后再公开。构建和哈希校验不能替代实机验收。
+检查空目录生成的四个附件后，上传该目录到对应草稿。确认 Windows 文件名以 `-x64-umdf-trial.exe` 结尾、四个文件的哈希正确，发布说明包含「一页确认、一次管理员授权、100 年自签名证书、固定右 Alt」及实际签名状态后再公开。构建和哈希校验不能替代实机验收。
