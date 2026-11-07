@@ -33,7 +33,7 @@ def main():
         f"- Windows x64：安装包包含官方 VB-CABLE 和 UMDF 虚拟键盘。"
         "驱动使用 100 年自签名证书，固定右 Alt，一页确认、一次管理员授权。"
         "应用和安装器未做代码签名。\n"
-        "- macOS：Apple Silicon 测试 DMG，ad-hoc 签名，**未公证**。\n"
+        "- macOS：Apple Silicon 测试 PKG，应用为 ad-hoc 签名，安装包未签名且**未公证**。\n"
         f"- iOS {os.environ['IOS_VERSION']}（构建 {os.environ['IOS_BUILD']}）："
         "**未签名** iPhone 真机产物；使用需自行开发签名，不能直接安装。\n"
         f"- Android {os.environ['ANDROID_VERSION']}（构建 {os.environ['ANDROID_BUILD']}）："

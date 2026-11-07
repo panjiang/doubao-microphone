@@ -234,8 +234,14 @@ async fn write_config(
 async fn setup(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
     let mock = a.mock;
+    let input_accessibility = if cfg!(target_os = "macos") && !mock {
+        a.controller.input_accessibility().await.ok()
+    } else { None };
     let (outputs, platform, interfaces) = tokio::task::spawn_blocking(move || {
         let mut platform = crate::platform::setup_status();
+        if cfg!(target_os = "macos") && !mock {
+            platform.accessibility = input_accessibility.unwrap_or(false);
+        }
         if mock { platform.automatic_shortcut = None; }
         Ok::<_, anyhow::Error>((crate::audio::devices(mock)?, platform, crate::config::interfaces()))
     }).await??;

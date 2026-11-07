@@ -13,7 +13,7 @@
 | 平台 | 安装方式 |
 | --- | --- |
 | Windows 11 x64 | 运行 Windows 安装包。同一页确认许可和证书信任，点击安装，完成一次管理员授权。安装器自动准备虚拟键盘和 VB-CABLE，听写固定使用右 Alt。 |
-| macOS 14.2+（Apple Silicon） | 打开 `.dmg` 运行安装器，按提示准备 BlackHole 2ch，并在系统设置中授权辅助功能。 |
+| macOS 14.2+（Apple Silicon） | 双击 `.pkg`，按系统提示安装；首次使用时在系统设置中授权辅助功能。 |
 | Android 10+ | 安装 APK，按手机提示允许安装并授予麦克风权限。 |
 | iPhone（iOS 18+） | 可以直接使用 Safari。原生 App 的真机包需要自行签名后安装。 |
 

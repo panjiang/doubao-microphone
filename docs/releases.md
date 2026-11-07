@@ -23,7 +23,7 @@ gh workflow run version-build.yml --ref main -f version=0.1.0 -F draft_release=t
 
 - `Cargo.toml` 与 `Cargo.lock` 中本项目的版本。
 - `web/package.json`、`web/package-lock.json`（包含根 `packages[""]`）的版本。
-- `packaging/Info.plist`、`AgentInfo.plist`、`MacInstallerInfo.plist` 的版本。
+- `packaging/Info.plist`、`AgentInfo.plist` 的版本。
 - `packaging/windows.iss` 中的默认 `AppVersion`。
 
 iOS 保持自己的版本和构建号，在 `ios/DoubaoMicrophone.xcodeproj/project.pbxproj` 中维护，Debug / Release 必须一致。Android 在 `android/app/build.gradle` 中维护 `versionName` / `versionCode`。手机版本与桌面版本不要求相同。
@@ -51,7 +51,7 @@ git push origin v0.1.0
 
 | 附件 | 说明 |
 | --- | --- |
-| `DoubaoMicrophone-<版本>-macos-arm64.dmg` | Apple Silicon 测试包，ad-hoc 签名、未公证 |
+| `DoubaoMicrophone-<版本>-macos-arm64.pkg` | Apple Silicon 测试包，应用为 ad-hoc 签名、安装包未签名且未公证 |
 | `DoubaoMicrophone-<版本>-android.apk` | 本机使用原测试证书签名后的 Android APK |
 | `DoubaoMicrophone-<版本>-ios.zip` | 未签名 iPhone 真机产物，需自行开发签名 |
 | `DoubaoMicrophone-<版本>-windows-x64.exe` | Windows 简化安装器，包含 VB-CABLE 和 100 年自签名 UMDF 虚拟键盘，一页确认、一次管理员授权，固定右 Alt |

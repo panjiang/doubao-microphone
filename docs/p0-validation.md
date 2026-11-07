@@ -16,7 +16,7 @@
 ## macOS
 
 1. 用 Mac 构建对应架构 `.app`，安装 BlackHole 2ch，设置豆包输入设备。
-2. 授权主应用和包内的 DoubaoMicrophoneInput.app 输入代理辅助功能权限。
+2. 启动时按系统提示，授权豆包麦克风辅助功能权限。
 3. 先确认物理 Fn 在当前豆包版本上有效，再执行 `probe key --key fn --seconds 3`。
 4. 如模拟 Fn 被拒绝，查明豆包是否允许改绑其他长按快捷键；仅在允许时改绑并同步本机配置。若无可用键，记录阻塞，不绕过系统限制。
 5. 重复 WAV、iPhone、不同输入框和异常测试。分别记录 Apple Silicon 与 Intel 实机结果，未测试架构不标通过。

@@ -185,6 +185,11 @@ fn main() -> Result<()> {
             if open {
                 let _ = webbrowser::open(&url);
             }
+            #[cfg(target_os = "macos")]
+            if !args.mock {
+                // Open Settings after the configuration page so it remains in front.
+                platform::request_accessibility();
+            }
             if headless {
                 runtime.block_on(async{tokio::select!{_=tokio::signal::ctrl_c()=>{},r=mobile_task=>{tracing::error!(result=?r,"HTTPS listener stopped");}}});
             } else {

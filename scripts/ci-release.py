@@ -31,7 +31,7 @@ def versions():
             raise ValueError(f"{filename} version differs from Cargo.toml")
         if "packages" in package and package["packages"][""]["version"] != version:
             raise ValueError("web/package-lock.json root package version differs")
-    for filename in ("Info.plist", "AgentInfo.plist", "MacInstallerInfo.plist"):
+    for filename in ("Info.plist", "AgentInfo.plist"):
         with (ROOT / "packaging" / filename).open("rb") as stream:
             info = plistlib.load(stream)
         for key in ("CFBundleVersion", "CFBundleShortVersionString"):
@@ -86,8 +86,8 @@ def package(kind):
     elif kind.startswith("macos-"):
         arch = kind.removeprefix("macos-")
         package_arch = arch.replace("aarch64", "arm64")
-        dmg = ROOT / "dist" / f"DoubaoMicrophone-{version}-macos-{package_arch}.dmg"
-        shutil.copy2(dmg, ASSETS / dmg.name)
+        pkg = ROOT / "dist" / f"DoubaoMicrophone-{version}-macos-{package_arch}.pkg"
+        shutil.copy2(pkg, ASSETS / pkg.name)
     elif kind == "ios":
         prefix = f"DoubaoMicrophone-{values['ios_version']}-ios"
         app = ROOT / "ios/build/device/Build/Products/Release-iphoneos/DoubaoMicrophone.app"
@@ -130,7 +130,7 @@ def public_asset_names(values=None):
     values = values or versions()
     version = values["version"]
     return [
-        f"DoubaoMicrophone-{version}-macos-arm64.dmg",
+        f"DoubaoMicrophone-{version}-macos-arm64.pkg",
         f"DoubaoMicrophone-{values['android_version']}-android.apk",
         f"DoubaoMicrophone-{values['ios_version']}-ios.zip",
         f"DoubaoMicrophone-{version}-windows-x64.exe",

@@ -8,6 +8,20 @@
 
 typedef struct { AXUIElementRef window; AXUIElementRef focus; pid_t pid; } PTTTarget;
 
+bool ptt_mac_request_accessibility(void) {
+    NSDictionary *options = @{(__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES};
+    bool trusted = AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
+    if (!trusted) {
+        // Allow the asynchronous permission request to dispatch before opening Settings.
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, false);
+        NSURL *settings = [NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"];
+        if (![[NSWorkspace sharedWorkspace] openURL:settings]) {
+            NSLog(@"DoubaoMicrophone could not open Accessibility settings");
+        }
+    }
+    return trusted;
+}
+
 static AXUIElementRef copyElement(AXUIElementRef owner, CFStringRef name) {
     CFTypeRef value = NULL;
     AXError error = AXUIElementCopyAttributeValue(owner, name, &value);

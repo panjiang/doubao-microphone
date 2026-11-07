@@ -20,6 +20,7 @@ export function initEnvironment(request:(signal:AbortSignal)=>Promise<Report>):v
   const legacy=document.getElementById('environment-legacy')!;
   const note=document.getElementById('environment-note')!;
   let running=false;
+  let waitingForAccessibility=false;
   let displayItems:ReadonlyArray<readonly [string,string]>=items;
 
   function row(id:string,title:string,state:State,detail:string):HTMLLIElement {
@@ -44,6 +45,7 @@ export function initEnvironment(request:(signal:AbortSignal)=>Promise<Report>):v
       const report=await request(controller.signal);
       if(typeof report?.supported!=='boolean'||!Array.isArray(report.checks))throw Error('检测响应无法识别');
       if(!report.supported){list.hidden=true;button.hidden=true;note.hidden=true;legacy.hidden=false;return;}
+      waitingForAccessibility=report.checks.some(item=>item.id==='accessibility'&&item.state!=='pass');
       legacy.hidden=true;list.hidden=false;note.hidden=false;button.hidden=false;
       const extra=report.checks.filter(item=>!items.some(([id])=>id===item.id)).map(item=>[item.id,item.title||item.id] as const);
       displayItems=[...items,...extra];
@@ -60,5 +62,6 @@ export function initEnvironment(request:(signal:AbortSignal)=>Promise<Report>):v
     }
   }
   button.addEventListener('click',()=>void refresh());
+  window.addEventListener('focus',()=>{if(waitingForAccessibility)void refresh()});
   void refresh();
 }

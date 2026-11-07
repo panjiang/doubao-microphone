@@ -23,15 +23,18 @@ sign_app() {
   codesign --verify --deep --strict "$1"
 }
 for arch in ${MACOS_ARCHS:-aarch64 x86_64}; do
-  case "$arch" in aarch64) swift_arch=arm64;; x86_64) swift_arch=x86_64;; *) printf 'Unsupported architecture: %s\n' "$arch" >&2; exit 1;; esac
+  case "$arch" in aarch64|x86_64) ;; *) printf 'Unsupported architecture: %s\n' "$arch" >&2; exit 1;; esac
   target="${arch}-apple-darwin"
   cargo build --release "${cargo_flags[@]}" --target "$target"
-  app="dist/${arch}/DoubaoMicrophone.app"
+  app="dist/${arch}/豆包麦克风.app"
+  rm -rf "$app"
   mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
   cp "target/$target/release/doubao-microphone" "$app/Contents/MacOS/doubao-microphone"
   cp packaging/Info.plist "$app/Contents/Info.plist"
   cp assets/icons/DoubaoMicrophone.icns "$app/Contents/Resources/"
-  # The input agent is a separate, signed app executable with its own TCC identity.
+  mkdir -p "$app/Contents/Resources/zh-Hans.lproj"
+  cp packaging/zh-Hans.lproj/InfoPlist.strings "$app/Contents/Resources/zh-Hans.lproj/"
+  # Sign the nested input helper before signing the containing application.
   helper="$app/Contents/Resources/DoubaoMicrophoneInput.app"
   mkdir -p "$helper/Contents/MacOS"
   mkdir -p "$helper/Contents/Resources"
@@ -43,24 +46,77 @@ for arch in ${MACOS_ARCHS:-aarch64 x86_64}; do
   if [[ -z "${APPLE_SIGNING_IDENTITY:-}" ]]; then
     printf '%s\n' 'Development signature only: NOT a notarized distribution.' >&2
   fi
-  stage="dist/${arch}/dmg"
-  installer="$stage/安装豆包麦克风.app"
-  mkdir -p "$installer/Contents/MacOS" "$installer/Contents/Resources"
-  cp packaging/MacInstallerInfo.plist "$installer/Contents/Info.plist"
-  cp assets/icons/DoubaoMicrophone.icns "$installer/Contents/Resources/"
-  ditto "$app" "$installer/Contents/Resources/DoubaoMicrophone.app"
-  swiftc -target "${swift_arch}-apple-macos14.2" -O packaging/MacInstaller.swift -o "$installer/Contents/MacOS/DoubaoMicrophoneInstaller"
-  sign_app "$installer"
-  printf '%s\n' '双击“安装豆包麦克风”。缺少 BlackHole 时，安装器从官方来源下载并校验原版安装包，系统会请求管理员授权。已有虚拟麦克风会复用。首次启动默认启用登录自启动，可在配置页关闭。卸载本应用不会自动卸载共享的 BlackHole。辅助功能权限及豆包麦克风选择仍需在系统与豆包设置中完成。' > "$stage/安装说明.txt"
-  if [[ -z "${NOTARY_PROFILE:-}" ]]; then
-    printf '%s\n' '这是开发测试包，未进行 Developer ID 公证，不作为正式分发版本。具体实测范围见源码 docs/macos-validation.md；仅构建成功不代表所有架构和手机链路已通过。' >> "$stage/安装说明.txt"
+  stage="dist/${arch}/pkg"
+  rm -rf "$stage"
+  root="$stage/root"
+  mkdir -p "$root/Applications"
+  ditto "$app" "$root/Applications/豆包麦克风.app"
+  codesign --verify --deep --strict "$root/Applications/豆包麦克风.app"
+  components="$stage/components.plist"
+  pkgbuild --analyze --root "$root" "$components"
+  python3 - "$components" <<'PY'
+import plistlib
+import sys
+
+with open(sys.argv[1], "rb") as stream:
+    components = plistlib.load(stream)
+for component in components:
+    if component["RootRelativeBundlePath"] == "Applications/豆包麦克风.app":
+        component["BundleIsRelocatable"] = False
+        break
+else:
+    raise SystemExit("Main application was not found in pkgbuild's component list")
+with open(sys.argv[1], "wb") as stream:
+    plistlib.dump(components, stream)
+PY
+  component="$stage/DoubaoMicrophone-component.pkg"
+  pkgbuild --root "$root" --install-location / --identifier local.doubao-microphone.pkg \
+    --version "$version" --ownership recommended --component-plist "$components" \
+    --scripts packaging/macos-pkg-scripts "$component"
+  inspected="$stage/inspected-component"
+  pkgutil --expand "$component" "$inspected"
+  python3 - "$inspected/PackageInfo" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+info = ET.parse(sys.argv[1]).getroot()
+if info.get("install-location") != "/":
+    raise SystemExit("macOS package has an unexpected install location")
+if info.find("relocate/bundle") is not None:
+    raise SystemExit("macOS package could relocate the application outside /Applications")
+if info.find("bundle[@path='./Applications/豆包麦克风.app']") is None:
+    raise SystemExit("macOS package does not install the main app to /Applications")
+PY
+  distribution="$stage/Distribution.xml"
+  productbuild --synthesize --package "$component" "$distribution"
+  python3 - "$distribution" "${arch/aarch64/arm64}" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+tree = ET.parse(sys.argv[1])
+root = tree.getroot()
+root.insert(0, ET.Element("title"))
+root.find("title").text = "豆包麦克风"
+script = ET.Element("script")
+script.text = "var doubaoNeedsRestart = !system.files.fileExistsAtPath('/Library/Audio/Plug-Ins/HAL/BlackHole2ch.driver');"
+root.insert(1, script)
+options = root.find("options")
+options.set("hostArchitectures", sys.argv[2])
+options.set("require-scripts", "true")
+root.findall("pkg-ref")[-1].set("onConclusionScript", "doubaoNeedsRestart ? 'RequireRestart' : 'None'")
+tree.write(sys.argv[1], encoding="utf-8", xml_declaration=True)
+PY
+  package="dist/DoubaoMicrophone-${version}-macos-${arch/aarch64/arm64}.pkg"
+  product_args=(--distribution "$distribution" --package-path "$stage")
+  if [[ -n "${APPLE_INSTALLER_SIGNING_IDENTITY:-}" ]]; then
+    product_args+=(--sign "$APPLE_INSTALLER_SIGNING_IDENTITY")
   fi
-  dmg="dist/DoubaoMicrophone-${version}-macos-${arch/aarch64/arm64}.dmg"
-  hdiutil create -volname DoubaoMicrophone -srcfolder "$stage" -ov -format UDZO "$dmg"
+  productbuild "${product_args[@]}" "$package"
   if [[ -n "${NOTARY_PROFILE:-}" ]]; then
     [[ "${APPLE_SIGNING_IDENTITY:-}" == "Developer ID Application:"* ]] || { printf '%s\n' 'Notarization requires Developer ID signing' >&2; exit 1; }
-    xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
-    xcrun stapler staple "$dmg"
+    [[ "${APPLE_INSTALLER_SIGNING_IDENTITY:-}" == "Developer ID Installer:"* ]] || { printf '%s\n' 'Notarization requires a Developer ID Installer identity' >&2; exit 1; }
+    xcrun notarytool submit "$package" --keychain-profile "$NOTARY_PROFILE" --wait
+    xcrun stapler staple "$package"
   fi
-  shasum -a 256 "$dmg"
+  shasum -a 256 "$package"
 done

@@ -1,0 +1,44 @@
+#!/bin/bash
+set -euo pipefail
+
+app=/Applications/豆包麦克风.app
+driver=/Library/Audio/Plug-Ins/HAL/BlackHole2ch.driver
+vendor_url=https://existential.audio/downloads/BlackHole2ch-0.7.1.pkg
+vendor_sha=57b540f27a3e29c37e310e01bee0fdfab76733087e47f997ef9dccf851400dcf
+vendor_signer='Developer ID Installer: Existential Audio Inc. (Q5C99V536K)'
+restart_marker=/private/var/run/local.doubao-microphone-install-needs-restart
+/bin/rm -f "$restart_marker"
+
+if /usr/bin/pgrep -f '^/Applications/豆包麦克风\.app/Contents/' >/dev/null; then
+  echo '请先退出豆包麦克风，再重新安装。' >&2
+  exit 1
+fi
+if [[ -e "$app" || -L "$app" ]]; then
+  existing_id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist" 2>/dev/null || true)
+  if [[ -L "$app" || "$existing_id" != local.doubao-microphone.app ]]; then
+    echo '应用程序位置已有其他应用，安装已停止。' >&2
+    exit 1
+  fi
+fi
+
+# Install the publisher's original package only when the system component is absent.
+# Keep it outside our distribution package and verify it before invoking Installer.
+if [[ -d "$driver" ]]; then exit 0; fi
+/usr/bin/touch "$restart_marker"
+work=$(/usr/bin/mktemp -d /private/tmp/doubao-microphone.XXXXXXXX)
+trap '/bin/rm -rf "$work"' EXIT
+package="$work/virtual-microphone.pkg"
+/usr/bin/curl --fail --location --proto '=https' --proto-redir '=https' \
+  --max-time 45 --max-filesize 1048576 --output "$package" "$vendor_url"
+actual_sha=$(/usr/bin/shasum -a 256 "$package" | /usr/bin/awk '{print $1}')
+if [[ "$actual_sha" != "$vendor_sha" ]]; then
+  echo '虚拟麦克风安装包校验失败，请重新安装。' >&2
+  exit 1
+fi
+/usr/sbin/pkgutil --check-signature "$package" | /usr/bin/grep -F "$vendor_signer" >/dev/null
+/usr/sbin/spctl --assess --type install "$package"
+/usr/sbin/installer -pkg "$package" -target /
+if [[ ! -d "$driver" ]]; then
+  echo '虚拟麦克风未能完成安装，请重新安装。' >&2
+  exit 1
+fi

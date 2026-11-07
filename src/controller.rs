@@ -108,6 +108,7 @@ impl Controller {
             end_action: EndAction::Finish,
             pending_enter: None,
             input_recovery: InputRecovery::new(),
+            last_accessibility_refresh: None,
             recovery_cleanup: false,
             disconnect_requested: None,
         };
@@ -180,7 +181,7 @@ impl Controller {
     }
     pub async fn input_accessibility(&self) -> Result<bool> {
         let (tx, rx) = oneshot::channel();
-        tokio::time::timeout(Duration::from_secs(1), async {
+        tokio::time::timeout(Duration::from_secs(3), async {
             self.tx.send(Command::InspectInput(tx)).await?;
             rx.await?
         }).await?
@@ -221,6 +222,7 @@ struct Actor {
     end_action: EndAction,
     pending_enter: Option<PendingEnter>,
     input_recovery: InputRecovery,
+    last_accessibility_refresh: Option<Instant>,
     recovery_cleanup: bool,
     disconnect_requested: Option<&'static str>,
 }
@@ -327,7 +329,22 @@ impl Actor {
                             let _=reply.send(r);
                         }
                         Command::InspectInput(reply)=>{
-                            let r=if self.input_recovery.state==InputState::Ready {self.agent.inspect_accessibility().await}else{Err(anyhow::anyhow!("输入服务正在恢复或需要处理，请稍后重新检测"))};
+                            let mut r=if self.input_recovery.state==InputState::Ready {self.agent.inspect_accessibility().await}else{Err(anyhow::anyhow!("输入服务正在恢复或需要处理，请稍后重新检测"))};
+                            if matches!(r, Ok(false)) && cfg!(target_os = "macos") && !self.mock {
+                                if !crate::platform::accessibility() {
+                                    self.last_accessibility_refresh=None;
+                                } else if !self.session.active() && self.key_test.is_none() && self.pending_enter.is_none()
+                                    && self.last_accessibility_refresh.is_none_or(|last| last.elapsed() >= Duration::from_secs(10)) {
+                                    // The helper may retain the pre-authorization TCC result until it restarts.
+                                    self.last_accessibility_refresh=Some(Instant::now());
+                                    tracing::info!("accessibility granted to app but not input helper; restarting helper");
+                                    r=match self.agent.recover().await {
+                                        Ok(())=>self.agent.inspect_accessibility().await,
+                                        Err(e)=>Err(e),
+                                    };
+                                }
+                            }
+                            if matches!(r, Ok(true)) {self.last_accessibility_refresh=None;}
                             if let Err(e)=&r && self.agent.failed(){self.input_fault(format!("{e:#}"));}
                             let _=reply.send(r);
                         }

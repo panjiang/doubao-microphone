@@ -134,7 +134,7 @@ jobs:
           rustup target add "$RUST_TARGET"
       - name: Build frontend with verified registry fallback
         run: node scripts/ci-frontend.mjs
-      - name: Build macOS development DMG
+      - name: Build macOS development PKG
         env:
           MACOS_ARCHS: 'aarch64'
           SKIP_FRONTEND: '1'

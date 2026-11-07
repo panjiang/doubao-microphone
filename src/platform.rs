@@ -101,6 +101,11 @@ pub fn accessibility() -> bool {
     }
 }
 
+#[cfg(target_os = "macos")]
+pub fn request_accessibility() -> bool {
+    unsafe { ptt_mac_request_accessibility() }
+}
+
 pub struct Keyboard {
     mock: bool,
     held: Option<Shortcut>,
@@ -129,7 +134,7 @@ impl Keyboard {
         let mut primed = false;
         if !self.mock {
             ensure!(supported(key), "shortcut unsupported on this platform");
-            ensure!(accessibility(), "请为应用及输入代理授予辅助功能权限");
+            ensure!(accessibility(), "请为豆包麦克风授予辅助功能权限");
             #[cfg(target_os = "windows")]
             if key == Shortcut::DoubaoVoice {
                 primed = crate::windows_voice::start_configured(
@@ -276,6 +281,7 @@ fn native_key(key: Shortcut, down: bool) -> Result<()> {
 #[link(name = "ApplicationServices", kind = "framework")]
 unsafe extern "C" {
     fn AXIsProcessTrusted() -> bool;
+    fn ptt_mac_request_accessibility() -> bool;
     fn CGEventCreateKeyboardEvent(
         source: *const std::ffi::c_void,
         key: u16,

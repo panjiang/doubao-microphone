@@ -72,17 +72,17 @@ pub(crate) fn inspect(settings: &Settings, input_accessibility: Option<bool>) ->
             item(
                 "accessibility",
                 "辅助功能权限",
-                if !crate::platform::accessibility() || input_accessibility == Some(false) {
+                if input_accessibility == Some(false) {
                     result(
                         CheckState::Fail,
-                        "请在系统设置 → 隐私与安全性 → 辅助功能中允许豆包麦克风及其内置输入助手。",
+                        "请在系统设置 → 隐私与安全性 → 辅助功能中允许豆包麦克风。",
                     )
                 } else if input_accessibility == Some(true) {
-                    result(CheckState::Pass, "主应用和独立输入代理均已获辅助功能权限。")
+                    result(CheckState::Pass, "豆包麦克风已获辅助功能权限。")
                 } else {
                     result(
                         CheckState::Unknown,
-                        "主应用权限已通过，但未能取得输入代理权限状态，请稍后重新检测。",
+                        "未能取得辅助功能权限状态，请稍后重新检测。",
                     )
                 },
             ),

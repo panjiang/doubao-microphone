@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+app=/Applications/豆包麦克风.app
+/usr/bin/codesign --verify --deep --strict "$app"
+restart_marker=/private/var/run/local.doubao-microphone-install-needs-restart
+if [[ -f "$restart_marker" ]]; then
+  /bin/rm -f "$restart_marker"
+  exit 0
+fi
+
+# Installer runs as root. Launch the app in the active user's GUI session.
+user=$(/usr/bin/stat -f %Su /dev/console)
+if [[ -n "$user" && "$user" != root && "$user" != loginwindow ]]; then
+  uid=$(/usr/bin/id -u "$user")
+  # Refresh the installed bundle's identity before the first permission request.
+  /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" \
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+    -f "$app" >/dev/null 2>&1 || true
+  /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" \
+    /usr/bin/open "$app" --args serve --open >/dev/null 2>&1 || true
+fi

@@ -84,9 +84,9 @@ MACOS_ARCHS=aarch64 bash scripts/build-macos.sh
 MACOS_ARCHS=x86_64 bash scripts/build-macos.sh
 ```
 
-`OFFLINE=1`、`SKIP_FRONTEND=1` 和 `SKIP_TESTS=1` 分别控制离线构建、复用网页和跳过测试。输出包含主应用、输入代理、原生安装器及 DMG。
+`OFFLINE=1`、`SKIP_FRONTEND=1` 和 `SKIP_TESTS=1` 分别控制离线构建、复用网页和跳过测试。输出包含主应用、输入代理及可直接打开的 PKG。安装时如缺少虚拟麦克风，PKG 会从原发布者下载、校验并安装。
 
-正式发行需要配置 Developer ID `APPLE_SIGNING_IDENTITY` 和 Keychain 中的 `NOTARY_PROFILE`。未公证包带 `-test` 后缀；Apple Development 或 ad-hoc 签名只用于开发，不能据此声称已完成正式分发。
+正式发行需要配置 Developer ID Application `APPLE_SIGNING_IDENTITY`、Developer ID Installer `APPLE_INSTALLER_SIGNING_IDENTITY` 和 Keychain 中的 `NOTARY_PROFILE`。Apple Development 或 ad-hoc 签名只用于开发，不能据此声称已完成正式分发。ad-hoc 签名随每次重建变化，重复安装可能使 macOS 再次要求钥匙串和辅助功能授权；长期分发应使用稳定的 Developer ID 签名并完成公证。
 
 当前 macOS 部署基线为 14.2。已构建和实测的架构、权限及兼容性范围见 [macOS 验证记录](macos-validation.md)。
 

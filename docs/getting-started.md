@@ -25,13 +25,12 @@ Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.
 ### macOS
 
 - 系统基线：macOS 14.2+；已验证 Apple Silicon，Intel 尚未实机验证。
-- 打开构建出的 DMG，运行「安装豆包麦克风」。缺少 BlackHole 2ch 时，安装器从官方来源获取并校验，再通过系统管理员认证安装；已有设备会复用。
-- 按安装器提示处理重启。在豆包和本程序中均选择 **BlackHole 2ch**。
-- 在「系统设置 → 隐私与安全性 → 辅助功能」允许主应用，以及应用包内的输入代理：
+- 双击构建出的 `.pkg`，按系统提示完成安装。缺少虚拟麦克风时，安装过程会自动准备；已有设备会复用。无需重启时应用会尝试自动打开；系统要求重启时，重启后从“应用程序”打开豆包麦克风。
+- 如系统提示重启，请重启。在豆包和本程序中均选择 **BlackHole 2ch**。
+- 首次启动缺少权限时，应用会自动打开「系统设置 → 隐私与安全性 → 辅助功能」，开启“豆包麦克风”即可；已经授权时不会再次打开。若系统未列出应用，手动添加：
 
   ```text
-  /Applications/DoubaoMicrophone.app
-  /Applications/DoubaoMicrophone.app/Contents/Resources/DoubaoMicrophoneInput.app
+  /Applications/豆包麦克风.app
   ```
 
 - 豆包麦克风固定使用 **Fn / 地球仪**。在豆包中将长按快捷键设为 Fn，并切换到豆包输入法，或在豆包中启用全局语音。

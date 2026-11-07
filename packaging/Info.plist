@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleName</key><string>DoubaoMicrophone</string>
+<key>CFBundleName</key><string>豆包麦克风</string>
 <key>CFBundleDisplayName</key><string>豆包麦克风</string>
+<key>LSHasLocalizedDisplayName</key><true/>
 <key>CFBundleIdentifier</key><string>local.doubao-microphone.app</string>
 <key>CFBundleExecutable</key><string>doubao-microphone</string>
 <key>CFBundleIconFile</key><string>DoubaoMicrophone</string>

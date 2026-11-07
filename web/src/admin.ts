@@ -21,7 +21,7 @@ function syncShortcut(){
   select.disabled=active||!manual;
   const label=select.value==='hid_right_alt'?'右 Alt（UMDF）':names[select.value]||select.value;
   el<HTMLInputElement>('trigger-summary').value=shortcutLocked?'固定：'+label:(manual?'手动：':'自动：')+label;
-  el('trigger-help').textContent=manual?'手动方式仅用于诊断，请与豆包的长按快捷键保持一致。修改后需保存设置。':currentPlatform==='macos'?'默认使用 Fn / 地球仪，需允许主应用及输入代理的辅助功能权限。检测不会发送按键。':automaticShortcut==='hid_right_alt'?'已检测到可访问的 UMDF 组件，使用右 Alt。检测不会发送按键。':'未检测到可访问的 UMDF 组件，使用豆包兼容模式；需要开启豆包悬浮工具栏，当前仅适配默认位置安装的 Windows 1.0.0.23。';
+  el('trigger-help').textContent=manual?'手动方式仅用于诊断，请与豆包的长按快捷键保持一致。修改后需保存设置。':currentPlatform==='macos'?'默认使用 Fn / 地球仪，需允许豆包麦克风使用辅助功能。检测不会发送按键。':automaticShortcut==='hid_right_alt'?'已检测到可访问的 UMDF 组件，使用右 Alt。检测不会发送按键。':'未检测到可访问的 UMDF 组件，使用豆包兼容模式；需要开启豆包悬浮工具栏，当前仅适配默认位置安装的 Windows 1.0.0.23。';
   el('codex-compat-row').hidden=select.value!=='doubao_voice';
   el('codex-compat-help').hidden=select.value!=='doubao_voice';
 }
@@ -50,7 +50,7 @@ async function load(){
   if(automaticShortcut){el('shortcut-advanced-host').append(el('shortcut-row'));el<HTMLInputElement>('shortcut_manual').checked=!!s.shortcut_manual;syncShortcut();}
   const ips=setup.interfaces.map((i:any)=>({value:i.ip,label:`${i.name}${i.ethernet?'（以太网优先）':''} · ${i.ip}`}));if(!ips.some((i:any)=>i.value===s.lan_ip))ips.unshift({value:s.lan_ip,label:s.lan_ip});options('lan_ip',ips,s.lan_ip);
   el('platform').textContent=`系统：${setup.platform.platform}。${setup.platform.native_supported?'原生端可用，仍需豆包实测。':'当前仅可进行模拟测试。'}`;
-  el('permission').textContent=setup.platform.accessibility?'辅助功能权限检查通过。':'需要在系统设置 → 隐私与安全性 → 辅助功能中授权主应用与输入代理。';
+  el('permission').textContent=setup.platform.accessibility?'辅助功能权限检查通过。':mac?'请在系统设置 → 隐私与安全性 → 辅助功能中允许豆包麦克风。':'需要在系统设置 → 隐私与安全性 → 辅助功能中授权。';
   el('fingerprint').textContent=setup.ca_sha256;await devices();
 }
 async function devices(){const list=await api('devices');el('devices').replaceChildren(...list.map((d:any)=>{const row=document.createElement('div'),label=document.createElement('span'),button=document.createElement('button');label.textContent=d.label;button.textContent='撤销配对';button.addEventListener('click',async()=>{try{await api('devices/'+d.id,'DELETE');await devices();notice('设备凭据已撤销。')}catch(e){error(e)}});row.append(label,button);return row}));}
