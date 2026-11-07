@@ -1,12 +1,14 @@
-<img src="assets/icons/doubao-remote.svg" alt="豆包远程" width="72" height="72">
+<img src="assets/icons/doubao-microphone.svg" alt="豆包麦克风" width="72" height="72">
 
-# 豆包远程
+# 豆包麦克风
 
-用手机作为无线麦克风，远程控制电脑上的豆包输入法完成语音输入。把光标放在电脑输入框里，在手机上按住说话，文字就会输入到电脑上。
+**对着手机说话，电脑自动打字。**
+
+把光标放在电脑的输入框里，在手机上按住说话，电脑上的豆包输入法会把语音转成文字。
 
 ## 下载与安装
 
-从发布页下载对应平台的文件。电脑需要安装并启用豆包输入法。[下载 v0.2.7](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.7)
+电脑需要安装并启用豆包输入法。首版安装包通过内部试用交付，后续公开版本见 [GitHub Releases](https://github.com/panjiang/doubao-microphone/releases)。
 
 | 平台 | 安装方式 |
 | --- | --- |
@@ -18,8 +20,8 @@
 ## 首次配置
 
 1. **连接网络。** 手机和电脑连到同一路由器。电脑可以用网线。
-2. **设置麦克风。** Windows 在豆包输入法中选择 `CABLE Output`，在豆包远程中选择 `CABLE Input`。macOS 两边均选择 `BlackHole 2ch`。
-3. **扫描二维码。** 从电脑托盘或菜单栏打开配置页，点击「生成配对二维码」，用豆包远程 App 或手机相机扫描。使用 Safari 时，首次按页面提示安装并信任本机证书。
+2. **设置麦克风。** Windows 在豆包输入法中选择 `CABLE Output`，在豆包麦克风中选择 `CABLE Input`。macOS 两边均选择 `BlackHole 2ch`。
+3. **扫描二维码。** 从电脑托盘或菜单栏打开配置页，点击「生成配对二维码」，用豆包麦克风 App 或手机相机扫描。使用 Safari 时，首次按页面提示安装并信任本机证书。
 
 [查看详细安装与首次配置指南](docs/getting-started.md)
 

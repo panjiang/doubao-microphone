@@ -1,4 +1,4 @@
-package local.doubao.voiceremote
+package local.doubao.microphone
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec

@@ -1,16 +1,16 @@
 #ifndef AppVersion
-#define AppVersion "0.2.7"
+#define AppVersion "0.1.0"
 #endif
 #include "..\artifacts\vendor\vb-cable-45\vbcable.generated.iss"
 #ifdef UmdfTrial
 #include "..\artifacts\umdf-trial\umdf.generated.iss"
 #endif
 [Setup]
-AppId={{BCF882D6-2071-4E38-A957-54E5805439F7}
-AppName=豆包远程
+AppId={{88f8d6f7-3dca-4018-9bf0-d6f4ea807bea}
+AppName=豆包麦克风
 AppVersion={#AppVersion}
-DefaultDirName={localappdata}\Programs\DoubaoRemote
-DefaultGroupName=豆包远程
+DefaultDirName={localappdata}\Programs\DoubaoMicrophone
+DefaultGroupName=豆包麦克风
 UsePreviousAppDir=yes
 UsePreviousGroup=no
 PrivilegesRequired=lowest
@@ -21,12 +21,12 @@ DisableProgramGroupPage=yes
 DisableReadyPage=yes
 ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os
-OutputBaseFilename=DoubaoRemote-Setup-{#AppVersion}-x64-umdf-trial-r2
+OutputBaseFilename=DoubaoMicrophone-Setup-{#AppVersion}-x64-umdf-trial
 #else
 DisableDirPage=auto
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=DoubaoRemote-Setup-{#AppVersion}-x64
+OutputBaseFilename=DoubaoMicrophone-Setup-{#AppVersion}-x64
 #endif
 MinVersion=10.0.22000
 OutputDir=..\dist
@@ -35,36 +35,33 @@ SolidCompression=yes
 ; ExtractVerifiedCable opens the vendor's original ZIP. The enhanced modes only support 7z.
 ArchiveExtraction=full
 LicenseFile=..\artifacts\vendor\vb-cable-45\windows-license.txt
-SetupIconFile=..\assets\icons\doubao-remote.ico
-UninstallDisplayIcon={app}\doubao-remote.exe
+SetupIconFile=..\assets\icons\doubao-microphone.ico
+UninstallDisplayIcon={app}\doubao-microphone.exe
 [Files]
 ; Preserve the vendor's complete original archive, including its original EULA.
 Source: "..\artifacts\vendor\vb-cable-45\VBCABLE_Driver_Pack45.zip"; Flags: dontcopy
 Source: "..\artifacts\vendor\vb-cable-45\vbcable-files.sha256"; Flags: dontcopy
 #ifdef UmdfTrial
-Source: "..\artifacts\umdf-trial\driver\DoubaoRemoteUm.dll"; Flags: dontcopy
-Source: "..\artifacts\umdf-trial\driver\DoubaoRemoteUm.inf"; Flags: dontcopy
-Source: "..\artifacts\umdf-trial\driver\DoubaoRemoteUm.cat"; Flags: dontcopy
-Source: "..\artifacts\umdf-trial\driver\DoubaoRemoteUm.cer"; Flags: dontcopy
+Source: "..\artifacts\umdf-trial\driver\DoubaoMicrophoneUm.dll"; Flags: dontcopy
+Source: "..\artifacts\umdf-trial\driver\DoubaoMicrophoneUm.inf"; Flags: dontcopy
+Source: "..\artifacts\umdf-trial\driver\DoubaoMicrophoneUm.cat"; Flags: dontcopy
+Source: "..\artifacts\umdf-trial\driver\DoubaoMicrophoneUm.cer"; Flags: dontcopy
 Source: "..\artifacts\umdf-trial\driver\install-umdf-trial.exe"; Flags: dontcopy
-Source: "..\artifacts\umdf-trial\doubao-remote.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\artifacts\umdf-trial\doubao-microphone.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\research\windows-umdf\driver\LICENSE"; DestDir: "{app}"; DestName: "UMDF-LICENSE.txt"; Flags: ignoreversion
 #else
-Source: "..\dist\doubao-remote.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\doubao-microphone.exe"; DestDir: "{app}"; Flags: ignoreversion
 #endif
 Source: "..\artifacts\vendor\vb-cable-45\windows-license.txt"; DestDir: "{app}"; DestName: "THIRD-PARTY-LICENSES.txt"; Flags: ignoreversion
 [Icons]
-Name: "{group}\豆包远程"; Filename: "{app}\doubao-remote.exe"; Parameters: "serve --open"
-Name: "{userdesktop}\豆包远程"; Filename: "{app}\doubao-remote.exe"; Parameters: "serve --open"; WorkingDir: "{app}"
+Name: "{group}\豆包麦克风"; Filename: "{app}\doubao-microphone.exe"; Parameters: "serve --open"
+Name: "{userdesktop}\豆包麦克风"; Filename: "{app}\doubao-microphone.exe"; Parameters: "serve --open"; WorkingDir: "{app}"
 [Run]
-Filename: "{app}\doubao-remote.exe"; Parameters: "serve --open"; Description: "打开豆包远程设置"; Flags: nowait postinstall skipifsilent; Check: CanLaunchAfterInstall
+Filename: "{app}\doubao-microphone.exe"; Parameters: "serve --open"; Description: "打开豆包麦克风设置"; Flags: nowait postinstall skipifsilent; Check: CanLaunchAfterInstall
 [UninstallDelete]
-Type: filesandordirs; Name: "{localappdata}\DoubaoRemote\DoubaoRemote\data"
-; Compatibility: remove legacy per-user data only on explicit uninstall.
-Type: filesandordirs; Name: "{localappdata}\DoubaoPTT\DoubaoPTT\data"
+Type: filesandordirs; Name: "{localappdata}\DoubaoMicrophone\DoubaoMicrophone\data"
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "DoubaoRemote"; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "DoubaoPTT"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "DoubaoMicrophone"; Flags: uninsdeletevalue
 
 [Code]
 #ifdef UmdfTrial
@@ -77,43 +74,33 @@ var
 #endif
   AudioNeedsRestart: Boolean;
   VendorLocks: array of TFileStream;
-  UpgradePrepared, HadSettings, HadNewExe, HadNewRun, HadOldRun: Boolean;
-  UpgradeData, NewRunValue, OldRunValue, PreparedAppPath, BackupDir: String;
+  UpgradePrepared, HadSettings, HadNewExe, HadNewRun: Boolean;
+  UpgradeData, NewRunValue, PreparedAppPath, BackupDir: String;
   HadDesktopLink, HadMenuLink: Boolean;
 #ifdef UmdfTrial
   UmdfNeedsRestart: Boolean;
 #endif
 
-{ Legacy names below are for covering existing installations, never display names. }
-function HasData(const Directory: String): Boolean;
-begin
-  Result := FileExists(Directory + '\settings.json') or FileExists(Directory + '\devices.json') or
-    FileExists(Directory + '\ca.pem') or FileExists(Directory + '\ca-key.dpapi') or
-    FileExists(Directory + '\mock-ca-key.pem');
-end;
-
 function PrepareUpgrade: String;
-var Locator, Services, Processes, Process: Variant; I, Number: Integer; Path, OldData, BackupBase: String;
+var Locator, Services, Processes, Process: Variant; I, Number: Integer; Path, BackupBase: String;
 begin
   Result := '';
   if UpgradePrepared and (PreparedAppPath = ExpandConstant('{app}')) then Exit;
   try
     Locator := CreateOleObject('WbemScripting.SWbemLocator');
     Services := Locator.ConnectServer('', 'root\CIMV2');
-    Processes := Services.ExecQuery('SELECT ExecutablePath FROM Win32_Process WHERE Name = ''doubao-ptt.exe'' OR Name = ''doubao-remote.exe''');
+    Processes := Services.ExecQuery('SELECT ExecutablePath FROM Win32_Process WHERE Name = ''doubao-microphone.exe''');
     for I := 0 to Processes.Count - 1 do begin
       Process := Processes.ItemIndex(I);
       if not VarIsNull(Process.ExecutablePath) then begin
         Path := Process.ExecutablePath;
         if CompareText(ExtractFileDir(Path), ExpandConstant('{app}')) = 0 then begin
-          Result := '请先从托盘退出正在运行的豆包远程，再重新安装。'; Exit;
+          Result := '请先从托盘退出正在运行的豆包麦克风，再重新安装。'; Exit;
         end;
       end;
     end;
-    UpgradeData := ExpandConstant('{localappdata}\DoubaoRemote\DoubaoRemote\data');
-    OldData := ExpandConstant('{localappdata}\DoubaoPTT\DoubaoPTT\data');
-    if not HasData(UpgradeData) and HasData(OldData) then UpgradeData := OldData;
-    BackupBase := ExpandConstant('{localappdata}\DoubaoRemote\upgrade-backup\') + GetDateTimeString('yyyymmdd-hhnnss', '-', ':');
+    UpgradeData := ExpandConstant('{localappdata}\DoubaoMicrophone\DoubaoMicrophone\data');
+    BackupBase := ExpandConstant('{localappdata}\DoubaoMicrophone\upgrade-backup\') + GetDateTimeString('yyyymmdd-hhnnss', '-', ':');
     BackupDir := BackupBase;
     Number := 0;
     while DirExists(BackupDir) do begin Number := Number + 1; BackupDir := BackupBase + '-' + IntToStr(Number); end;
@@ -121,14 +108,13 @@ begin
     HadSettings := FileExists(UpgradeData + '\settings.json');
     if HadSettings and not FileCopy(UpgradeData + '\settings.json', BackupDir + '\settings-before.json', False) then
       RaiseException('无法备份原有设置，已停止安装。');
-    HadNewExe := FileExists(ExpandConstant('{app}\doubao-remote.exe'));
-    if HadNewExe and not FileCopy(ExpandConstant('{app}\doubao-remote.exe'), BackupDir + '\previous-remote.exe', False) then
+    HadNewExe := FileExists(ExpandConstant('{app}\doubao-microphone.exe'));
+    if HadNewExe and not FileCopy(ExpandConstant('{app}\doubao-microphone.exe'), BackupDir + '\previous-remote.exe', False) then
       RaiseException('无法备份原程序，已停止安装。');
-    HadOldRun := RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoPTT', OldRunValue);
-    HadNewRun := RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoRemote', NewRunValue);
-    if not SaveStringToFile(BackupDir + '\startup.txt', 'DoubaoPTT=' + OldRunValue + #13#10 + 'DoubaoRemote=' + NewRunValue, False) then RaiseException('无法备份启动项。');
-    HadDesktopLink := FileExists(ExpandConstant('{userdesktop}\豆包远程.lnk'));
-    HadMenuLink := FileExists(ExpandConstant('{group}\豆包远程.lnk'));
+    HadNewRun := RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoMicrophone', NewRunValue);
+    if not SaveStringToFile(BackupDir + '\startup.txt', 'DoubaoMicrophone=' + NewRunValue, False) then RaiseException('无法备份启动项。');
+    HadDesktopLink := FileExists(ExpandConstant('{userdesktop}\豆包麦克风.lnk'));
+    HadMenuLink := FileExists(ExpandConstant('{group}\豆包麦克风.lnk'));
     PreparedAppPath := ExpandConstant('{app}');
     UpgradePrepared := True;
   except
@@ -144,19 +130,16 @@ begin
   end else if FileExists(UpgradeData + '\settings.json') then begin
     if not DeleteFile(UpgradeData + '\settings.json') then Result := False;
   end;
-  if HadOldRun then begin
-    if not RegWriteStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoPTT', OldRunValue) then Result := False;
-  end else RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoPTT');
   if HadNewRun then begin
-    if not RegWriteStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoRemote', NewRunValue) then Result := False;
-  end else RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoRemote');
+    if not RegWriteStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoMicrophone', NewRunValue) then Result := False;
+  end else RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DoubaoMicrophone');
   if HadNewExe then begin
-    if not FileCopy(BackupDir + '\previous-remote.exe', ExpandConstant('{app}\doubao-remote.exe'), False) then Result := False;
-  end else if FileExists(ExpandConstant('{app}\doubao-remote.exe')) then begin
-    if not DeleteFile(ExpandConstant('{app}\doubao-remote.exe')) then Result := False;
+    if not FileCopy(BackupDir + '\previous-remote.exe', ExpandConstant('{app}\doubao-microphone.exe'), False) then Result := False;
+  end else if FileExists(ExpandConstant('{app}\doubao-microphone.exe')) then begin
+    if not DeleteFile(ExpandConstant('{app}\doubao-microphone.exe')) then Result := False;
   end;
-  if not HadDesktopLink then DeleteFile(ExpandConstant('{userdesktop}\豆包远程.lnk'));
-  if not HadMenuLink then DeleteFile(ExpandConstant('{group}\豆包远程.lnk'));
+  if not HadDesktopLink then DeleteFile(ExpandConstant('{userdesktop}\豆包麦克风.lnk'));
+  if not HadMenuLink then DeleteFile(ExpandConstant('{group}\豆包麦克风.lnk'));
 end;
 
 { 0 missing; 1 present/healthy; 2 reboot requested by Windows; -1 query/device error. }
@@ -218,7 +201,7 @@ begin
   LockFileForInstall(ZipPath);
   LockFileForInstall(ManifestPath);
   if CompareText(GetSHA256OfFile(ZipPath), '{#CableZipSHA256}') <> 0 then
-    RaiseException('VB-CABLE 安装包校验失败，请重新获取豆包远程安装包。');
+    RaiseException('VB-CABLE 安装包校验失败，请重新获取豆包麦克风安装包。');
   if CompareText(GetSHA256OfFile(ManifestPath), '{#CableManifestSHA256}') <> 0 then
     RaiseException('VB-CABLE 文件清单校验失败。');
   Directory := ExpandConstant('{tmp}\VB-CABLE');
@@ -250,7 +233,7 @@ begin
   WizardForm.LicenseAcceptedRadio.Caption := '我同意许可、信任证书并安装';
   WizardForm.LicenseNotAcceptedRadio.Caption := '我不同意';
   WizardForm.LicenseMemo.Text :=
-    '豆包远程 · 右 Alt 虚拟键盘试用版' + #13#10#13#10 +
+    '豆包麦克风 · 右 Alt 虚拟键盘试用版' + #13#10#13#10 +
     '安装需要一次 Windows 管理员授权。安装器会安装 UMDF 虚拟键盘，并将其 100 年自签名证书加入本机的受信任根和受信任发布者。缺少 VB-CABLE 时一并安装。' + #13#10#13#10 +
     '证书 SHA-1 指纹：{#UmThumbprint}' + #13#10 +
     '证书有效期至（UTC）：{#UmNotAfter}' + #13#10#13#10 +
@@ -263,7 +246,7 @@ begin
     '本安装包已包含 VB-CABLE，无需另行下载或手动安装。' + #13#10#13#10 +
     '如果电脑没有安装，点击安装后将出现 Windows 管理员授权提示；同意后自动安装，并在结束时提示重启。' + #13#10#13#10 +
     'VB-CABLE 来源：www.vb-cable.com。它是 VB-Audio 的 donationware，欢迎捐赠或购买许可证：shop.vb-audio.com。' + #13#10 +
-    '豆包远程卸载时会保留共享的 VB-CABLE。');
+    '豆包麦克风卸载时会保留共享的 VB-CABLE。');
 #endif
 end;
 
@@ -300,7 +283,7 @@ begin
       if not UmdfNeedsRestart then begin
         Ready := False;
         for Attempt := 1 to 12 do begin
-          if Exec(ExpandConstant('{app}\doubao-remote.exe'), 'check-trial-keyboard',
+          if Exec(ExpandConstant('{app}\doubao-microphone.exe'), 'check-trial-keyboard',
             ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ErrorCode) and (ErrorCode = 0) then begin
             Ready := True;
             Break;
@@ -311,7 +294,7 @@ begin
           RaiseException('当前账户无法访问已安装的 UMDF 虚拟键盘，请重启电脑并重新运行试用安装包。' + TrialDriverRetention);
       end;
 #endif
-      if not Exec(ExpandConstant('{app}\doubao-remote.exe'), 'install-defaults',
+      if not Exec(ExpandConstant('{app}\doubao-microphone.exe'), 'install-defaults',
         ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ErrorCode) then
         RaiseException('无法应用登录启动设置：' + SysErrorMessage(ErrorCode));
       if ErrorCode <> 0 then RaiseException('无法保存设置。错误码：' + IntToStr(ErrorCode));
@@ -319,14 +302,8 @@ begin
       if RestoreUpgrade then RaiseException('安装配置失败，已恢复原程序及设置。备份：' + BackupDir + '。原因：' + GetExceptionMessage)
       else RaiseException('安装配置失败，回滚未完成。已保留备份，请人工恢复：' + BackupDir + '。原因：' + GetExceptionMessage);
     end;
-    { Remove only the known old product files after new configuration succeeds. }
-    DeleteFile(ExpandConstant('{app}\doubao-ptt.exe'));
-    DeleteFile(ExpandConstant('{userdesktop}\DoubaoPTT.lnk'));
-    DeleteFile(ExpandConstant('{userprograms}\DoubaoPTT\DoubaoPTT.lnk'));
-    DeleteFile(ExpandConstant('{userprograms}\DoubaoPTT\Uninstall DoubaoPTT.lnk'));
-    RemoveDir(ExpandConstant('{userprograms}\DoubaoPTT'));
     DelTree(BackupDir, True, True, True);
-    Log('Current-user startup preference preserved; legacy product entries cleaned.');
+    Log('Current-user startup preference saved.');
   end;
 end;
 
@@ -341,7 +318,7 @@ begin
   Result := '';
   if (State <> 1) and (State <> 2) then begin
     if Details = '' then Details := '安装后未检测到虚拟麦克风。';
-    Result := Details + ' 请重启电脑后重新运行豆包远程安装程序。';
+    Result := Details + ' 请重启电脑后重新运行豆包麦克风安装程序。';
   end else
     AudioNeedsRestart := True;
 end;
@@ -366,7 +343,7 @@ begin
   if State = 2 then AudioNeedsRestart := True;
   InstallCable := State = 0;
   TempPath := ExpandConstant('{tmp}\');
-  Arguments := '"' + TempPath + 'DoubaoRemoteUm.inf" "' + TempPath + 'DoubaoRemoteUm.cer"';
+  Arguments := '"' + TempPath + 'DoubaoMicrophoneUm.inf" "' + TempPath + 'DoubaoMicrophoneUm.cer"';
   try
     try
       WizardForm.PreparingLabel.Caption := '正在准备驱动，请同意 Windows 管理员授权…';
@@ -375,10 +352,10 @@ begin
         Arguments := Arguments + ' --install-cable';
       end;
       ExtractVerifiedTrialFile('install-umdf-trial.exe', '{#UmHelperSHA256}');
-      ExtractVerifiedTrialFile('DoubaoRemoteUm.inf', '{#UmInfSHA256}');
-      ExtractVerifiedTrialFile('DoubaoRemoteUm.dll', '{#UmDllSHA256}');
-      ExtractVerifiedTrialFile('DoubaoRemoteUm.cat', '{#UmCatSHA256}');
-      ExtractVerifiedTrialFile('DoubaoRemoteUm.cer', '{#UmCertificateSHA256}');
+      ExtractVerifiedTrialFile('DoubaoMicrophoneUm.inf', '{#UmInfSHA256}');
+      ExtractVerifiedTrialFile('DoubaoMicrophoneUm.dll', '{#UmDllSHA256}');
+      ExtractVerifiedTrialFile('DoubaoMicrophoneUm.cat', '{#UmCatSHA256}');
+      ExtractVerifiedTrialFile('DoubaoMicrophoneUm.cer', '{#UmCertificateSHA256}');
       if not ShellExec('runas', TempPath + 'install-umdf-trial.exe',
         Arguments, TempPath, SW_HIDE, ewWaitUntilTerminated, ErrorCode) then
         RaiseException('无法获得管理员授权：' + SysErrorMessage(ErrorCode));

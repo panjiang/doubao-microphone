@@ -48,9 +48,9 @@ try {
     if ($LASTEXITCODE) { throw 'release build failed' }
     New-Item -ItemType Directory -Force dist | Out-Null
     if ($UmdfTrial) {
-        Copy-Item target/umdf-trial/release/doubao-remote.exe artifacts/umdf-trial/ -Force
+        Copy-Item target/umdf-trial/release/doubao-microphone.exe artifacts/umdf-trial/ -Force
     } else {
-        Copy-Item target/release/doubao-remote.exe dist/ -Force
+        Copy-Item target/release/doubao-microphone.exe dist/ -Force
     }
     if (!$PortableOnly) {
         $version=[regex]::Match((Get-Content Cargo.toml -Raw),'(?m)^version = "([^"]+)"').Groups[1].Value

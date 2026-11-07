@@ -31,7 +31,7 @@ try {
         if (!$version) { throw 'Cannot read Android versionName' }
         $build=[regex]::Match((Get-Content 'app\build.gradle' -Raw),'versionCode (\d+)').Groups[1].Value
         if (!$build) { throw 'Cannot read Android versionCode' }
-        $apk=Join-Path $dest ('DoubaoRemote-Android-'+$version+'-build'+$build+'-debug.apk')
+        $apk=Join-Path $dest ('DoubaoMicrophone-Android-'+$version+'-build'+$build+'-debug.apk')
         Copy-Item 'app\build\outputs\apk\debug\app-debug.apk' $apk -Force
         Get-FileHash $apk -Algorithm SHA256
     } finally { Pop-Location }

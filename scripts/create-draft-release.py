@@ -45,7 +45,7 @@ def main():
     if not matches:
         # --target also creates a missing tag at precisely the compiled source commit.
         subprocess.run(["gh", "release", "create", tag, "--repo", repo,
-                        "--target", commit, "--title", f"豆包远程 {tag} · 开发预览",
+                        "--target", commit, "--title", f"豆包麦克风 {tag} · 开发预览",
                         "--notes-file", str(notes), "--draft", "--prerelease"], check=True)
     else:
         if matches[0]["target_commitish"] != commit:

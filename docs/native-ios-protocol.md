@@ -16,7 +16,7 @@ http://局域网IPv4:向导端口/setup?token=一次性令牌#v=1&port=HTTPS端�
 
 App 在本地解析整个链接，校验协议、IPv4、端口、单一 ticket、版本、唯一 fragment 字段及 DER 证书；随后直接通过专用信任锚访问 HTTPS，不向 HTTP 地址请求证书，不接受任意证书。浏览器忽略未发送到服务器的 fragment，沿用原 HTTP 首次向导和 Safari 手动安装、信任证书的流程。因此相机与 App 能扫描同一个码，原有信任边界不变。
 
-App 构建 23 继续识别旧版 JSON：`type=doubao_ptt_pair`、`version=1`、`host`、`port`、`ticket`、`ca_der`。旧 App 构建 22 及之前只识别 JSON，使用新统一码前需更新 App；已保存配对凭据与音频协议无需迁移。
+App 仍识别旧版 JSON：`type=doubao_ptt_pair`、`version=1`、`host`、`port`、`ticket`、`ca_der`；已保存配对凭据与音频协议无需迁移。
 
 ## 入口
 

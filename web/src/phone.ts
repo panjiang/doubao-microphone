@@ -8,7 +8,7 @@ type Phase = 'idle' | 'connecting' | 'priming' | 'streaming' | 'draining';
 type Hold = {qualified: boolean; context: AudioContext | null};
 type Capture = {context: AudioContext; stream: MediaStream | null; node: AudioWorkletNode | null};
 type Session = {id: string; action: 'finish' | 'enter'; cancel: boolean};
-let token = localStorage.getItem('ptt-device-token') || '';
+let token = localStorage.getItem('doubao-microphone-device-token') || '';
 const pairTicket = new URLSearchParams(location.hash.slice(1)).get('pair');
 history.replaceState(null, '', location.pathname);
 let phase: Phase = 'idle', hold: Hold | null = null, session: Session | null = null;
@@ -107,7 +107,7 @@ async function ensureSocket(rate: number, attempt: number): Promise<boolean> {
       // A result from the previous hold must not overwrite a new hold's preparation state.
       if (!hold) status(event.status === 'executed' ? '电脑已发送回车。' : event.status === 'skipped' ? '已跳过回车，请在电脑确认输入结果。' : '回车未能完成，请在电脑确认。');
     } else if (event.type === 'error') {
-      if (event.code === 'auth') { token = ''; localStorage.removeItem('ptt-device-token'); }
+      if (event.code === 'auth') { token = ''; localStorage.removeItem('doubao-microphone-device-token'); }
       stop(typeof event.message === 'string' ? event.message : '电脑拒绝了本次输入，请重新按住。');
     }
   });
@@ -233,7 +233,7 @@ async function pair() {
       const response = await fetch(`/pair-result/${pending.id}?poll=${encodeURIComponent(pending.poll)}`, {cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)])});
       const result = await response.json(); if (!response.ok) throw Error(result.error);
       if (result.token) {
-        token = result.token; ticketResolved = true; localStorage.setItem('ptt-device-token', token);
+        token = result.token; ticketResolved = true; localStorage.setItem('doubao-microphone-device-token', token);
         status('配对成功，按住说话即可连接。'); void keepAwake(); return;
       }
     }

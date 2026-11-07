@@ -18,10 +18,10 @@ native = subprocess.check_output(['wslpath', '-w', str(build.resolve())], text=T
 msvc = r'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207'
 sdk = r'C:\Program Files (x86)\Windows Kits\10'
 wdk = r'C:\Users\Administrator\AppData\Local\Temp\doubao-ptt-vhf-research\out\toolchain\wdk\c'
-name = 'DoubaoRemoteUm' if trial else 'DoubaoPTTUm'
+name = 'DoubaoMicrophoneUm' if trial else 'DoubaoPTTUm'
 trial_define = '/DDOUBAO_UMDF_TRIAL' if trial else ''
 if trial:
-    for file in ('DoubaoRemoteUm.inf', 'install-umdf-trial.c'):
+    for file in ('DoubaoMicrophoneUm.inf', 'install-umdf-trial.c'):
         shutil.copy2(source.parents[1] / 'packaging' / file, build / 'driver' / file)
     helper = fr'cl /nologo /TC /std:c17 /MT /O2 /W4 /WX /Fe:install-umdf-trial.exe "{native}\driver\install-umdf-trial.c" /link /DEPENDENTLOADFLAG:0x800 setupapi.lib newdev.lib crypt32.lib cfgmgr32.lib'
 else:

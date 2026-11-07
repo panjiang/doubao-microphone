@@ -1,10 +1,10 @@
 # 安装与首次配置
 
-本指南适用于桌面端 0.2.7、iPhone App 0.1.0（构建 32）和 Android App 0.1.9（构建 10）。
+本指南适用于豆包麦克风首版 0.1.0。iPhone 和 Android 的构建号均为 1。
 
 Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.md)；电脑环境和虚拟音频配置仍使用本指南。
 
-可从 [v0.2.7 Release](https://github.com/panjiang/doubao-remote/releases/tag/v0.2.7) 获取开发预览产物，也可以[从源码构建](development.md)。iOS 真机产物仍需自行签名；下文安装步骤不代表已经完成面向所有用户的正式分发。
+首版安装包通过内部试用交付，也可以[从源码构建](development.md)。安装前请退出旧版，避免占用同一端口。豆包麦克风会创建独立的配置、证书和配对记录，首次使用请重新扫码。iOS 真机产物需要自行开发签名。
 
 ## 准备电脑
 
@@ -28,16 +28,16 @@ Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.
 ### macOS
 
 - 系统基线：macOS 14.2+；已验证 Apple Silicon，Intel 尚未实机验证。
-- 打开构建出的 DMG，运行「安装豆包远程」。缺少 BlackHole 2ch 时，安装器从官方来源获取并校验，再通过系统管理员认证安装；已有设备会复用。
+- 打开构建出的 DMG，运行「安装豆包麦克风」。缺少 BlackHole 2ch 时，安装器从官方来源获取并校验，再通过系统管理员认证安装；已有设备会复用。
 - 按安装器提示处理重启。在豆包和本程序中均选择 **BlackHole 2ch**。
 - 在「系统设置 → 隐私与安全性 → 辅助功能」允许主应用，以及应用包内的输入代理：
 
   ```text
-  /Applications/DoubaoRemote.app
-  /Applications/DoubaoRemote.app/Contents/Resources/DoubaoRemoteInput.app
+  /Applications/DoubaoMicrophone.app
+  /Applications/DoubaoMicrophone.app/Contents/Resources/DoubaoMicrophoneInput.app
   ```
 
-- 豆包远程固定使用 **Fn / 地球仪**。在豆包中将长按快捷键设为 Fn，并切换到豆包输入法，或在豆包中启用全局语音。
+- 豆包麦克风固定使用 **Fn / 地球仪**。在豆包中将长按快捷键设为 Fn，并切换到豆包输入法，或在豆包中启用全局语音。
 
 现有 Mac 产物使用开发签名，尚未完成 Developer ID 公证。正式发行条件与具体实测范围见 [macOS 验证记录](macos-validation.md)。
 
@@ -55,11 +55,11 @@ Android 10+ 原生 APK 的安装与配对见 [Android 说明](../android/README.
 
 ## 配对 iPhone
 
-### 使用豆包远程 App
+### 使用豆包麦克风 App
 
 1. 按 [iOS 构建与安装说明](../ios/README.md)把 App 安装到 iPhone；当前没有 App Store 或 TestFlight 安装入口。
 2. 电脑配置页点击「生成配对二维码」。
-3. 打开「豆包远程」并扫码，配对成功后电脑二维码自动收起。
+3. 打开「豆包麦克风」并扫码，配对成功后电脑二维码自动收起。
 
 App 使用二维码内的证书建立本台电脑的专用信任，不需要安装系统证书。顶部“已配对”表示凭据已保存；实际声音连接在按住时自动建立。
 

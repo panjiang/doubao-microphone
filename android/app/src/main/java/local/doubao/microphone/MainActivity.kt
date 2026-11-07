@@ -1,4 +1,4 @@
-package local.doubao.voiceremote
+package local.doubao.microphone
 
 import android.Manifest
 import android.app.Activity
@@ -38,7 +38,7 @@ class MainActivity : Activity() {
             insets.consumeSystemWindowInsets()
         }
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), dp(8), dp(16), dp(8)) }
-        val title = TextView(this).apply { text = "豆包远程"; textSize = 15f; gravity = Gravity.CENTER_VERTICAL; setTextColor(Color.WHITE); setTypeface(typeface, Typeface.BOLD) }
+        val title = TextView(this).apply { text = "豆包麦克风"; textSize = 15f; gravity = Gravity.CENTER_VERTICAL; setTextColor(Color.WHITE); setTypeface(typeface, Typeface.BOLD) }
         header.addView(title, LinearLayout.LayoutParams(0, dp(40), 1f).apply { gravity = Gravity.CENTER_VERTICAL })
         scan = ImageButton(this).apply {
             setImageDrawable(QrIcon()); setBackgroundColor(Color.TRANSPARENT); setPadding(dp(8), dp(8), dp(8), dp(8))

@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 let destination = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "assets/icons")
 try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
 let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-let iconset = temporary.appendingPathComponent("DoubaoRemote.iconset")
+let iconset = temporary.appendingPathComponent("DoubaoMicrophone.iconset")
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 defer { try? FileManager.default.removeItem(at: temporary) }
 for points in [16, 32, 128, 256, 512] {
@@ -36,7 +36,7 @@ for points in [16, 32, 128, 256, 512] {
     }
 }
 let task = Process(); task.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
-task.arguments = ["-c", "icns", iconset.path, "-o", destination.appendingPathComponent("DoubaoRemote.icns").path]
+task.arguments = ["-c", "icns", iconset.path, "-o", destination.appendingPathComponent("DoubaoMicrophone.icns").path]
 try task.run(); task.waitUntilExit()
 guard task.terminationStatus == 0 else { fatalError("iconutil") }
-print("Generated DoubaoRemote.icns (16–1024px)")
+print("Generated DoubaoMicrophone.icns (16–1024px)")

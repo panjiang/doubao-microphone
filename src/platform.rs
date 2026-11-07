@@ -133,7 +133,7 @@ impl Keyboard {
             #[cfg(target_os = "windows")]
             if key == Shortcut::DoubaoVoice {
                 primed = crate::windows_voice::start_configured(
-                    &std::env::var("DOUBAO_REMOTE_VOICE_OWNER")?,
+                    &std::env::var("DOUBAO_MICROPHONE_VOICE_OWNER")?,
                     codex_empty_compatibility,
                 )?;
             } else {
@@ -170,7 +170,7 @@ impl Keyboard {
         }
         #[cfg(target_os = "windows")]
         if !self.mock && self.held == Some(Shortcut::DoubaoVoice) {
-            return crate::windows_voice::state(&std::env::var("DOUBAO_REMOTE_VOICE_OWNER")?)
+            return crate::windows_voice::state(&std::env::var("DOUBAO_MICROPHONE_VOICE_OWNER")?)
                 .map(Some);
         }
         Ok(None)
@@ -209,7 +209,7 @@ fn native_key(key: Shortcut, down: bool) -> Result<()> {
         };
     }
     if key == Shortcut::DoubaoVoice {
-        let owner = std::env::var("DOUBAO_REMOTE_VOICE_OWNER")?;
+        let owner = std::env::var("DOUBAO_MICROPHONE_VOICE_OWNER")?;
         return if down {
             crate::windows_voice::start(&owner)
         } else {
@@ -325,12 +325,11 @@ pub fn set_autostart(enabled: bool) -> Result<()> {
         let key = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
         if enabled {
             let status = std::process::Command::new("reg.exe")
-                .args(["add", key, "/v", "DoubaoRemote", "/t", "REG_SZ", "/d",
+                .args(["add", key, "/v", "DoubaoMicrophone", "/t", "REG_SZ", "/d",
                        &format!("\"{}\" serve", exe.display()), "/f"]).status()?;
             ensure!(status.success(), "无法修改当前用户登录启动项");
-        }
-        // Legacy Run name is compatibility-only; never leave two startup entries.
-        for name in if enabled { &["DoubaoPTT"][..] } else { &["DoubaoRemote", "DoubaoPTT"][..] } {
+        } else {
+            let name = "DoubaoMicrophone";
             let found = std::process::Command::new("reg.exe").args(["query", key, "/v", name]).output()?;
             if found.status.success() {
                 let status = std::process::Command::new("reg.exe").args(["delete", key, "/v", name, "/f"]).status()?;
@@ -343,18 +342,14 @@ pub fn set_autostart(enabled: bool) -> Result<()> {
     {
         let dir = std::path::PathBuf::from(std::env::var("HOME")?).join("Library/LaunchAgents");
         std::fs::create_dir_all(&dir)?;
-        let path = dir.join("local.doubao-remote.plist");
+        let path = dir.join("local.doubao-microphone.plist");
         if enabled {
             let e = exe.to_string_lossy().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
             let xml = format!(
-                "<?xml version=\"1.0\"?><!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"><plist version=\"1.0\"><dict><key>Label</key><string>local.doubao-remote</string><key>ProgramArguments</key><array><string>{e}</string><string>serve</string></array><key>RunAtLoad</key><true/></dict></plist>"
+                "<?xml version=\"1.0\"?><!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"><plist version=\"1.0\"><dict><key>Label</key><string>local.doubao-microphone</string><key>ProgramArguments</key><array><string>{e}</string><string>serve</string></array><key>RunAtLoad</key><true/></dict></plist>"
             );
             crate::config::atomic_write(&path, xml.as_bytes())?;
         } else if path.exists() { std::fs::remove_file(&path)?; }
-        // The installer unloads the legacy job before launch. Here only remove
-        // its file: unloading from a process started by that job would kill us.
-        let legacy = dir.join("local.doubao-ptt.plist");
-        if legacy.exists() { std::fs::remove_file(legacy)?; }
         Ok(())
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]

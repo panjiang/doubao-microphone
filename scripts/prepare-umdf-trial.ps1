@@ -11,16 +11,16 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $output = if ($OutputDirectory) { $OutputDirectory } else { Join-Path $root 'artifacts\umdf-trial' }
 $driver = Join-Path $output 'driver'
-$subject = 'CN=Doubao Remote UMDF Controlled Trial'
+$subject = 'CN=Doubao Microphone UMDF Controlled Trial'
 
 if ([bool]$SignerThumbprint -eq [bool]$CreateSigner) {
     throw 'Specify exactly one of -CreateSigner or -SignerThumbprint.'
 }
 $files = [ordered]@{
-    UmDll = 'DoubaoRemoteUm.dll'
-    UmInf = 'DoubaoRemoteUm.inf'
-    UmCat = 'DoubaoRemoteUm.cat'
-    UmCertificate = 'DoubaoRemoteUm.cer'
+    UmDll = 'DoubaoMicrophoneUm.dll'
+    UmInf = 'DoubaoMicrophoneUm.inf'
+    UmCat = 'DoubaoMicrophoneUm.cat'
+    UmCertificate = 'DoubaoMicrophoneUm.cer'
     UmHelper = 'install-umdf-trial.exe'
 }
 foreach ($key in @('UmDll','UmInf','UmHelper')) {
@@ -49,7 +49,7 @@ if ($CreateSigner) {
     $cert = Get-Item -LiteralPath "Cert:\CurrentUser\My\$SignerThumbprint"
 }
 if ($cert.Subject -ne $subject -or !$cert.HasPrivateKey -or $cert.NotAfter -le (Get-Date)) {
-    throw 'Expected an active Doubao Remote trial signing certificate with a local private key.'
+    throw 'Expected an active Doubao Microphone trial signing certificate with a local private key.'
 }
 New-Item -ItemType Directory -Force -Path $driver | Out-Null
 foreach ($key in @('UmDll','UmInf','UmHelper')) {

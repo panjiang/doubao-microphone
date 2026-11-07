@@ -11,8 +11,8 @@ import WebSocket from '../web/node_modules/ws/wrapper.mjs';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function port(){const s=net.createServer();await new Promise(r=>s.listen(0,'127.0.0.1',r));const p=s.address().port;await new Promise(r=>s.close(r));return p;}
 const dir=await mkdtemp(join(tmpdir(),'ptt-browser-'));const admin=await port(),mobile=await port(),bootstrap=await port();
-await writeFile(join(dir,'settings.json'),JSON.stringify({computer_name:'豆包远程 · 浏览器测试',lan_ip:'127.0.0.1',admin_port:admin,mobile_port:mobile,bootstrap_port:bootstrap,output_device:'mock',shortcut:'left_alt',warmup_ms:350,autostart:false}));
-const binary=process.env.PTT_BINARY||resolve('target/debug/doubao-remote'+(process.platform==='win32'?'.exe':''));
+await writeFile(join(dir,'settings.json'),JSON.stringify({computer_name:'豆包麦克风 · 浏览器测试',lan_ip:'127.0.0.1',admin_port:admin,mobile_port:mobile,bootstrap_port:bootstrap,output_device:'mock',shortcut:'left_alt',warmup_ms:350,autostart:false}));
+const binary=process.env.PTT_BINARY||resolve('target/debug/doubao-microphone'+(process.platform==='win32'?'.exe':''));
 const edge=process.env.EDGE_PATH||(process.platform==='win32'?'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe':'chromium');
 const bridge=spawn(binary,['--mock','--data-dir',dir,'serve',...(process.platform==='win32'?[]:['--headless'])],{stdio:['ignore','ignore','pipe']});
 let diagnostics='';bridge.stderr.on('data',b=>diagnostics=(diagnostics+b).slice(-4000));

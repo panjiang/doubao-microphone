@@ -11,7 +11,7 @@
 #include <initguid.h>
 #include <devpkey.h>
 
-static const WCHAR hardware_id[] = L"ROOT\\DOUBAOREMOTE_UMDF_TRIAL\0";
+static const WCHAR hardware_id[] = L"ROOT\\DOUBAOMICROPHONE_UMDF_TRIAL\0";
 
 static BOOL trust(HCERTSTORE store, PCCERT_CONTEXT certificate, PCCERT_CONTEXT *added) {
     if (CertAddCertificateContextToStore(store, certificate, CERT_STORE_ADD_NEW, added)) {
@@ -94,7 +94,7 @@ static DWORD install(const WCHAR *inf, const WCHAR *public_certificate) {
     }
 
     if (!found) {
-        if (!SetupDiCreateDeviceInfoW(devices, L"DOUBAOREMOTE_UMDF_TRIAL", &class_guid, NULL,
+        if (!SetupDiCreateDeviceInfoW(devices, L"DOUBAOMICROPHONE_UMDF_TRIAL", &class_guid, NULL,
                 NULL, DICD_GENERATE_ID, &device) ||
             !SetupDiSetDeviceRegistryPropertyW(devices, &device, SPDRP_HARDWAREID,
                 (const BYTE *)hardware_id, sizeof(hardware_id)) ||
@@ -174,7 +174,7 @@ int wmain(int argc, WCHAR **argv) {
     if (!SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32)) return (int)GetLastError();
     BOOL with_cable = argc == 4 && wcscmp(argv[3], L"--install-cable") == 0;
     if (argc != 3 && !with_cable) return ERROR_INVALID_PARAMETER;
-    HANDLE lock = CreateMutexW(NULL, FALSE, L"Global\\DoubaoRemote.UmdfTrial.Setup");
+    HANDLE lock = CreateMutexW(NULL, FALSE, L"Global\\DoubaoMicrophone.UmdfTrial.Setup");
     if (!lock) return (int)GetLastError();
     DWORD wait = WaitForSingleObject(lock, 0);
     DWORD result = ERROR_INSTALL_ALREADY_RUNNING;

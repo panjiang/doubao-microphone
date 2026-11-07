@@ -71,7 +71,7 @@ struct Computer: Codable {
 }
 
 enum PairStore {
-    private static let query:[String:Any]=[kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:"local.doubao-ptt.ios",kSecAttrAccount as String:"computer"]
+    private static let query:[String:Any]=[kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:"local.doubao-microphone.ios",kSecAttrAccount as String:"computer"]
     static func load() throws -> Computer? {
         var q=query;q[kSecReturnData as String]=true;q[kSecMatchLimit as String]=kSecMatchLimitOne
         var result:CFTypeRef?;let status=SecItemCopyMatching(q as CFDictionary,&result)

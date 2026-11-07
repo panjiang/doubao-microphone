@@ -153,16 +153,10 @@ fn network_rank(index: Option<u32>) -> u8 {
     { let _ = index; 1 }
 }
 
-/// Upgrade compatibility: existing installs keep their original path (including
-/// the path-derived macOS Keychain account); no credential files are moved.
 pub fn data_dir(override_path: Option<PathBuf>) -> Result<PathBuf> {
     let p = match override_path {
         Some(path) => path,
-        None => {
-            let current = project_data_dir("DoubaoRemote")?;
-            let legacy = project_data_dir("DoubaoPTT")?;
-            if has_user_data(&current)? || !has_user_data(&legacy)? { current } else { legacy }
-        }
+        None => project_data_dir()?,
     };
     fs::create_dir_all(&p)?;
     #[cfg(unix)]
@@ -173,20 +167,9 @@ pub fn data_dir(override_path: Option<PathBuf>) -> Result<PathBuf> {
     Ok(p)
 }
 
-fn project_data_dir(name: &str) -> Result<PathBuf> {
-    Ok(directories::ProjectDirs::from("local", name, name)
+fn project_data_dir() -> Result<PathBuf> {
+    Ok(directories::ProjectDirs::from("local", "DoubaoMicrophone", "DoubaoMicrophone")
         .context("user data directory unavailable")?.data_local_dir().to_path_buf())
-}
-
-fn has_user_data(dir: &Path) -> Result<bool> {
-    for name in ["settings.json", "devices.json", "ca.pem", "ca-key.dpapi", "mock-ca-key.pem"] {
-        match fs::metadata(dir.join(name)) {
-            Ok(_) => return Ok(true),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-            Err(error) => return Err(error).with_context(|| format!("无法读取现有数据目录：{}", dir.display())),
-        }
-    }
-    Ok(false)
 }
 
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {

@@ -102,7 +102,7 @@ fn bar_for(windows: &[Window], pid: Option<u32>) -> Result<Window> {
 }
 fn property(owner: &str) -> Result<Vec<u16>> {
     uuid::Uuid::parse_str(owner)?;
-    Ok(format!("DoubaoPTT.VoiceOwner.{owner}")
+    Ok(format!("DoubaoMicrophone.VoiceOwner.{owner}")
         .encode_utf16()
         .chain(Some(0))
         .collect())

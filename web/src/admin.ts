@@ -1,8 +1,8 @@
 import './style.css';
 import {initEnvironment} from './environment';
 const el=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
-let token=new URLSearchParams(location.hash.slice(1)).get('token')||sessionStorage.getItem('ptt-admin-token')||'';
-history.replaceState(null,'',location.pathname);if(token)sessionStorage.setItem('ptt-admin-token',token);
+let token=new URLSearchParams(location.hash.slice(1)).get('token')||sessionStorage.getItem('doubao-microphone-admin-token')||'';
+history.replaceState(null,'',location.pathname);if(token)sessionStorage.setItem('doubao-microphone-admin-token',token);
 let config:Record<string,any>,paused=false,active=false,busy=false;
 let automaticShortcut:string|undefined;
 let shortcutLocked=false;
@@ -32,7 +32,7 @@ async function load(){
   const windows=setup.platform.platform==='windows';
   const mac=currentPlatform==='macos',expectedOutput=mac?'BlackHole 2ch':'CABLE Input';
   const cableOutputs=setup.outputs.filter((d:any)=>d.virtual_candidate&&(mac?d.name==='BlackHole 2ch':/^CABLE Input(?:\s*\(|$)/i.test(d.name.trim())));
-  if(windows)el('audio-setup').textContent=cableOutputs.length?'已检测到虚拟麦克风。程序输出使用 CABLE Input，请在豆包中选择 CABLE Output。':'尚未检测到虚拟麦克风。请重新运行 DoubaoRemote 安装包，向导会自动安装；提示需要重启时，请先重启电脑。';
+  if(windows)el('audio-setup').textContent=cableOutputs.length?'已检测到虚拟麦克风。程序输出使用 CABLE Input，请在豆包中选择 CABLE Output。':'尚未检测到虚拟麦克风。请重新运行 DoubaoMicrophone 安装包，向导会自动安装；提示需要重启时，请先重启电脑。';
   const available=windows||mac?setup.outputs.filter((d:any)=>cableOutputs.includes(d)||d.id==='mock'):setup.outputs;
   const singleCable=(windows||mac)&&cableOutputs.length===1;
   const outputValue=(d:any)=>singleCable&&d===cableOutputs[0]?expectedOutput:d.id;

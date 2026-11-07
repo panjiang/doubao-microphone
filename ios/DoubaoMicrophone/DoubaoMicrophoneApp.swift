@@ -1,6 +1,6 @@
 import SwiftUI
 
-@main struct DoubaoRemoteApp:App {
+@main struct DoubaoMicrophoneApp:App {
     @StateObject private var model=AppModel()
     @Environment(\.scenePhase) private var scenePhase
     var body:some Scene {
@@ -16,7 +16,7 @@ struct ContentView:View {
     var body:some View {
         VStack(spacing:0) {
             HStack {
-                Text("豆包远程").font(.system(size:15,weight:.semibold))
+                Text("豆包麦克风").font(.system(size:15,weight:.semibold))
                 Spacer()
                 if model.computer != nil { Button { model.openScanner() } label:{ Image(systemName:"qrcode.viewfinder").font(.system(size:20)) }.accessibilityLabel("重新扫码配对").disabled(model.pairing || model.holding) }
                 Text(model.computer == nil ? "未配对":"已配对").font(.system(size:12)).padding(.horizontal,10).padding(.vertical,6).foregroundStyle(.secondary).background(Color.white.opacity(0.10)).clipShape(Capsule())

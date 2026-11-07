@@ -2,15 +2,15 @@ apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
-    namespace 'local.doubao.voiceremote'
+    namespace 'local.doubao.microphone'
     compileSdk 35
     buildToolsVersion '35.0.0'
     defaultConfig {
-        applicationId 'local.doubao.voiceremote'
+        applicationId 'local.doubao.microphone'
         minSdk 29
         targetSdk 35
-        versionCode 10
-        versionName '0.1.9'
+        versionCode 1
+        versionName '0.1.0'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

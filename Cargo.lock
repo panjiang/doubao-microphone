@@ -680,8 +680,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "doubao-remote"
-version = "0.2.7"
+name = "doubao-microphone"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",

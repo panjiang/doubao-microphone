@@ -11,7 +11,7 @@ def read(url):
     key = hashlib.sha256(url.encode()).hexdigest()
     path = CACHE / key
     if not path.exists():
-        req = urllib.request.Request(url, headers={'User-Agent':'doubao-remote-dependency-check/1'})
+        req = urllib.request.Request(url, headers={'User-Agent':'doubao-microphone-dependency-check/1'})
         data = urllib.request.urlopen(req, timeout=30).read()
         path.write_bytes(data)
     return path.read_bytes()

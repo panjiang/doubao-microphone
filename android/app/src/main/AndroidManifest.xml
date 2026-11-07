@@ -6,7 +6,7 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="true" />
     <application android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules" android:usesCleartextTraffic="false"
-        android:label="豆包远程" android:icon="@mipmap/ic_launcher"
+        android:label="豆包麦克风" android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher" android:theme="@style/AppTheme"
         android:supportsRtl="true">
         <activity android:name=".ScannerActivity" android:exported="false" android:screenOrientation="portrait" />

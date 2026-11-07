@@ -14,7 +14,7 @@ $svg = @'
   </g>
 </svg>
 '@
-[IO.File]::WriteAllText((Join-Path $OutputDirectory 'doubao-remote.svg'), $svg+"`n", [Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText((Join-Path $OutputDirectory 'doubao-microphone.svg'), $svg+"`n", [Text.UTF8Encoding]::new($false))
 $traySvg=$svg
 [IO.File]::WriteAllText((Join-Path $OutputDirectory 'tray.svg'), $traySvg+"`n", [Text.UTF8Encoding]::new($false))
 
@@ -70,7 +70,7 @@ foreach ($size in $sizes) {
     try {
         $bitmap.Save($stream,[Drawing.Imaging.ImageFormat]::Png)
         $frames += ,($stream.ToArray())
-        if ($size -eq 256) { [IO.File]::WriteAllBytes((Join-Path $OutputDirectory 'doubao-remote.png'),$stream.ToArray()) }
+        if ($size -eq 256) { [IO.File]::WriteAllBytes((Join-Path $OutputDirectory 'doubao-microphone.png'),$stream.ToArray()) }
     } finally { $stream.Dispose(); $bitmap.Dispose() }
 }
 
@@ -90,7 +90,7 @@ foreach ($size in @(16,20,24,28,32,40,48,64,128)) {
     } finally { $bitmap.Dispose() }
 }
 
-$file = [IO.File]::Create((Join-Path $OutputDirectory 'doubao-remote.ico'))
+$file = [IO.File]::Create((Join-Path $OutputDirectory 'doubao-microphone.ico'))
 $writer = [IO.BinaryWriter]::new($file)
 try {
     $writer.Write([uint16]0); $writer.Write([uint16]1); $writer.Write([uint16]$sizes.Count)

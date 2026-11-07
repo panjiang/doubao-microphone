@@ -23,7 +23,7 @@ def versions():
     if any(int(part) > 65535 for part in version.split(".")):
         raise ValueError("Desktop version exceeds Windows installer version limits")
     lock = (ROOT / "Cargo.lock").read_text(encoding="utf-8")
-    if not re.search(r'name = "doubao-remote"\nversion = "' + re.escape(version) + '"', lock):
+    if not re.search(r'name = "doubao-microphone"\nversion = "' + re.escape(version) + '"', lock):
         raise ValueError("Cargo.lock package version differs from Cargo.toml")
     for filename in ("web/package.json", "web/package-lock.json"):
         package = json.loads((ROOT / filename).read_text(encoding="utf-8"))
@@ -40,7 +40,7 @@ def versions():
     installer = (ROOT / "packaging/windows.iss").read_text(encoding="utf-8")
     if f'#define AppVersion "{version}"' not in installer:
         raise ValueError("Windows installer fallback version differs from Cargo.toml")
-    project = (ROOT / "ios/DoubaoRemote.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+    project = (ROOT / "ios/DoubaoMicrophone.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
     ios_versions = set(re.findall(r"MARKETING_VERSION = ([\d.]+);", project))
     ios_builds = set(re.findall(r"CURRENT_PROJECT_VERSION = (\d+);", project))
     if len(ios_versions) != 1 or len(ios_builds) != 1:
@@ -81,20 +81,20 @@ def package(kind):
     ASSETS.mkdir(parents=True, exist_ok=True)
     version = values["version"]
     if kind == "windows-x64":
-        installer = ROOT / "dist" / f"DoubaoRemote-Setup-{version}-x64.exe"
+        installer = ROOT / "dist" / f"DoubaoMicrophone-Setup-{version}-x64.exe"
         shutil.copy2(installer, ASSETS / installer.name)
     elif kind.startswith("macos-"):
         arch = kind.removeprefix("macos-")
-        dmg = ROOT / "dist" / f"DoubaoRemote-{version}-macos-{arch}-test.dmg"
+        dmg = ROOT / "dist" / f"DoubaoMicrophone-{version}-macos-{arch}-test.dmg"
         shutil.copy2(dmg, ASSETS / dmg.name)
     elif kind == "ios":
-        prefix = f"DoubaoRemote-iOS-{values['ios_version']}-build{values['ios_build']}"
-        app = ROOT / "ios/build/device/Build/Products/Release-iphoneos/DoubaoRemote.app"
+        prefix = f"DoubaoMicrophone-iOS-{values['ios_version']}-build{values['ios_build']}"
+        app = ROOT / "ios/build/device/Build/Products/Release-iphoneos/DoubaoMicrophone.app"
         subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",
                         str(app), str(ASSETS / f"{prefix}-device-unsigned.zip")], check=True)
     elif kind == "android":
         apk = ROOT / "android/app/build/outputs/apk/debug/app-debug-unsigned.apk"
-        shutil.copy2(apk, ASSETS / f"DoubaoRemote-Android-{values['android_version']}-build{values['android_build']}-unsigned.apk")
+        shutil.copy2(apk, ASSETS / f"DoubaoMicrophone-Android-{values['android_version']}-build{values['android_build']}-unsigned.apk")
     else:
         raise ValueError(f"Unsupported package kind: {kind}")
     values.update(platform=kind, commit=os.environ.get("GITHUB_SHA", "local"),
@@ -129,10 +129,10 @@ def public_asset_names(values=None):
     values = values or versions()
     version = values["version"]
     return [
-        f"DoubaoRemote-{version}-macos-aarch64-test.dmg",
-        f"DoubaoRemote-Android-{values['android_version']}-build{values['android_build']}-debug.apk",
-        f"DoubaoRemote-iOS-{values['ios_version']}-build{values['ios_build']}-device-unsigned.zip",
-        f"DoubaoRemote-Setup-{version}-x64.exe",
+        f"DoubaoMicrophone-{version}-macos-aarch64-test.dmg",
+        f"DoubaoMicrophone-Android-{values['android_version']}-build{values['android_build']}-debug.apk",
+        f"DoubaoMicrophone-iOS-{values['ios_version']}-build{values['ios_build']}-device-unsigned.zip",
+        f"DoubaoMicrophone-Setup-{version}-x64.exe",
     ]
 
 

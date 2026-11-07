@@ -10,7 +10,7 @@
 #include <wchar.h>
 
 #ifdef DOUBAO_UMDF_TRIAL
-#define CONTROL_PRODUCT L"DoubaoRemote UMDF Trial Keyboard"
+#define CONTROL_PRODUCT L"DoubaoMicrophone UMDF Trial Keyboard"
 #else
 #define CONTROL_PRODUCT L"DoubaoPTT UMDF P0 Keyboard"
 #endif

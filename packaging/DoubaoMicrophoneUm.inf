@@ -5,8 +5,8 @@ Signature="$WINDOWS NT$"
 Class=HIDClass
 ClassGuid={745a17a0-74d3-11d0-b6fe-00a0c90f57da}
 Provider=%ProviderString%
-DriverVer=11/06/2026,0.1.0.0
-CatalogFile=DoubaoRemoteUm.cat
+DriverVer=11/07/2026,0.1.0.0
+CatalogFile=DoubaoMicrophoneUm.cat
 PnpLockdown = 1
 
 [DestinationDirs]
@@ -16,7 +16,7 @@ DefaultDestDir = 13
 1=%Disk_Description%,,,
 
 [SourceDisksFiles]
-DoubaoRemoteUm.dll=1
+DoubaoMicrophoneUm.dll=1
 
 ; ================= Device section =====================
 
@@ -24,57 +24,57 @@ DoubaoRemoteUm.dll=1
 %ManufacturerString%=Microsoft, NTamd64.10.0...22000
 
 [Microsoft.NTamd64.10.0...22000]
-%DeviceDesc%=DoubaoRemoteUm, root\DOUBAOREMOTE_UMDF_TRIAL
+%DeviceDesc%=DoubaoMicrophoneUm, root\DOUBAOMICROPHONE_UMDF_TRIAL
 
-[DoubaoRemoteUm.NT]
+[DoubaoMicrophoneUm.NT]
 CopyFiles=UMDriverCopy
 Include=MsHidUmdf.inf
 Needs=MsHidUmdf.NT
 Include=WUDFRD.inf
 Needs=WUDFRD_LowerFilter.NT
 
-[DoubaoRemoteUm.NT.hw]
+[DoubaoMicrophoneUm.NT.hw]
 Include=MsHidUmdf.inf
 Needs=MsHidUmdf.NT.hw
 AddReg=DeviceSecurity
 Include=WUDFRD.inf
 Needs=WUDFRD_LowerFilter.NT.hw
 
-[DoubaoRemoteUm.NT.Services]
+[DoubaoMicrophoneUm.NT.Services]
 Include=MsHidUmdf.inf
 Needs=MsHidUmdf.NT.Services
 Include=WUDFRD.inf
 Needs=WUDFRD_LowerFilter.NT.Services
 
-[DoubaoRemoteUm.NT.Filters]
+[DoubaoMicrophoneUm.NT.Filters]
 Include=WUDFRD.inf
 Needs=WUDFRD_LowerFilter.NT.Filters
 
-[DoubaoRemoteUm.NT.Wdf]
-UmdfService="DoubaoRemoteUm", DoubaoRemoteUm_Install
-UmdfServiceOrder=DoubaoRemoteUm
+[DoubaoMicrophoneUm.NT.Wdf]
+UmdfService="DoubaoMicrophoneUm", DoubaoMicrophoneUm_Install
+UmdfServiceOrder=DoubaoMicrophoneUm
 UmdfKernelModeClientPolicy=AllowKernelModeClients
 UmdfFileObjectPolicy=AllowNullAndUnknownFileObjects
 UmdfMethodNeitherAction=Copy
 UmdfFsContextUsePolicy=CanUseFsContext2
 
-[DoubaoRemoteUm_Install]
+[DoubaoMicrophoneUm_Install]
 UmdfLibraryVersion=2.33
-ServiceBinary="%13%\DoubaoRemoteUm.dll"
+ServiceBinary="%13%\DoubaoMicrophoneUm.dll"
 
 ; ================= copy files =====================
 
 [UMDriverCopy]
-DoubaoRemoteUm.dll
+DoubaoMicrophoneUm.dll
 
 ;---------------------------------------------------------------;
 
 [Strings]
-ProviderString     ="Doubao Remote Trial"
-ManufacturerString ="Doubao Remote Trial"
+ProviderString     ="Doubao Microphone Trial"
+ManufacturerString ="Doubao Microphone Trial"
 ClassName          ="Sample Device"
 Disk_Description   ="HID minidriver (UMDF v2) Installation Disk"
-DeviceDesc         ="Doubao Remote UMDF Trial Keyboard"
+DeviceDesc         ="Doubao Microphone UMDF Trial Keyboard"
 WudfRdDisplayName  ="Windows Driver Foundation - User-mode Driver Framework Reflector"
 
 [DeviceSecurity]

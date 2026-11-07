@@ -185,7 +185,7 @@ ReadDescriptorFromRegistry(
 // to IOCTL_HID_GET_DEVICE_ATTRIBUTES.
 //
 #ifdef DOUBAO_UMDF_TRIAL
-#define HIDMINI_PID             0xFEEE
+#define HIDMINI_PID             0xFEEF
 #else
 #define HIDMINI_PID             0xFEED
 #endif

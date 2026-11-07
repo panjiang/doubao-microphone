@@ -10,10 +10,10 @@ import {randomUUID} from 'node:crypto';
 import {createInterface} from 'node:readline';
 import WebSocket from '../web/node_modules/ws/wrapper.mjs';
 
-const binary=process.env.PTT_BINARY||resolve('target/debug/doubao-remote'+(process.platform==='win32'?'.exe':''));
+const binary=process.env.PTT_BINARY||resolve('target/debug/doubao-microphone'+(process.platform==='win32'?'.exe':''));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function freePort(){const s=net.createServer();await new Promise(r=>s.listen(0,'127.0.0.1',r));const p=s.address().port;await new Promise(r=>s.close(r));return p;}
-const dir=await mkdtemp(join(tmpdir(),'doubao-remote-test-'));
+const dir=await mkdtemp(join(tmpdir(),'doubao-microphone-test-'));
 const admin=await freePort(),mobile=await freePort(),bootstrap=await freePort();
 const config={computer_name:'Integration Test',lan_ip:'127.0.0.1',admin_port:admin,mobile_port:mobile,bootstrap_port:bootstrap,output_device:'mock',shortcut:'left_alt',warmup_ms:350,autostart:false};
 await writeFile(join(dir,'settings.json'),JSON.stringify(config));

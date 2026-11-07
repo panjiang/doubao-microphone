@@ -1,4 +1,4 @@
-package local.doubao.voiceremote
+package local.doubao.microphone
 
 import android.annotation.SuppressLint
 import android.content.Context

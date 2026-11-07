@@ -37,13 +37,15 @@ Environment:
 #define TEST_COLLECTION_REPORT_ID                         0x02
 
 #define MAXIMUM_STRING_LENGTH           (126 * sizeof(WCHAR))
-#define VHIDMINI_MANUFACTURER_STRING    L"DoubaoPTT Research"  
 #ifdef DOUBAO_UMDF_TRIAL
-#define VHIDMINI_PRODUCT_STRING         L"DoubaoRemote UMDF Trial Keyboard"
+#define VHIDMINI_MANUFACTURER_STRING    L"Doubao Microphone Trial"
+#define VHIDMINI_PRODUCT_STRING         L"DoubaoMicrophone UMDF Trial Keyboard"
+#define VHIDMINI_SERIAL_NUMBER_STRING   L"DoubaoMicrophone-UMDF-Trial"
 #else
+#define VHIDMINI_MANUFACTURER_STRING    L"DoubaoPTT Research"
 #define VHIDMINI_PRODUCT_STRING         L"DoubaoPTT UMDF P0 Keyboard"
+#define VHIDMINI_SERIAL_NUMBER_STRING   L"DoubaoPTT-UMDF-P0"
 #endif
-#define VHIDMINI_SERIAL_NUMBER_STRING   L"DoubaoPTT-UMDF-P0"  
 #define VHIDMINI_DEVICE_STRING          L"UMDF Virtual hidmini device"  
 #define VHIDMINI_DEVICE_STRING_INDEX    5
 #include <pshpack1.h>

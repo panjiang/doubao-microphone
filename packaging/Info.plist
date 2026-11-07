@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleName</key><string>DoubaoRemote</string>
-<key>CFBundleDisplayName</key><string>豆包远程</string>
-<key>CFBundleIdentifier</key><string>local.doubao-ptt.app</string>
-<key>CFBundleExecutable</key><string>doubao-remote</string>
-<key>CFBundleIconFile</key><string>DoubaoRemote</string>
-<key>CFBundleVersion</key><string>0.2.7</string>
-<key>CFBundleShortVersionString</key><string>0.2.7</string>
+<key>CFBundleName</key><string>DoubaoMicrophone</string>
+<key>CFBundleDisplayName</key><string>豆包麦克风</string>
+<key>CFBundleIdentifier</key><string>local.doubao-microphone.app</string>
+<key>CFBundleExecutable</key><string>doubao-microphone</string>
+<key>CFBundleIconFile</key><string>DoubaoMicrophone</string>
+<key>CFBundleVersion</key><string>0.1.0</string>
+<key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>LSUIElement</key><true/>
 <key>LSMinimumSystemVersion</key><string>14.2</string>

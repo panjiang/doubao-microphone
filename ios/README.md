@@ -1,4 +1,4 @@
-# 豆包远程 · iPhone App
+# 豆包麦克风 · iPhone App
 
 使用 iPhone 麦克风，远程控制电脑上的豆包输入法。原生 SwiftUI 界面配合 UIKit 触摸区域，最低支持 iOS 18，无第三方运行时依赖。
 
@@ -7,13 +7,13 @@
 ## 使用
 
 1. 在电脑配置页点击「生成配对二维码」。
-2. 打开「豆包远程」，点击「扫码连接电脑」并扫码，无需再在电脑确认。
+2. 打开「豆包麦克风」，点击「扫码连接电脑」并扫码，无需再在电脑确认。
 3. 把电脑光标放入目标输入框，在手机顶栏以下任意位置按住说话。
 4. 圆内松手会结束听写并延迟按 Enter；滑出圆外松手仅完成听写，滑回圆内可恢复回车。
 
 操作圆直径为 180pt，固定在按下位置，边界不随音量或外围波纹变化。顶部标题栏不触发录音。
 
-iPhone App 0.1.0（构建 32）和手机相机可扫描同一个配对二维码。App 在内部信任对应电脑证书。地址、CA 或凭据失效时重新扫码。
+iPhone App 0.1.0（构建 1）和手机相机可扫描同一个配对二维码。App 在内部信任对应电脑证书。地址、CA 或凭据失效时重新扫码。
 
 “已配对”表示已保存电脑凭据，不代表实时连接。按住时自动连接，断线后停止本次输入，下次按住再重连。首次授权时若已松手，授权后重新按住即可。
 
@@ -21,18 +21,18 @@ iPhone App 0.1.0（构建 32）和手机相机可扫描同一个配对二维码�
 
 - 相机只用于扫码，麦克风用于采集声音，局域网权限用于连接电脑。
 - 配对凭据保存在本设备 Keychain，首版保存一台电脑；新配对成功后替换旧记录。
-- 构建 24 起，松手完成尾音处理后关闭麦克风和音频处理定时器，下次按住重新启动；待命不采集、不保存声音。
+- 松手完成尾音处理后关闭麦克风和音频处理定时器，下次按住重新启动；待命不采集、不保存声音。
 - App 在前台保持亮屏，已建立的电脑连接及心跳保持。屏幕常亮与网络连接仍会耗电；进入非活动状态后恢复系统锁屏行为。
 - 切后台、锁屏、来电、音频路由变化或断线会取消当前会话，回到前台后重新按住。
 - 不申请语音识别权限；识别及文字输入由电脑端豆包完成。Enter 由电脑端安排，不能代表应用已经发送消息。
 
 ## 从源码构建
 
-需要带有 iOS 18+ SDK 的 Xcode。本仓库提供可直接打开的 `DoubaoRemote.xcodeproj`，不依赖 XcodeGen、CocoaPods 或 Swift Package 下载。
+需要带有 iOS 18+ SDK 的 Xcode。本仓库提供可直接打开的 `DoubaoMicrophone.xcodeproj`，不依赖 XcodeGen、CocoaPods 或 Swift Package 下载。
 
 ### 使用 Xcode
 
-1. 打开 `ios/DoubaoRemote.xcodeproj`，选择 `DoubaoRemote` target。
+1. 打开 `ios/DoubaoMicrophone.xcodeproj`，选择 `DoubaoMicrophone` target。
 2. 在 Signing & Capabilities 中选择自己的签名团队，首次构建使用可由该团队注册的 Bundle ID。
 3. 连接并解锁 iPhone，按系统提示完成设备信任及开发者模式设置。
 4. 选择目标 iPhone 构建安装。
@@ -48,10 +48,10 @@ iPhone App 0.1.0（构建 32）和手机相机可扫描同一个配对二维码�
 bash build.sh all
 
 # 使用自己的签名配置构建真机版本
-IOS_BUNDLE_ID=com.example.doubaoremote IOS_DEVELOPMENT_TEAM=YOUR_TEAM_ID bash build.sh signed
+IOS_BUNDLE_ID=com.example.doubaomicrophone IOS_DEVELOPMENT_TEAM=YOUR_TEAM_ID bash build.sh signed
 
 # 首次需要 Xcode 管理描述文件及设备注册时
-IOS_BUNDLE_ID=com.example.doubaoremote IOS_DEVELOPMENT_TEAM=YOUR_TEAM_ID IOS_ALLOW_PROVISIONING_UPDATES=1 bash build.sh signed
+IOS_BUNDLE_ID=com.example.doubaomicrophone IOS_DEVELOPMENT_TEAM=YOUR_TEAM_ID IOS_ALLOW_PROVISIONING_UPDATES=1 bash build.sh signed
 
 # 查看设备并安装已签名产物
 xcrun devicectl list devices

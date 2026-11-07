@@ -4,7 +4,7 @@
 )]
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
-use doubao_remote::{
+use doubao_microphone::{
     agent, audio, config, controller::Controller, identity, platform, server, tls, tray,
 };
 use std::{path::PathBuf, sync::Arc, time::Duration};
@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 #[derive(Parser)]
 #[command(
     version,
-    about = "豆包输入法远程控制 · Doubao Input Method Remote Control"
+    about = "豆包麦克风 · Doubao Microphone"
 )]
 struct Args {
     #[arg(long, global = true, help = "开发模拟模式；不产生原生按键和声音")]
@@ -92,7 +92,7 @@ fn main() -> Result<()> {
         .with_writer(std::io::stderr)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "doubao_remote=info".into()),
+                .unwrap_or_else(|_| "doubao_microphone=info".into()),
         )
         .init();
     let runtime = tokio::runtime::Builder::new_multi_thread()

@@ -1,4 +1,4 @@
-package local.doubao.voiceremote
+package local.doubao.microphone
 
 import android.Manifest
 import android.app.Activity

@@ -192,7 +192,7 @@ mod native {
                 .enable_all()
                 .build()?;
             runtime.block_on(async {
-                let audio = doubao_remote::audio::Audio::new(false);
+                let audio = doubao_microphone::audio::Audio::new(false);
                 audio.open("CABLE Input".into(), spec.sample_rate).await?;
                 audio.activate();
                 for frame in samples.chunks((spec.sample_rate / 50) as usize) {
@@ -303,7 +303,7 @@ mod native {
             let host = CreateWindowExW(
                 WINDOW_EX_STYLE(0),
                 w!("STATIC"),
-                w!("DoubaoRemote P0 - empty input test"),
+                w!("DoubaoMicrophone P0 - empty input test"),
                 WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                 bar.rect.left - 650,
                 bar.rect.top - 360,

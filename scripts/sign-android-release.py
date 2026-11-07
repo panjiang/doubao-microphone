@@ -29,7 +29,7 @@ def main():
     data = json.loads(manifest.read_text(encoding="utf-8"))
     if not re.fullmatch(r"\d+\.\d+\.\d+", str(data["android_version"])) or not str(data["android_build"]).isdigit():
         raise RuntimeError("Invalid Android version in build manifest")
-    prefix = f"DoubaoRemote-Android-{data['android_version']}-build{data['android_build']}"
+    prefix = f"DoubaoMicrophone-Android-{data['android_version']}-build{data['android_build']}"
     unsigned = assets / f"{prefix}-unsigned.apk"
     signed = assets / f"{prefix}-debug.apk"
     checksums = dict((line.split("  ", 1)[1], line.split("  ", 1)[0])
