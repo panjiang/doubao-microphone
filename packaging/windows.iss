@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "0.1.0"
+#define AppVersion "0.1.1"
 #endif
 #include "..\artifacts\vendor\vb-cable-45\vbcable.generated.iss"
 #ifdef UmdfTrial
