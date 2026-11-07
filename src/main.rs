@@ -112,6 +112,8 @@ fn main() -> Result<()> {
             let dir = config::data_dir(args.data_dir)?;
             // Per-user single instance: keep this TCP listener for the process lifetime.
             let mut settings = config::Settings::load(&dir)?;
+            let previous_ip = settings.lan_ip;
+            let network_changed = !args.mock && settings.resolve_lan_ip(&config::interfaces());
             if cfg!(any(target_os = "windows", target_os = "macos")) && !args.mock {
                 settings.resolve_shortcut();
             }
@@ -133,6 +135,10 @@ fn main() -> Result<()> {
             let mobile = std::net::TcpListener::bind((settings.lan_ip, settings.mobile_port))
                 .context("手机 HTTPS 端口不可用")?;
             mobile.set_nonblocking(true)?;
+            if network_changed {
+                settings.save(&dir)?;
+                tracing::info!(old_ip=%previous_ip, ip=%settings.lan_ip, interface=?settings.network_interface, "resolved current network address from interface");
+            }
             // Retarget startup only after the single-instance lock and ports are held.
             #[cfg(any(target_os = "windows", target_os = "macos"))]
             if !args.mock { platform::set_autostart(settings.autostart)?; }

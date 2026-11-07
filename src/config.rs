@@ -10,6 +10,9 @@ use std::{
 #[serde(deny_unknown_fields)]
 pub struct Settings {
     pub computer_name: String,
+    #[serde(default)]
+    pub network_interface: Option<String>,
+    #[serde(default = "default_lan_ip")]
     pub lan_ip: Ipv4Addr,
     pub mobile_port: u16,
     pub admin_port: u16,
@@ -32,12 +35,17 @@ fn default_enter_delay() -> u64 {
     1000
 }
 
+fn default_lan_ip() -> Ipv4Addr {
+    Ipv4Addr::LOCALHOST
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
             computer_name: std::env::var("COMPUTERNAME")
                 .or_else(|_| std::env::var("HOSTNAME"))
                 .unwrap_or_else(|_| "我的电脑".into()),
+            network_interface: None,
             lan_ip: interfaces()
                 .into_iter()
                 .next()
@@ -65,6 +73,20 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// Read the selected interface's current address; never use a saved IP to select it.
+    pub fn resolve_lan_ip(&mut self, available: &[Interface]) -> bool {
+        let selected = available.iter()
+            .find(|interface| Some(interface.name.as_str()) == self.network_interface.as_deref())
+            .or_else(|| available.first());
+        let next = selected.map(|interface| interface.ip).unwrap_or(Ipv4Addr::LOCALHOST);
+        let next_interface = selected.map(|interface| interface.name.clone())
+            .or_else(|| self.network_interface.clone());
+        let changed = next != self.lan_ip || next_interface != self.network_interface;
+        self.network_interface = next_interface;
+        self.lan_ip = next;
+        changed
+    }
+
     pub fn resolve_shortcut(&mut self) {
         if let Some(locked) = crate::platform::locked_shortcut() {
             self.shortcut = locked;
@@ -110,9 +132,12 @@ impl Settings {
         serde_json::from_slice(&fs::read(path)?).context("配置损坏，保留原件；请修复 settings.json")
     }
     pub fn save(&self, dir: &Path) -> Result<()> {
+        let mut saved = serde_json::to_value(self)?;
+        // The address is runtime state. Persist only the interface preference.
+        saved.as_object_mut().unwrap().remove("lan_ip");
         atomic_write(
             &dir.join("settings.json"),
-            &serde_json::to_vec_pretty(self)?,
+            &serde_json::to_vec_pretty(&saved)?,
         )
     }
 }
@@ -183,6 +208,73 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::{Interface, Settings};
+    use std::net::Ipv4Addr;
+
+    fn interface(name: &str, ip: Ipv4Addr) -> Interface {
+        Interface { name: name.into(), ip, ethernet: false }
+    }
+
+    #[test]
+    fn startup_reads_a_new_ip_from_the_saved_interface() {
+        let mut settings = Settings {
+            network_interface: Some("en0".into()),
+            lan_ip: Ipv4Addr::new(192, 168, 3, 51), ..Settings::default()
+        };
+        let current = Ipv4Addr::new(192, 168, 3, 8);
+        assert!(settings.resolve_lan_ip(&[
+            interface("en5", Ipv4Addr::new(192, 168, 3, 51)), interface("en0", current),
+        ]));
+        assert_eq!(settings.lan_ip, current);
+        assert_eq!(settings.network_interface.as_deref(), Some("en0"));
+    }
+
+    #[test]
+    fn missing_interface_falls_back_to_an_available_network() {
+        let mut settings = Settings {
+            network_interface: Some("en0".into()), ..Settings::default()
+        };
+        let current = Ipv4Addr::new(10, 0, 0, 2);
+        assert!(settings.resolve_lan_ip(&[interface("en5", current)]));
+        assert_eq!(settings.lan_ip, current);
+        assert_eq!(settings.network_interface.as_deref(), Some("en5"));
+    }
+
+    #[test]
+    fn offline_startup_preserves_interface_and_recovers_on_a_later_start() {
+        let mut settings = Settings {
+            network_interface: Some("en0".into()),
+            lan_ip: Ipv4Addr::new(192, 168, 3, 51), ..Settings::default()
+        };
+        assert!(settings.resolve_lan_ip(&[]));
+        assert_eq!(settings.lan_ip, Ipv4Addr::LOCALHOST);
+        assert_eq!(settings.network_interface.as_deref(), Some("en0"));
+        assert!(!settings.resolve_lan_ip(&[]));
+        let current = Ipv4Addr::new(192, 168, 3, 8);
+        assert!(settings.resolve_lan_ip(&[interface("en0", current)]));
+        assert_eq!(settings.lan_ip, current);
+    }
+
+    #[test]
+    fn settings_file_saves_interface_but_never_ip() {
+        let dir = tempfile::tempdir().unwrap();
+        let settings = Settings {
+            network_interface: Some("en0".into()),
+            lan_ip: Ipv4Addr::new(192, 168, 3, 8), ..Settings::default()
+        };
+        settings.save(dir.path()).unwrap();
+        let saved: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(dir.path().join("settings.json")).unwrap()
+        ).unwrap();
+        assert_eq!(saved["network_interface"], "en0");
+        assert!(saved.get("lan_ip").is_none());
+        let mut loaded = Settings::load(dir.path()).unwrap();
+        let current = Ipv4Addr::new(192, 168, 3, 9);
+        loaded.resolve_lan_ip(&[interface("en0", current)]);
+        assert_eq!(loaded.lan_ip, current);
+        assert_eq!(serde_json::to_value(&loaded).unwrap()["lan_ip"], "192.168.3.9");
+    }
+
     #[test]
     fn old_settings_load_without_enabling_recording_or_codex_compatibility() {
         let mut old = serde_json::to_value(super::Settings::default()).unwrap();

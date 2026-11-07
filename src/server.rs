@@ -204,10 +204,12 @@ async fn write_config(
     Json(mut s): Json<Settings>,
 ) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
-    if cfg!(any(target_os = "windows", target_os = "macos")) && !a.mock
-        && (!s.shortcut_manual || crate::platform::locked_shortcut().is_some()) {
+    if cfg!(any(target_os = "windows", target_os = "macos")) && !a.mock {
         s = tokio::task::spawn_blocking(move || {
-            s.resolve_shortcut();
+            if !s.shortcut_manual || crate::platform::locked_shortcut().is_some() {
+                s.resolve_shortcut();
+            }
+            s.resolve_lan_ip(&crate::config::interfaces());
             s
         }).await?;
     }
@@ -223,12 +225,13 @@ async fn write_config(
     check(!a.mock || !s.autostart, "模拟模式不修改系统登录启动项")?;
     // Network listener identity is immutable during a process lifetime.
     let restart = s.lan_ip != a.initial.lan_ip
+        || s.network_interface != a.initial.network_interface
         || s.mobile_port != a.initial.mobile_port
         || s.admin_port != a.initial.admin_port
         || s.bootstrap_port != a.initial.bootstrap_port;
     a.controller.configure(s.clone(), a.dir.clone()).await?;
     Ok(Json(
-        json!({"saved":true,"restart_required":restart,"reconnect_required":true,"shortcut":s.shortcut}),
+        json!({"saved":true,"restart_required":restart,"reconnect_required":true,"shortcut":s.shortcut,"lan_ip":s.lan_ip,"network_interface":s.network_interface}),
     ))
 }
 async fn setup(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
