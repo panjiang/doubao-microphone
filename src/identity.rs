@@ -153,11 +153,41 @@ impl Identities {
         self.devices = next;
         Ok(())
     }
+    pub fn rename(&mut self, id: Uuid, label: &str) -> Result<()> {
+        let label = label.trim();
+        ensure!(!label.is_empty() && label.chars().count() <= 48
+            && !label.chars().any(char::is_control), "设备名称必须为 1–48 个字符，且不能含换行等控制字符");
+        let mut next = self.devices.clone();
+        let device = next.iter_mut().find(|device| device.id == id)
+            .ok_or_else(|| anyhow::anyhow!("设备不存在或已撤销配对"))?;
+        device.label = label.to_owned();
+        crate::config::atomic_write(&self.path, &serde_json::to_vec_pretty(&next)?)?;
+        self.devices = next;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn rename_preserves_pairing_credentials_and_survives_reload() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut identities = Identities::load(dir.path()).unwrap();
+        let ticket = identities.issue();
+        let (id, poll) = identities.request(&ticket, "iPhone App".into()).unwrap();
+        let token = identities.poll(id, &poll).unwrap().unwrap();
+        identities.rename(id, "  工作手机  ").unwrap();
+        let reloaded = Identities::load(dir.path()).unwrap();
+        assert_eq!(reloaded.authenticate(&token), Some(id));
+        assert_eq!(reloaded.devices()[0].label, "工作手机");
+        assert!(reloaded.devices()[0].token_hash.is_empty());
+        for invalid in [" ", "a\nb", &"名".repeat(49)] {
+            assert!(identities.rename(id, invalid).is_err());
+        }
+        assert!(identities.rename(Uuid::new_v4(), "手机").is_err());
+        assert_eq!(Identities::load(dir.path()).unwrap().devices()[0].label, "工作手机");
+    }
     #[test]
     fn pairing_is_automatic_single_use_and_revocable() {
         let t = tempfile::tempdir().unwrap();

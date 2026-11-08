@@ -20,6 +20,7 @@ pub use crate::recovery::InputState;
 pub struct Status {
     pub phase: Phase,
     pub connected: bool,
+    pub device_id: Option<Uuid>,
     pub paused: bool,
     pub input_state: InputState,
     pub input_recovery_attempts: u8,
@@ -76,6 +77,7 @@ impl Controller {
         let (status_tx, status) = watch::channel(Status {
             phase: Phase::Disconnected,
             connected: false,
+            device_id: None,
             paused: false,
             input_state: InputState::Ready,
             input_recovery_attempts: 0,
@@ -428,6 +430,7 @@ impl Actor {
             let state = Status {
                 phase: self.session.phase,
                 connected: self.device.is_some(),
+                device_id: self.device,
                 paused: self.paused,
                 input_state: self.input_recovery.state,
                 input_recovery_attempts: self.input_recovery.attempts,

@@ -79,10 +79,8 @@ impl Settings {
             .find(|interface| Some(interface.name.as_str()) == self.network_interface.as_deref())
             .or_else(|| available.first());
         let next = selected.map(|interface| interface.ip).unwrap_or(Ipv4Addr::LOCALHOST);
-        let next_interface = selected.map(|interface| interface.name.clone())
-            .or_else(|| self.network_interface.clone());
-        let changed = next != self.lan_ip || next_interface != self.network_interface;
-        self.network_interface = next_interface;
+        // Resolving an address must not change the user's automatic/manual preference.
+        let changed = next != self.lan_ip;
         self.lan_ip = next;
         changed
     }
@@ -237,7 +235,28 @@ mod tests {
         let current = Ipv4Addr::new(10, 0, 0, 2);
         assert!(settings.resolve_lan_ip(&[interface("en5", current)]));
         assert_eq!(settings.lan_ip, current);
-        assert_eq!(settings.network_interface.as_deref(), Some("en5"));
+        assert_eq!(settings.network_interface.as_deref(), Some("en0"));
+        let returned = Ipv4Addr::new(192, 168, 3, 8);
+        settings.resolve_lan_ip(&[interface("en5", current), interface("en0", returned)]);
+        assert_eq!(settings.lan_ip, returned);
+    }
+
+    #[test]
+    fn automatic_network_mode_remains_automatic_after_save_and_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut settings = Settings {
+            network_interface: None, lan_ip: Ipv4Addr::LOCALHOST, ..Settings::default()
+        };
+        let wifi = Ipv4Addr::new(192, 168, 3, 8);
+        settings.resolve_lan_ip(&[interface("en0", wifi)]);
+        assert_eq!(settings.network_interface, None);
+        settings.save(dir.path()).unwrap();
+        let mut reloaded = Settings::load(dir.path()).unwrap();
+        assert_eq!(reloaded.network_interface, None);
+        let ethernet = Ipv4Addr::new(10, 0, 0, 2);
+        reloaded.resolve_lan_ip(&[interface("en5", ethernet), interface("en0", wifi)]);
+        assert_eq!(reloaded.lan_ip, ethernet);
+        assert_eq!(reloaded.network_interface, None);
     }
 
     #[test]

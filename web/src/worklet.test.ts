@@ -2,7 +2,7 @@ import {test} from 'node:test';import assert from 'node:assert/strict';import {r
 test('AudioWorklet discards standby audio, flushes a partial tail, and stops on cancel',()=>{
  let Processor:any;const messages:any[]=[];
  class Base{port={onmessage:(_m:any)=>{},postMessage:(m:any)=>messages.push(m)}}
- vm.runInNewContext(readFileSync(new URL('../public/audio-worklet.js',import.meta.url),'utf8'),{AudioWorkletProcessor:Base,sampleRate:48000,registerProcessor:(_name:string,p:any)=>{Processor=p},Float32Array});
+ vm.runInNewContext(readFileSync(new URL('../public/audio-worklet.js',import.meta.url),'utf8'),{AudioWorkletProcessor:Base,sampleRate:48000,currentTime:0,registerProcessor:(_name:string,p:any)=>{Processor=p},Float32Array});
  const p=new Processor();const input=[[new Float32Array(128).fill(.5)]];const output=[[new Float32Array(128)]];
  p.process(input,output);assert.equal(messages.filter(m=>m.type==='audio').length,0);
  p.port.onmessage({data:{type:'start',id:'a'}});for(let i=0;i<9;i++)p.process(input,output);

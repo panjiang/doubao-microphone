@@ -87,6 +87,9 @@ async fn assets(Path(p): Path<String>) -> Response {
 async fn admin_page() -> Response {
     asset("admin.html")
 }
+async fn settings_page() -> Response {
+    asset("settings.html")
+}
 async fn phone_page() -> Response {
     asset("phone.html")
 }
@@ -148,6 +151,7 @@ fn native_origin(app: &App, h: &HeaderMap, uri: &Uri) -> Result<()> {
 pub fn admin_router(app: Shared) -> Router {
     Router::new()
         .route("/", get(admin_page))
+        .route("/settings", get(settings_page))
         .route("/assets/{*path}", get(assets))
         .route("/api/status", get(status))
         .route("/api/config", get(read_config).put(write_config))
@@ -155,7 +159,7 @@ pub fn admin_router(app: Shared) -> Router {
         .route("/api/environment", get(environment))
         .route("/api/pair-ticket", post(ticket))
         .route("/api/devices", get(list_devices))
-        .route("/api/devices/{id}", delete(revoke))
+        .route("/api/devices/{id}", delete(revoke).patch(rename_device))
         .route("/api/pause", put(pause))
         .route("/api/test-key", post(test_key))
         .layer(axum::extract::DefaultBodyLimit::max(16 * 1024))
@@ -225,7 +229,6 @@ async fn write_config(
     check(!a.mock || !s.autostart, "模拟模式不修改系统登录启动项")?;
     // Network listener identity is immutable during a process lifetime.
     let restart = s.lan_ip != a.initial.lan_ip
-        || s.network_interface != a.initial.network_interface
         || s.mobile_port != a.initial.mobile_port
         || s.admin_port != a.initial.admin_port
         || s.bootstrap_port != a.initial.bootstrap_port;
@@ -294,6 +297,17 @@ fn pairing_url(settings: &Settings, ticket: &str, ca_base64: &str) -> String {
 async fn list_devices(State(a): State<Shared>, h: HeaderMap) -> Api<Json<serde_json::Value>> {
     authorize(&a, &h)?;
     Ok(Json(json!(a.identities.lock().await.devices())))
+}
+#[derive(Deserialize)]
+struct DeviceName {
+    label: String,
+}
+async fn rename_device(
+    State(a): State<Shared>, h: HeaderMap, Path(id): Path<Uuid>, Json(name): Json<DeviceName>,
+) -> Api<Json<serde_json::Value>> {
+    authorize(&a, &h)?;
+    a.identities.lock().await.rename(id, &name.label)?;
+    Ok(Json(json!({"renamed":true})))
 }
 async fn revoke(
     State(a): State<Shared>,
@@ -557,6 +571,7 @@ mod tests {
     fn embedded_web_has_no_external_runtime_dependency() {
         assert!(WEB.get_file("phone.html").is_some());
         assert!(WEB.get_file("admin.html").is_some());
+        assert!(WEB.get_file("settings.html").is_some());
         assert!(WEB.get_file("audio-worklet.js").is_some());
     }
 }

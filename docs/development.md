@@ -41,6 +41,10 @@ cargo build --locked
 
 必须先生成 `web/dist`。修改网页后需要重新构建网页及 Rust 程序，刷新浏览器不会替换已经嵌入二进制的旧资源。
 
+电脑管理界面分为首页 `/` 与独立设置页 `/settings`，沿用同一标签页的管理凭据。首页只展示检查、扫码、连接状态和设备摘要；完整设置、设备管理、高级诊断与帮助在设置页。二维码缓存绑定当前管理会话，往返页面不重新签发未过期二维码。
+
+网页单元测试运行 `npm --prefix web test`。浏览器布局验收运行 `node scripts/admin-smoke.mjs`，默认使用 macOS 的 Google Chrome，可通过 `CHROME_PATH` 指定 Chromium。验收使用隔离浏览器配置和模拟接口，不访问真实麦克风或应用数据，截图写入 `artifacts/admin-ui/`。用 `ADMIN_TEST_PLATFORM=windows node scripts/admin-smoke.mjs` 核对 Windows 的音频设备和触发方式场景，截图写入其 `windows/` 子目录。
+
 在 Windows/macOS 上启动托盘及配置页：
 
 ```sh

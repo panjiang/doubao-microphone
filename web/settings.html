@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>设置 · 豆包麦克风</title></head>
+<body class="admin-page"><main class="admin settings-page">
+<header class="admin-header settings-header"><h1>设置</h1><a class="button-link" href="/" data-home-link>返回首页</a></header>
+<div id="error" class="admin-alert" role="alert" hidden><span id="error-summary"></span><button id="error-details" type="button">查看详情</button></div>
+<p id="notice" class="admin-notice" role="status"></p><p id="mock" class="admin-alert" hidden>模拟模式 · 不产生声音或按键</p>
+<p id="settings-lock" class="admin-alert" hidden>正在听写或测试，请结束后再修改设置。</p>
+<div class="settings-layout">
+<nav class="settings-nav" aria-label="设置分类">
+<a href="#general" data-settings-view="general" aria-current="page">常规</a>
+<a href="#devices" data-settings-view="devices">设备管理</a>
+<a href="#advanced" data-settings-view="advanced">高级与诊断</a>
+<a href="#web-help" data-settings-view="web-help">帮助</a>
+</nav>
+<div class="settings-content">
+<form id="settings">
+<section class="settings-panel" id="general-panel" data-panel="general" aria-labelledby="general-title">
+<h2 id="general-title">常规</h2>
+<div class="setting-rows">
+<label class="setting-row" for="computer_name"><span>电脑名称</span><input id="computer_name" required maxlength="64"></label>
+<label class="setting-row" for="autostart"><span>登录后启动</span><input id="autostart" type="checkbox" role="switch"></label>
+<label class="setting-row" id="network-choice-row" for="network_interface" hidden><span>连接网络</span><select id="network_interface"></select></label>
+<label class="setting-row" id="network-summary-row" for="network-summary"><span>连接网络</span><input id="network-summary" value="正在检测…" readonly></label>
+<div class="setting-row"><span id="audio-label">音频设备</span><div class="setting-control"><select id="output_device" aria-labelledby="audio-label" required></select><input id="output-summary" aria-labelledby="audio-label" readonly hidden><button id="refresh" type="button" class="setting-text-button">刷新</button></div></div>
+<label class="setting-row" id="trigger-summary-row" for="trigger-summary" hidden><span>语音触发方式</span><input id="trigger-summary" readonly></label>
+<div id="shortcut-general-host"><label class="setting-row" id="shortcut-row" for="shortcut"><span>语音触发方式</span><select id="shortcut"></select></label></div>
+</div>
+</section>
+<section class="settings-panel" id="advanced" data-panel="advanced" aria-labelledby="advanced-title" hidden>
+<h2 id="advanced-title">高级与诊断</h2>
+<details class="settings-group"><summary>等待时间与兼容</summary><div class="setting-rows">
+<label class="setting-row" for="warmup_ms"><span>启动等待 <small>100–450 毫秒</small></span><input id="warmup_ms" type="number" min="100" max="450" required></label>
+<label class="setting-row" id="enter-delay-row" for="enter_delay_ms"><span>回车等待 <small>0–5000 毫秒</small></span><input id="enter_delay_ms" type="number" min="0" max="5000" required></label>
+<label class="setting-row" id="codex-compat-row" for="codex_empty_compatibility"><span>Codex 空框兼容</span><input id="codex_empty_compatibility" type="checkbox" role="switch"></label>
+</div><p class="sub" id="codex-compat-help">在 Codex 空白编辑器中先补一个空格，再启动语音；已有文字时不补空格。</p></details>
+<details class="settings-group"><summary>触发测试</summary>
+<div id="trigger-diagnostics" hidden><label class="setting-row" for="shortcut_manual"><span>手动选择触发方式</span><input id="shortcut_manual" type="checkbox" role="switch"></label><div id="shortcut-advanced-host"></div><p class="sub" id="trigger-help"></p></div>
+<button id="test-key" type="button">3 秒后测试触发</button><p class="sub">点击后切换到测试输入框，观察豆包是否启动并在 3 秒后结束语音。</p></details>
+<details class="settings-group"><summary>故障录音</summary><label class="setting-row" for="diagnostic_recording"><span>保存本机诊断录音</span><input id="diagnostic_recording" type="checkbox" role="switch"></label><p class="sub">仅保存在本机 diagnostics 目录，每份最多 30 秒，保留最近 3 次正常和 3 次故障样本，不上传。关闭后停止采集，已有样本可手动删除。</p></details>
+<details class="settings-group"><summary>运行信息</summary><pre id="runtime">正在读取</pre></details>
+</section>
+</form>
+<section class="settings-panel" id="devices-section" data-panel="devices" aria-labelledby="devices" hidden><h2 id="devices">设备管理</h2><p class="sub panel-caption">改名后立即生效，无需重新配对。</p><div id="device-list"></div></section>
+<section class="settings-panel" id="web-help" data-panel="web-help" aria-labelledby="help-title" hidden>
+<h2 id="help-title">帮助</h2>
+<details class="settings-group"><summary>权限与音频设备</summary><p id="permission" class="sub"></p><p id="audio-setup" class="sub">音频设备由安装包准备。无法检测到设备时，请重新运行安装包。</p></details>
+<details class="settings-group"><summary>用手机浏览器配对</summary><p class="sub">用手机相机扫描首页二维码，按手机页面指引安装本机证书，并在 iPhone「设置 → 通用 → 关于本机 → 证书信任设置」开启信任，然后返回输入页配对。App 扫码无需安装系统证书。</p><p class="sub">本机证书 SHA-256：<code id="fingerprint"></code></p></details>
+<details class="settings-group"><summary>系统与组件信息</summary><p id="platform" class="sub"></p><label class="setting-row" for="lan_ip"><span>当前连接地址</span><input id="lan_ip" readonly></label><div class="links"><a href="https://vb-audio.com/Cable/" target="_blank" rel="noreferrer">Windows 音频组件来源</a><a href="https://existential.audio/blackhole/" target="_blank" rel="noreferrer">macOS 音频组件来源</a></div></details>
+</section>
+<div class="settings-footer" id="settings-footer" hidden><span role="status">有未保存的修改</span><div><button id="discard-settings" type="button">放弃修改</button><button id="save-settings" type="submit" form="settings" class="primary" disabled>保存并返回</button></div></div>
+</div></div>
+</main><dialog id="detail-dialog" class="admin-dialog" aria-labelledby="detail-title"><div class="dialog-heading"><h2 id="detail-title"></h2><button id="detail-close" type="button" autofocus>关闭</button></div><p id="detail-text"></p></dialog><script type="module" src="/src/settings.ts"></script></body></html>
