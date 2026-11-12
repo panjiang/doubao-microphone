@@ -51,9 +51,9 @@ impl Default for Settings {
                 .next()
                 .map(|i| i.ip)
                 .unwrap_or(Ipv4Addr::LOCALHOST),
-            mobile_port: 38443,
-            admin_port: 38440,
-            bootstrap_port: 38441,
+            mobile_port: 8843,
+            admin_port: 8840,
+            bootstrap_port: 8841,
             output_device: if cfg!(target_os = "macos") {
                 "BlackHole 2ch"
             } else {

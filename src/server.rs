@@ -552,10 +552,10 @@ mod tests {
         let url=super::pairing_url(&settings,"example-ticket",&STANDARD.encode(certificate));
         let (request,fragment)=url.split_once('#').unwrap();
         let uri:axum::http::Uri=request.parse().unwrap();
-        assert_eq!(uri.authority().unwrap().as_str(),"192.168.1.20:38441");
+        assert_eq!(uri.authority().unwrap().as_str(),"192.168.1.20:8841");
         assert_eq!(uri.path_and_query().unwrap().as_str(),"/setup?token=example-ticket");
         assert!(!request.contains("ca="));
-        let encoded=fragment.strip_prefix("v=1&port=38443&ca=").unwrap();
+        let encoded=fragment.strip_prefix("v=1&port=8843&ca=").unwrap();
         assert_eq!(URL_SAFE_NO_PAD.decode(encoded).unwrap(),certificate);
     }
     use super::*;

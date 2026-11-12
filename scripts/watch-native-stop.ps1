@@ -31,7 +31,7 @@ function Rotate-Traces([string]$prefix) {
 try {
     if (Test-Path -LiteralPath $stopFile) {Remove-Item -LiteralPath $stopFile}
     $uri=[uri](Get-Content -Raw (Join-Path $dataRoot 'admin-url.txt')).Trim()
-    if ($uri.Host -ne '127.0.0.1' -or $uri.Port -ne 38440) {throw 'Unexpected management address.'}
+    if ($uri.Host -ne '127.0.0.1' -or $uri.Port -ne 8840) {throw 'Unexpected management address.'}
     $base=$uri.GetLeftPart([System.UriPartial]::Authority)
     $headers=@{Authorization='Bearer '+$uri.Fragment.Substring(1).Replace('token=','')}
     $bridgeConnection=Get-NetTCPConnection -LocalPort $uri.Port -State Listen | Select-Object -First 1
