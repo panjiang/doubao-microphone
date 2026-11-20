@@ -5,7 +5,7 @@ import AVFoundation
     enum Phase { case idle,connecting,priming,streaming,draining }
     @Published var computer:Computer?
     @Published var status="扫描电脑配置页的配对二维码。"
-    @Published var phase:Phase = .idle
+    @Published var phase:Phase = .idle { didSet { updateScreenAwake() } }
     @Published var level:Double=0
     @Published var scanner=false
     @Published var pairing=false
@@ -19,7 +19,7 @@ import AVFoundation
     private var holdSequence=0
     private var pairClient:PairingClient?
     private var observers:[NSObjectProtocol]=[]
-    @Published private(set) var holding=false
+    @Published private(set) var holding=false { didSet { updateScreenAwake() } }
     private var foreground=false
     @Published private(set) var generation=0
     private var sessionID:UUID?
@@ -47,10 +47,13 @@ import AVFoundation
     }
     func scene(_ state:ScenePhase) {
         foreground=state == .active
-        // Foreground screen policy is independent of microphone/connection lifetime.
-        UIApplication.shared.isIdleTimerDisabled=foreground
+        updateScreenAwake()
         if !foreground { stop("本次输入已结束，返回后请重新按住。") }
         if state == .background { pairTask?.cancel();pairTask=nil;pairClient?.close();pairClient=nil;pairing=false }
+    }
+    private func updateScreenAwake() {
+        // Keep preparation and tail delivery awake; idle sockets do not need it.
+        UIApplication.shared.isIdleTimerDisabled=foreground && (holding || phase != .idle)
     }
     func openScanner() { stop("请扫描电脑配置页的配对二维码。");scanner=true }
     func scan(_ text:String) {

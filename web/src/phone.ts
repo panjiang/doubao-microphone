@@ -19,12 +19,14 @@ let pairAbort: AbortController | null = null;
 let heartbeat: ReturnType<typeof setInterval> | undefined, handshake: ReturnType<typeof setTimeout> | undefined;
 let endTimer: ReturnType<typeof setTimeout> | undefined;
 let socketWait: ((value: boolean) => void) | null = null;
+let wake: WakeLockSentinel | null = null, wakePending = false;
 const status = (value: string) => { el('status').textContent = value; };
 const message = (type: string, values: Record<string, unknown> = {}) => {
   if (ws?.readyState !== WebSocket.OPEN) throw Error('电脑连接已断开');
   ws.send(JSON.stringify({type, ...values}));
 };
 function render() {
+  void keepAwake();
   surface.update(!!token && !pairing, !!hold, phase === 'priming' || phase === 'streaming', phase === 'streaming');
   el('badge').textContent = token ? '已配对' : '未配对';
   el('pair-section').hidden = !pairTicket || ticketResolved;
@@ -179,7 +181,7 @@ surface.onDown = () => {
   try { cancelPendingEnter(); } catch { stop('电脑连接已断开。'); return false; }
   if (phase === 'draining') resumeAfterDrain = true;
   setTimeout(() => { if (hold === pressed) { pressed.qualified = true; void prepare(pressed); } }, 150);
-  void keepAwake(); render(); return true;
+  render(); return true;
 };
 surface.onUp = finishOnly => {
   const pressed = hold; hold = null;
@@ -198,23 +200,29 @@ surface.onUp = finishOnly => {
 };
 surface.onCancel = () => stop('触摸已取消，本次输入已停止。');
 
-// Screen Wake Lock is optional in browsers; it never controls microphone lifetime.
-let wake: WakeLockSentinel | null = null, wakePending = false;
+// Screen Wake Lock follows input activity, not the lifetime of an idle socket.
+const needsScreenAwake = () => !document.hidden && (!!hold || phase !== 'idle');
 async function keepAwake() {
-  if (document.hidden || wake || wakePending || !navigator.wakeLock) return;
+  if (!needsScreenAwake()) {
+    const old = wake; wake = null;
+    if (old) await old.release().catch(() => {});
+    return;
+  }
+  if (wake || wakePending || !navigator.wakeLock) return;
   wakePending = true;
   try {
     const acquired = await navigator.wakeLock.request('screen');
-    if (document.hidden) { await acquired.release(); return; }
+    // A request can finish after release, cancellation or leaving the page.
+    if (!needsScreenAwake()) { await acquired.release(); return; }
     wake = acquired; acquired.addEventListener('release', () => { if (wake === acquired) wake = null; });
   } catch { /* Unsupported or denied by system policy; recording remains available. */ }
   finally { wakePending = false; }
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { pairAbort?.abort(); stop('页面已离开前台，本次输入已停止。'); void wake?.release(); wake = null; }
+  if (document.hidden) { pairAbort?.abort(); stop('页面已离开前台，本次输入已停止。'); }
   else void keepAwake();
 });
-window.addEventListener('pagehide', () => { stop('页面已关闭。'); void wake?.release(); wake = null; });
+window.addEventListener('pagehide', () => stop('页面已关闭。'));
 window.addEventListener('blur', () => stop('页面失去焦点，返回后请重新按住。'));
 window.addEventListener('resize', () => { if (hold || session) stop('页面尺寸已变化，请重新按住。'); });
 el('re-pair').addEventListener('click', () => stop('请用手机相机扫描电脑配置页的配对二维码，打开链接重新配对。'));
@@ -234,7 +242,7 @@ async function pair() {
       const result = await response.json(); if (!response.ok) throw Error(result.error);
       if (result.token) {
         token = result.token; ticketResolved = true; localStorage.setItem('doubao-microphone-device-token', token);
-        status('配对成功，按住说话即可连接。'); void keepAwake(); return;
+        status('配对成功，按住说话即可连接。'); return;
       }
     }
     throw Error('配对超时，请在电脑重新生成二维码。');
@@ -244,6 +252,6 @@ async function pair() {
 el('pair').addEventListener('click', () => { void pair(); });
 void fetch('/info').then(response => response.json()).then(info => { el('computer').textContent = info.computer_name; el('mock').hidden = !info.mock; }).catch(() => status('无法读取电脑信息。'));
 if (token) status('按住说话即可连接电脑。');
-render(); void keepAwake();
+render();
 // Opening a newly scanned link pairs just like the native scanner, including replacing an old credential.
 if (pairTicket) { el('pair-section').hidden = false; void pair(); }

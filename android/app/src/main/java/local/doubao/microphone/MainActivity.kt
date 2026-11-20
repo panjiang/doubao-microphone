@@ -60,6 +60,8 @@ class MainActivity : Activity() {
         render()
     }
     private fun render() {
+        // Idle connections must not prevent the phone's normal screen timeout.
+        surface.keepScreenOn = controller.holding || controller.phase != RemoteController.Phase.IDLE
         badge.text = if (controller.computer == null) "未配对" else "已配对"
         scan.visibility = if (controller.computer == null) View.GONE else View.VISIBLE
         scan.isEnabled = !controller.pairing && !controller.holding
@@ -86,7 +88,7 @@ class MainActivity : Activity() {
         if (requestCode == SCAN_RESULT && resultCode == RESULT_OK) pendingQr = data?.getStringExtra("qr")
     }
     override fun onResume() {
-        super.onResume(); window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        super.onResume()
         if (::controller.isInitialized) {
             controller.foreground(true)
             pendingQr?.let { pendingQr = null; controller.pair(it) }
