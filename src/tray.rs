@@ -90,6 +90,8 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
     let mut tray: Option<TrayIcon> = None;
     #[cfg(target_os = "windows")]
     let mut tray_pixels = 0;
+    let startup_error = std::rc::Rc::new(std::cell::RefCell::new(None));
+    let error_sink = startup_error.clone();
     let mut paused = false;
     let handle = runtime.handle().clone();
     use tao::platform::run_return::EventLoopExtRunReturn;
@@ -115,6 +117,7 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
                     Ok(t) => tray = Some(t),
                     Err(e) => {
                         tracing::error!(error=%e,"tray startup failed");
+                        *error_sink.borrow_mut() = Some(anyhow::Error::new(e));
                         *flow = ControlFlow::Exit;
                     }
                 }
@@ -183,7 +186,8 @@ pub fn run(runtime: &tokio::runtime::Runtime, controller: Controller, url: Strin
             _ => {}
         }
     });
-    Ok(())
+    let error = startup_error.borrow_mut().take();
+    error.map_or(Ok(()), Err)
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]

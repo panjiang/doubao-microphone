@@ -2,6 +2,8 @@
     all(target_os = "windows", not(debug_assertions)),
     windows_subsystem = "windows"
 )]
+mod startup;
+
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
 use doubao_microphone::{
@@ -63,8 +65,38 @@ enum Probe {
     },
 }
 
-fn main() -> Result<()> {
-    let args = Args::parse();
+fn main() -> std::process::ExitCode {
+    let args = match Args::try_parse() {
+        Ok(args) => args,
+        Err(error) => {
+            let code = error.exit_code();
+            let background = std::env::args_os().skip(1).any(|arg| matches!(arg.to_str(),
+                Some("--headless" | "probe" | "input-agent" | "install-defaults" | "check-trial-keyboard")));
+            if code != 0 && !background {
+                startup::show_error(&format!("启动参数无效：\n{error}"));
+            }
+            let _ = error.print();
+            return std::process::ExitCode::from(code as u8);
+        }
+    };
+    let desktop = matches!(args.command, None | Some(Command::Serve { headless: false, .. }));
+    let result = std::panic::catch_unwind(|| run(args)).unwrap_or_else(|panic| {
+        let reason = panic.downcast_ref::<String>().map(String::as_str)
+            .or_else(|| panic.downcast_ref::<&str>().copied())
+            .unwrap_or("未知内部错误");
+        Err(anyhow::anyhow!("启动过程中发生内部错误：{reason}"))
+    });
+    match result {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("豆包麦克风运行失败：{error:#}");
+            if desktop { startup::show_error(&format!("{error:#}")); }
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+
+fn run(args: Args) -> Result<()> {
     if matches!(args.command, Some(Command::InputAgent)) {
         return agent::run(args.mock);
     }
@@ -94,10 +126,10 @@ fn main() -> Result<()> {
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "doubao_microphone=info".into()),
         )
-        .init();
+        .try_init().map_err(|error| anyhow::anyhow!("无法初始化日志：{error}"))?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .build()?;
+        .build().context("无法创建程序运行环境")?;
     match args.command {
         Some(Command::Probe { probe }) => runtime.block_on(probe_run(probe, args.mock)),
         command => {
@@ -109,9 +141,10 @@ fn main() -> Result<()> {
                 args.mock || cfg!(any(target_os = "windows", target_os = "macos")),
                 "native mode supports Windows/macOS only"
             );
-            let dir = config::data_dir(args.data_dir)?;
+            let dir = config::data_dir(args.data_dir).context("无法准备应用数据目录")?;
             // Per-user single instance: keep this TCP listener for the process lifetime.
-            let mut settings = config::Settings::load(&dir)?;
+            let mut settings = config::Settings::load(&dir)
+                .with_context(|| format!("无法读取配置：{}", dir.join("settings.json").display()))?;
             let previous_ip = settings.lan_ip;
             let network_changed = !args.mock && settings.resolve_lan_ip(&config::interfaces());
             if cfg!(any(target_os = "windows", target_os = "macos")) && !args.mock {
@@ -120,37 +153,37 @@ fn main() -> Result<()> {
             #[cfg(target_os = "macos")]
             if !args.mock && !dir.join("settings.json").exists() {
                 // First launch after installation. Preserve explicit saved preferences on upgrades.
-                settings.autostart = std::env::current_exe()?.starts_with("/Applications")
+                settings.autostart = std::env::current_exe().context("无法取得程序路径")?.starts_with("/Applications")
                     || std::env::var_os("HOME").is_some_and(|home| std::env::current_exe().is_ok_and(|exe|exe.starts_with(PathBuf::from(home).join("Applications"))));
-                settings.save(&dir)?;
+                settings.save(&dir).context("无法保存首次启动配置")?;
             }
-            settings.validate()?;
+            settings.validate().context("应用配置无效")?;
             let admin_lock =
                 std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, settings.admin_port))
-                    .context("配置端口已占用；可能已有一个实例运行")?;
-            admin_lock.set_nonblocking(true)?;
+                    .with_context(|| format!("无法监听配置地址 127.0.0.1:{}；请检查端口占用或是否已有实例运行", settings.admin_port))?;
+            admin_lock.set_nonblocking(true).context("无法初始化配置端口")?;
             let bootstrap = std::net::TcpListener::bind((settings.lan_ip, settings.bootstrap_port))
-                .context("证书向导端口不可用")?;
-            bootstrap.set_nonblocking(true)?;
+                .with_context(|| format!("无法监听证书向导地址 {}:{}；请检查端口占用及网卡地址", settings.lan_ip, settings.bootstrap_port))?;
+            bootstrap.set_nonblocking(true).context("无法初始化证书向导端口")?;
             let mobile = std::net::TcpListener::bind((settings.lan_ip, settings.mobile_port))
-                .context("手机 HTTPS 端口不可用")?;
-            mobile.set_nonblocking(true)?;
+                .with_context(|| format!("无法监听手机 HTTPS 地址 {}:{}；请检查端口占用及网卡地址", settings.lan_ip, settings.mobile_port))?;
+            mobile.set_nonblocking(true).context("无法初始化手机 HTTPS 端口")?;
             if network_changed {
-                settings.save(&dir)?;
+                settings.save(&dir).context("无法保存当前网卡配置")?;
                 tracing::info!(old_ip=%previous_ip, ip=%settings.lan_ip, interface=?settings.network_interface, "resolved current network address from interface");
             }
             // Retarget startup only after the single-instance lock and ports are held.
             #[cfg(any(target_os = "windows", target_os = "macos"))]
-            if !args.mock { platform::set_autostart(settings.autostart)?; }
+            if !args.mock { platform::set_autostart(settings.autostart).context("无法设置开机启动")?; }
             let _ = rustls::crypto::ring::default_provider().install_default();
-            let material = runtime.block_on(tls::prepare(&dir, settings.lan_ip, args.mock))?;
+            let material = runtime.block_on(tls::prepare(&dir, settings.lan_ip, args.mock)).context("无法准备手机连接证书")?;
             let controller =
-                runtime.block_on(Controller::spawn(settings.clone(), args.mock, dir.clone()))?;
+                runtime.block_on(Controller::spawn(settings.clone(), args.mock, dir.clone())).context("无法启动音频及输入服务")?;
             let token = identity::secret();
             let url = format!("http://127.0.0.1:{}/#token={token}", settings.admin_port);
             let app = Arc::new(server::App {
                 controller: controller.clone(),
-                identities: Mutex::new(identity::Identities::load(&dir)?),
+                identities: Mutex::new(identity::Identities::load(&dir).context("无法读取已配对设备")?),
                 dir: dir.clone(),
                 admin_token: token,
                 initial: settings,
@@ -186,7 +219,7 @@ fn main() -> Result<()> {
                 // Deliberately printed only for explicit headless use; never put the token in logs.
                 println!("Configuration URL (local access token): {url}");
             }
-            config::atomic_write(&dir.join("admin-url.txt"), url.as_bytes())?;
+            config::atomic_write(&dir.join("admin-url.txt"), url.as_bytes()).context("无法保存配置页入口")?;
             tracing::info!(mock=args.mock,path=%dir.display(),"bridge started");
             if open {
                 let _ = webbrowser::open(&url);
@@ -199,7 +232,7 @@ fn main() -> Result<()> {
             if headless {
                 runtime.block_on(async{tokio::select!{_=tokio::signal::ctrl_c()=>{},r=mobile_task=>{tracing::error!(result=?r,"HTTPS listener stopped");}}});
             } else {
-                tray::run(&runtime, controller.clone(), url)?;
+                tray::run(&runtime, controller.clone(), url).context("无法启动桌面托盘")?;
             }
             runtime.block_on(controller.shutdown());
             stop_tls.graceful_shutdown(Some(Duration::from_secs(1)));

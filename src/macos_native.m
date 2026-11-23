@@ -8,6 +8,19 @@
 
 typedef struct { AXUIElementRef window; AXUIElementRef focus; pid_t pid; } PTTTarget;
 
+void ptt_mac_show_startup_error(const char *message) {
+    @autoreleasepool {
+        [NSApplication sharedApplication];
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.alertStyle = NSAlertStyleCritical;
+        alert.messageText = @"豆包麦克风启动失败";
+        alert.informativeText = [NSString stringWithUTF8String:message];
+        [alert addButtonWithTitle:@"确定"];
+        [NSApp activateIgnoringOtherApps:YES];
+        [alert runModal];
+    }
+}
+
 bool ptt_mac_request_accessibility(void) {
     NSDictionary *options = @{(__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES};
     bool trusted = AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
